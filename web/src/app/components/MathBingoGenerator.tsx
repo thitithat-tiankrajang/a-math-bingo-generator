@@ -25,7 +25,6 @@ export default function MathBingoGenerator() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      // เรียกใช้ function logic ที่คุณจะเขียนเอง
       const generatedResult = await generateMathBingo(options);
       setResult(generatedResult);
     } catch (error) {
