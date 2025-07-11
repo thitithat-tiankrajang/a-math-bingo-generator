@@ -90,8 +90,6 @@ function generateRandomTokens(options: MathBingoOptions): EquationElement[] {
       originalToken: token as AmathToken
     });
 
-    // ลด count ของ token นี้
-    const tokenInfo = AMATH_TOKENS[token as AmathToken];
     const currentCount = availableTokens.filter(t => t === token).length;
     if (currentCount <= 1) {
       availableTokens.splice(randomIndex, 1);
@@ -159,7 +157,7 @@ function findValidEquations(tokens: EquationElement[]): string[] {
         validEquations.push(equation);
         if (validEquations.length >= 10) break; // จำกัดจำนวนที่ตรวจสอบ
       }
-    } catch (error) {
+    } catch {
       // ข้ามถ้ามีข้อผิดพลาด
       continue;
     }
@@ -188,13 +186,13 @@ function createEquationFromTokens(tokens: AmathToken[]): string | null {
 
     // จัดการ choice tokens
     if (tokenInfo.type === 'choice') {
-      const choiceResult = handleChoiceToken(token, lastTokenType);
+      const choiceResult = handleChoiceToken(token);
       if (!choiceResult) return null;
       equation += choiceResult;
     } 
     // จัดการ wildcard
     else if (tokenInfo.type === 'wildcard') {
-      const wildcardResult = handleWildcardToken(lastTokenType, tokens, i);
+      const wildcardResult = handleWildcardToken(lastTokenType);
       if (!wildcardResult) return null;
       equation += wildcardResult;
     }
@@ -254,7 +252,7 @@ function canConnectTokens(lastType: string, currentType: string, currentEquation
 /**
  * จัดการ choice token (+/- หรือ ×/÷)
  */
-function handleChoiceToken(token: AmathToken, lastType: string): string | null {
+function handleChoiceToken(token: AmathToken): string | null {
   if (token === '+/-') {
     return Math.random() < 0.5 ? '+' : '-';
   } else if (token === '×/÷') {
@@ -266,7 +264,7 @@ function handleChoiceToken(token: AmathToken, lastType: string): string | null {
 /**
  * จัดการ wildcard token (?)
  */
-function handleWildcardToken(lastType: string, tokens: AmathToken[], currentIndex: number): string | null {
+function handleWildcardToken(lastType: string): string | null {
   // เลือก token ที่เหมาะสมตาม context
   const suitableTokens: AmathToken[] = [];
   
@@ -339,7 +337,7 @@ function isValidEquation(equation: string): boolean {
     const rightValue = evaluateExpression(rightSide);
 
     return Math.abs(leftValue - rightValue) < 0.0001; // ป้องกัน floating point error
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -349,12 +347,12 @@ function isValidEquation(equation: string): boolean {
  */
 function evaluateExpression(expr: string): number {
   // แทนที่เครื่องหมายเอแม็ท
-  let processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
+  const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
   
   try {
     // ใช้ Function constructor เพื่อความปลอดภัย
     return Function('"use strict"; return (' + processedExpr + ')')();
-  } catch (error) {
+  } catch {
     throw new Error('Invalid expression');
   }
 }
@@ -399,7 +397,7 @@ export function canFormValidEquation(elements: string[]): boolean {
     
     const equations = findValidEquations(tokens);
     return equations.length > 0;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -416,7 +414,7 @@ export function findAllPossibleEquations(elements: string[]): string[] {
     }));
     
     return findValidEquations(tokens);
-  } catch (error) {
+  } catch {
     return [];
   }
 }
