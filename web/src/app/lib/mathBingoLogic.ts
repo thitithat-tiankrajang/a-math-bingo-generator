@@ -58,7 +58,7 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
           possibleEquations: equations.slice(0, 5) // แสดงสูงสุด 5 สมการ
         };
       }
-    } catch (error) {
+    } catch {
       // ลองใหม่
     }
     attempts++;
