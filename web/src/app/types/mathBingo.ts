@@ -12,9 +12,19 @@ export interface MathBingoOptions {
     possibleEquations?: string[]; // สมการที่เป็นไปได้ทั้งหมด (ถ้าต้องการ)
   }
   
-  export type MathOperator = '+' | '-' | '*' | '/';
+  export type AmathToken = 
+    | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+    | '10' | '11' | '12' | '13' | '14' | '15' | '16' | '17' | '18' | '19' | '20'
+    | '+' | '-' | '×' | '÷' | '+/-' | '×/÷' | '=' | '?';
+  
+  export interface AmathTokenInfo {
+    token: AmathToken;
+    count: number;
+    type: 'lightNumber' | 'heavyNumber' | 'operator' | 'choice' | 'equals' | 'wildcard';
+  }
   
   export interface EquationElement {
-    type: 'number' | 'operator' | 'equals';
+    type: 'number' | 'operator' | 'equals' | 'choice' | 'wildcard';
     value: string;
+    originalToken: AmathToken;
   }
