@@ -331,7 +331,7 @@ function isValidTokenStructure(tokens: string[]): boolean {
     }
     // ตรวจสอบเลข 0 ห้ามติดกับ -
     if (current === '0') {
-      if (next === '-' || prev === '-') {
+      if ( prev === '-') {
         return false;
       }
     }
