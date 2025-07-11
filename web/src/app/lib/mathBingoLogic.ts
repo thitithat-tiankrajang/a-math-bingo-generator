@@ -226,15 +226,19 @@ function createEquationFromPermutation(tokens: AmathToken[]): string | null {
 function combineLightNumbers(tokens: string[]): string[] {
   const result: string[] = [];
   let i = 0;
-  
   while (i < tokens.length) {
     const token = tokens[i];
-    
+    // ถ้าเป็นเลขหนัก ห้าม combine กับเลขเบา
+    if (isHeavyNumber(token)) {
+      result.push(token);
+      i++;
+      continue;
+    }
+    // ถ้าเป็นเลขเบา
     if (isLightNumber(token)) {
       let combinedNumber = token;
       let j = i + 1;
-      
-      // รวมตัวเลขเบาติดกันได้มากสุด 3 หลัก
+      // รวมเฉพาะเลขเบาติดกัน ไม่เกิน 3 หลัก และห้ามมีเลขหนักติดกัน
       while (j < tokens.length && j - i < 3 && isLightNumber(tokens[j])) {
         // ตรวจสอบว่าไม่ใช่ 0 นำหน้า
         if (combinedNumber === '0' && tokens[j] !== '0') {
@@ -243,7 +247,6 @@ function combineLightNumbers(tokens: string[]): string[] {
         combinedNumber += tokens[j];
         j++;
       }
-      
       // ถ้า 0 อยู่ข้างหน้าและมีตัวเลขตามมา ให้ใช้แค่ 0
       if (combinedNumber.startsWith('0') && combinedNumber.length > 1) {
         result.push('0');
@@ -257,17 +260,15 @@ function combineLightNumbers(tokens: string[]): string[] {
       i++;
     }
   }
-  
   // ตรวจสอบเพิ่มเติม: 0 ห้ามติดกับ -
   for (let i = 0; i < result.length - 1; i++) {
     if (result[i] === '0' && result[i + 1] === '-') {
-      return []; // return empty array เพื่อบอกว่าไม่ valid
+      return [];
     }
     if (result[i] === '-' && result[i + 1] === '0') {
-      return []; // return empty array เพื่อบอกว่าไม่ valid
+      return [];
     }
   }
-  
   return result;
 }
 
@@ -298,33 +299,38 @@ function isOperator(token: string): boolean {
  */
 function isValidTokenStructure(tokens: string[]): boolean {
   if (tokens.length < 3) return false;
-  
   // ต้องมี = อย่างน้อย 1 ตัว
   if (!tokens.includes('=')) return false;
-  
   for (let i = 0; i < tokens.length; i++) {
     const current = tokens[i];
     const next = tokens[i + 1];
     const prev = tokens[i - 1];
-    
     // ตรวจสอบกฎการติดกัน
     if (isHeavyNumber(current)) {
-      // เลขหนักต้องติดกับเครื่องหมายเท่านั้น
-      if (prev && !isOperator(prev) && prev !== '=') {
+      // เลขหนักต้องติดกับเครื่องหมายเท่านั้น และห้ามติดกับเลขเบา
+      if (prev && !isOperator(prev) && prev !== '=' && !isHeavyNumber(prev)) {
         return false;
       }
-      if (next && !isOperator(next) && next !== '=') {
+      if (next && !isOperator(next) && next !== '=' && !isHeavyNumber(next)) {
+        return false;
+      }
+      // เลขหนักห้ามติดกับเลขเบา
+      if ((prev && isLightNumber(prev)) || (next && isLightNumber(next))) {
         return false;
       }
     }
-    
+    // เลขเบาห้ามติดกับเลขหนัก
+    if (isLightNumber(current)) {
+      if ((prev && isHeavyNumber(prev)) || (next && isHeavyNumber(next))) {
+        return false;
+      }
+    }
     // ตรวจสอบเลข 0 ห้ามติดกับ -
     if (current === '0') {
       if (next === '-' || prev === '-') {
         return false;
       }
     }
-    
     if (isOperator(current)) {
       // เครื่องหมายห้ามติดกัน ยกเว้น =- 
       if (isOperator(next) && !(current === '=' && next === '-')) {
@@ -333,17 +339,14 @@ function isValidTokenStructure(tokens: string[]): boolean {
       if (isOperator(prev) && !(prev === '=' && current === '-')) {
         return false;
       }
-      
       // + ห้ามอยู่ต้นสมการ
       if (current === '+' && i === 0) {
         return false;
       }
-      
       // + ห้ามอยู่หลัง =
       if (current === '+' && prev === '=') {
         return false;
       }
-      
       // - ห้ามติดกับ 0
       if (current === '-') {
         if (next === '0' || prev === '0') {
@@ -351,7 +354,6 @@ function isValidTokenStructure(tokens: string[]): boolean {
         }
       }
     }
-    
     if (current === '=') {
       // = ห้ามอยู่ต้นหรือท้ายสมการ
       if (i === 0 || i === tokens.length - 1) {
@@ -359,7 +361,6 @@ function isValidTokenStructure(tokens: string[]): boolean {
       }
     }
   }
-  
   return true;
 }
 
