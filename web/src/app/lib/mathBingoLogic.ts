@@ -227,21 +227,21 @@ function combineLightNumbers(tokens: string[]): string[] {
   let i = 0;
   while (i < tokens.length) {
     const token = tokens[i];
-    // ถ้าเป็นเลขหนัก ห้าม combine กับเลขเบา
+    // เลขหนักต้องแยกเดี่ยวเสมอ
     if (isHeavyNumber(token)) {
       result.push(token);
       i++;
       continue;
     }
-    // ถ้าเป็นเลขเบา
+    // combine เฉพาะเลขเบาติดกันเท่านั้น
     if (isLightNumber(token)) {
       let combinedNumber = token;
       let j = i + 1;
-      // รวมเฉพาะเลขเบาติดกัน ไม่เกิน 3 หลัก และห้ามมีเลขหนักติดกัน
+      // รวมเฉพาะเลขเบาติดกัน ไม่เกิน 3 หลัก
       while (j < tokens.length && j - i < 3 && isLightNumber(tokens[j])) {
-        // ตรวจสอบว่าไม่ใช่ 0 นำหน้า
+        // ไม่ให้ 0 นำหน้าตัวเลขอื่น
         if (combinedNumber === '0' && tokens[j] !== '0') {
-          break; // ไม่ให้ 0 นำหน้าตัวเลขอื่น
+          break;
         }
         combinedNumber += tokens[j];
         j++;
@@ -255,6 +255,7 @@ function combineLightNumbers(tokens: string[]): string[] {
         i = j;
       }
     } else {
+      // อื่น ๆ (operator, =, wildcard, choice)
       result.push(token);
       i++;
     }
@@ -315,6 +316,10 @@ function isValidTokenStructure(tokens: string[]): boolean {
       }
       // เลขหนักห้ามติดกับเลขเบา
       if ((prev && isLightNumber(prev)) || (next && isLightNumber(next))) {
+        return false;
+      }
+      // เลขหนักห้ามติดกับเลขหนัก
+      if ((prev && isHeavyNumber(prev)) || (next && isHeavyNumber(next))) {
         return false;
       }
     }
