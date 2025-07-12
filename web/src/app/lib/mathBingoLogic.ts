@@ -692,8 +692,8 @@ export function validateMathBingoOptions(options: MathBingoOptions): string | nu
   
   // ตรวจสอบตัวเลข
   const availableNumbers = Object.entries(AMATH_TOKENS)
-    .filter(([_, info]) => info.type === 'lightNumber' || info.type === 'heavyNumber')
-    .reduce((sum, [_, info]) => sum + info.count, 0);
+    .filter(([, info]) => info.type === 'lightNumber' || info.type === 'heavyNumber')
+    .reduce((sum, [, info]) => sum + info.count, 0);
   if (numberCount > availableNumbers) {
     return `จำนวนตัวเลขที่ขอ (${numberCount}) เกินจำนวนที่มี (${availableNumbers})`;
   }
