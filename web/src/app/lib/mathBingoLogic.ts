@@ -86,7 +86,7 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
         validEquations.push(equation);
         if (validEquations.length >= 20) break; // หยุดเมื่อพบ 20 สมการ
       }
-    } catch (error) {
+    } catch {
       // Skip invalid permutations
       continue;
     }
@@ -370,14 +370,14 @@ function isOperator(token: string): boolean {
 /**
  * Handle choice tokens (+/- or ×/÷)
  */
-function handleChoiceToken(token: AmathToken): string | null {
-  if (token === '+/-') {
-    return Math.random() < 0.5 ? '+' : '-';
-  } else if (token === '×/÷') {
-    return Math.random() < 0.5 ? '×' : '÷';
-  }
-  return null;
-}
+// function handleChoiceToken(token: AmathToken): string | null {
+//   if (token === '+/-') {
+//     return Math.random() < 0.5 ? '+' : '-';
+//   } else if (token === '×/÷') {
+//     return Math.random() < 0.5 ? '×' : '÷';
+//   }
+//   return null;
+// }
 
 /**
  * Validate MathBingo options
