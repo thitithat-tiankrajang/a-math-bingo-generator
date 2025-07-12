@@ -357,7 +357,7 @@ function evaluateExpressionAsFraction(expression: string): Fraction | null {
         return { numerator: parseInt(expression), denominator: 1 };
       }
       
-      // แปลงนิพจน์ที่ซับซ้อนเป็นเศษส่วน (คำนวณจากซ้ายไปขวา)
+      // แปลงนิพจน์ที่ซับซ้อนเป็นเศษส่วน (คำนวณตามลำดับความสำคัญ)
       return evaluateLeftToRight(expression);
     } catch {
       return null;
@@ -365,56 +365,87 @@ function evaluateExpressionAsFraction(expression: string): Fraction | null {
 }
 
 /**
- * คำนวณนิพจน์จากซ้ายไปขวาตามลำดับ Operator Precedence
+ * คำนวณนิพจน์ตามลำดับความสำคัญ (คูณหารก่อน บวกลบทีหลัง)
  */
 function evaluateLeftToRight(expression: string): Fraction | null {
-    try {
-      // แยก tokens (numbers และ operators)
-      const tokens = tokenizeExpression(expression);
-      if (!tokens || tokens.length === 0) return null;
-      
-      // ตรวจสอบว่าเริ่มต้นด้วยตัวเลข
-      if (isNaN(parseInt(tokens[0]))) return null;
-      
-      // เริ่มต้นด้วยตัวเลขแรก
-      let result: Fraction = { numerator: parseInt(tokens[0]), denominator: 1 };
-      
-      // คำนวณจากซ้ายไปขวา (left-to-right evaluation)
-      for (let i = 1; i < tokens.length; i += 2) {
-        const operator = tokens[i];
-        const nextNumberStr = tokens[i + 1];
-        
-        if (!nextNumberStr || isNaN(parseInt(nextNumberStr))) {
-          return null; // Invalid expression
-        }
-        
-        const nextNumber: Fraction = { numerator: parseInt(nextNumberStr), denominator: 1 };
-        
-        // ดำเนินการตาม operator
-        switch (operator) {
-          case '+':
-            result = addFractions(result, nextNumber);
-            break;
-          case '-':
-            result = subtractFractions(result, nextNumber);
-            break;
-          case '×':
-            result = multiplyFractions(result, nextNumber);
-            break;
-          case '÷':
-            // ตรวจสอบการหารด้วย 0
-            if (nextNumber.numerator === 0) return null;
-            result = divideFractions(result, nextNumber);
-            break;
-          default:
-            return null; // Unknown operator
-        }
+  try {
+    // แยก tokens (numbers และ operators)
+    const tokens = tokenizeExpression(expression);
+    if (!tokens || tokens.length === 0) return null;
+    
+    // ตรวจสอบว่าเริ่มต้นด้วยตัวเลข
+    if (isNaN(parseInt(tokens[0]))) return null;
+    
+    // แปลงตัวเลขเป็นเศษส่วน
+    const numbers: Fraction[] = [];
+    const operators: string[] = [];
+    
+    for (let i = 0; i < tokens.length; i++) {
+      if (i % 2 === 0) {
+        // ตำแหน่งคู่ = ตัวเลข
+        const num = parseInt(tokens[i]);
+        if (isNaN(num)) return null;
+        numbers.push({ numerator: num, denominator: 1 });
+      } else {
+        // ตำแหน่งคี่ = operator
+        operators.push(tokens[i]);
       }
-      
-      return result;
-    } catch {
-      return null;
     }
+    
+    // ตรวจสอบว่า operators มีจำนวนถูกต้อง
+    if (operators.length !== numbers.length - 1) return null;
+    
+    // Step 1: ทำคูณหารก่อน (จากซ้ายไปขวา)
+    const processedNumbers: Fraction[] = [...numbers];
+    const processedOperators: string[] = [...operators];
+    
+    let i = 0;
+    while (i < processedOperators.length) {
+      const operator = processedOperators[i];
+      
+      if (operator === '×' || operator === '÷') {
+        const left = processedNumbers[i];
+        const right = processedNumbers[i + 1];
+        
+        let result: Fraction;
+        if (operator === '×') {
+          result = multiplyFractions(left, right);
+        } else {
+          // ตรวจสอบการหารด้วย 0
+          if (right.numerator === 0) return null;
+          result = divideFractions(left, right);
+        }
+        
+        // แทนที่ผลลัพธ์
+        processedNumbers[i] = result;
+        processedNumbers.splice(i + 1, 1);
+        processedOperators.splice(i, 1);
+        
+        // ไม่เพิ่ม i เพราะต้องตรวจสอบตำแหน่งเดิมอีกครั้ง
+      } else {
+        i++;
+      }
+    }
+    
+    // Step 2: ทำบวกลบทีหลัง (จากซ้ายไปขวา)
+    let result = processedNumbers[0];
+    for (let i = 0; i < processedOperators.length; i++) {
+      const operator = processedOperators[i];
+      const nextNumber = processedNumbers[i + 1];
+      
+      if (operator === '+') {
+        result = addFractions(result, nextNumber);
+      } else if (operator === '-') {
+        result = subtractFractions(result, nextNumber);
+      } else {
+        return null; // ไม่ควรเกิดขึ้นแล้ว
+      }
+    }
+    
+    return result;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -516,38 +547,6 @@ function compareFractions(a: Fraction, b: Fraction): boolean {
   return simplifiedA.numerator === simplifiedB.numerator && 
          simplifiedA.denominator === simplifiedB.denominator;
 }
-
-/**
- * Evaluate expression safely - เก็บไว้เป็น fallback
- */
-// function evaluateExpressionSafely(expr: string): number | null {
-//   try {
-//     // Replace AMath symbols
-//     const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    
-//     // Check safety of expression
-//     if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
-//       return null;
-//     }
-    
-//     // Check division by zero
-//     if (processedExpr.includes('/0')) {
-//       return null;
-//     }
-    
-//     // Calculate
-//     const result = Function('"use strict"; return (' + processedExpr + ')')();
-    
-//     // Check result
-//     if (typeof result !== 'number' || !isFinite(result)) {
-//       return null;
-//     }
-    
-//     return result;
-//   } catch {
-//     return null;
-//   }
-// }
 
 /**
  * ตรวจสอบว่าเป็นตัวเลขหรือไม่ (ทั้ง light และ heavy และ combined)
