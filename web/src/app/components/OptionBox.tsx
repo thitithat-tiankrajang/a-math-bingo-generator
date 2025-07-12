@@ -1,6 +1,6 @@
 // src/components/OptionBox.tsx
 import type { MathBingoOptions } from '@/app/types/mathBingo';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 interface OptionBoxProps {
   options: MathBingoOptions;
@@ -8,24 +8,95 @@ interface OptionBoxProps {
 }
 
 export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) {
-  const handleChange = (field: keyof MathBingoOptions, value: number) => {
+  // Update operatorCount when specific operators change
+  useEffect(() => {
+    if (options.operatorMode === 'specific' && options.specificOperators) {
+      const total = (options.specificOperators.plus || 0) +
+                   (options.specificOperators.minus || 0) +
+                   (options.specificOperators.multiply || 0) +
+                   (options.specificOperators.divide || 0);
+      if (total !== options.operatorCount) {
+        onOptionsChange({
+          ...options,
+          operatorCount: total
+        });
+      }
+    }
+  }, [options.specificOperators, options.operatorMode]);
+
+  const handleChange = (field: keyof MathBingoOptions, value: number | string) => {
     onOptionsChange({
       ...options,
       [field]: value
     });
   };
 
-  const handleStep = useCallback((field: keyof MathBingoOptions, step: number, min: number, max: number) => {
-    const next = Math.max(min, Math.min(max, options[field] + step));
+  const handleModeChange = (mode: 'random' | 'specific') => {
+    if (mode === 'specific') {
+      // Initialize specific operators with current operatorCount distributed
+      const baseCount = Math.floor(options.operatorCount / 4);
+      const remainder = options.operatorCount % 4;
+      onOptionsChange({
+        ...options,
+        operatorMode: mode,
+        specificOperators: {
+          plus: baseCount + (remainder >= 1 ? 1 : 0),
+          minus: baseCount + (remainder >= 2 ? 1 : 0),
+          multiply: baseCount + (remainder >= 3 ? 1 : 0),
+          divide: baseCount
+        }
+      });
+    } else {
+      onOptionsChange({
+        ...options,
+        operatorMode: mode,
+        specificOperators: undefined
+      });
+    }
+  };
+
+  const handleSpecificOperatorChange = (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, value: number) => {
+    const newSpecificOperators = {
+      ...options.specificOperators,
+      [operator]: value
+    };
     onOptionsChange({
       ...options,
-      [field]: next
+      specificOperators: newSpecificOperators
     });
+  };
+
+  const handleStep = useCallback((field: keyof MathBingoOptions, step: number, min: number, max: number) => {
+    const current = options[field];
+    if (typeof current === 'number') {
+      const next = Math.max(min, Math.min(max, current + step));
+      onOptionsChange({
+        ...options,
+        [field]: next
+      });
+    }
   }, [options, onOptionsChange]);
+
+  const handleSpecificStep = useCallback((operator: keyof NonNullable<MathBingoOptions['specificOperators']>, step: number) => {
+    if (!options.specificOperators) return;
+    const current = options.specificOperators[operator] || 0;
+    const otherOperators = Object.entries(options.specificOperators)
+      .filter(([key]) => key !== operator)
+      .reduce((sum, [, value]) => sum + (value || 0), 0);
+    
+    const maxForThis = Math.max(0, options.totalCount - options.equalsCount - options.heavyNumberCount - 
+                                   options.wildcardCount - options.zeroCount - otherOperators - 1);
+    const next = Math.max(0, Math.min(maxForThis, current + step));
+    
+    handleSpecificOperatorChange(operator, next);
+  }, [options, handleSpecificOperatorChange]);
 
   // คำนวณจำนวนเลขเบาที่เหลือ
   const lightNumberCount = options.totalCount - options.operatorCount - options.equalsCount - 
                           options.heavyNumberCount - options.wildcardCount - options.zeroCount;
+
+  const maxOperators = Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - 
+                                   options.wildcardCount - options.zeroCount - 1);
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 transition-all duration-300 max-w-full">
@@ -71,41 +142,219 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           </div>
         </div>
 
-        {/* Number of operators */}
-        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Number of operators
-            <span className="block text-xs text-gray-500 mt-1 font-normal">
-              (+, −, ×, ÷)
-            </span>
+        {/* Operator Mode Selection */}
+        <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+          <label className="block text-sm font-medium text-gray-700 mb-3">
+            Operator Selection Mode
           </label>
-          <div className="flex items-center justify-center gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              type="button"
-              className="w-9 h-9 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-              onClick={() => handleStep('operatorCount', -1, 1, Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - options.wildcardCount - options.zeroCount - 1))}
-              disabled={options.operatorCount <= 1}
+              onClick={() => handleModeChange('random')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                options.operatorMode === 'random'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
             >
-              −
+              🎲 Random
             </button>
-            <input
-              type="number"
-              min="1"
-              max={Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - options.wildcardCount - options.zeroCount - 1)}
-              value={options.operatorCount}
-              onChange={(e) => handleChange('operatorCount', Math.max(1, Math.min(Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - options.wildcardCount - options.zeroCount - 1), parseInt(e.target.value) || 1)))}
-              className="w-16 h-10 text-center px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-200 text-lg font-bold bg-white text-black"
-            />
             <button
-              type="button"
-              className="w-9 h-9 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-              onClick={() => handleStep('operatorCount', 1, 1, Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - options.wildcardCount - options.zeroCount - 1))}
-              disabled={options.operatorCount >= Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - options.wildcardCount - options.zeroCount - 1)}
+              onClick={() => handleModeChange('specific')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                options.operatorMode === 'specific'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
             >
-              +
+              🎯 Specific
             </button>
           </div>
         </div>
+
+        {/* Operators Section */}
+        {options.operatorMode === 'random' ? (
+          // Random Mode - Current UI
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Number of operators (Random)
+              <span className="block text-xs text-gray-500 mt-1 font-normal">
+                Will randomly select from: +, −, ×, ÷
+              </span>
+            </label>
+            <div className="flex items-center justify-center gap-2">
+              <button
+                type="button"
+                className="w-9 h-9 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                onClick={() => handleStep('operatorCount', -1, 1, maxOperators)}
+                disabled={options.operatorCount <= 1}
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min="1"
+                max={maxOperators}
+                value={options.operatorCount}
+                onChange={(e) => handleChange('operatorCount', Math.max(1, Math.min(maxOperators, parseInt(e.target.value) || 1)))}
+                className="w-16 h-10 text-center px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-200 text-lg font-bold bg-white text-black"
+              />
+              <button
+                type="button"
+                className="w-9 h-9 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                onClick={() => handleStep('operatorCount', 1, 1, maxOperators)}
+                disabled={options.operatorCount >= maxOperators}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        ) : (
+          // Specific Mode - New UI
+          <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">
+                Specify operators
+              </label>
+              <div className="text-sm font-medium text-purple-700 bg-white px-2 py-1 rounded">
+                Total: {options.operatorCount}
+              </div>
+            </div>
+            
+            {/* Individual operator controls */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Plus + */}
+              <div className="bg-white rounded-lg p-3 border border-purple-100">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  Addition (+)
+                </label>
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-green-100 hover:bg-green-200 text-green-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('plus', -1)}
+                    disabled={(options.specificOperators?.plus || 0) <= 0}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={options.specificOperators?.plus || 0}
+                    onChange={(e) => handleSpecificOperatorChange('plus', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-12 h-8 text-center px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-200 text-sm font-bold bg-white text-black"
+                  />
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-green-100 hover:bg-green-200 text-green-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('plus', 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Minus - */}
+              <div className="bg-white rounded-lg p-3 border border-purple-100">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  Subtraction (−)
+                </label>
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('minus', -1)}
+                    disabled={(options.specificOperators?.minus || 0) <= 0}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={options.specificOperators?.minus || 0}
+                    onChange={(e) => handleSpecificOperatorChange('minus', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-12 h-8 text-center px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-200 text-sm font-bold bg-white text-black"
+                  />
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-red-100 hover:bg-red-200 text-red-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('minus', 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Multiply × */}
+              <div className="bg-white rounded-lg p-3 border border-purple-100">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  Multiplication (×)
+                </label>
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('multiply', -1)}
+                    disabled={(options.specificOperators?.multiply || 0) <= 0}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={options.specificOperators?.multiply || 0}
+                    onChange={(e) => handleSpecificOperatorChange('multiply', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-12 h-8 text-center px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-200 text-sm font-bold bg-white text-black"
+                  />
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('multiply', 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Divide ÷ */}
+              <div className="bg-white rounded-lg p-3 border border-purple-100">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  Division (÷)
+                </label>
+                <div className="flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('divide', -1)}
+                    disabled={(options.specificOperators?.divide || 0) <= 0}
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    value={options.specificOperators?.divide || 0}
+                    onChange={(e) => handleSpecificOperatorChange('divide', Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-12 h-8 text-center px-1 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm font-bold bg-white text-black"
+                  />
+                  <button
+                    type="button"
+                    className="w-7 h-7 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+                    onClick={() => handleSpecificStep('divide', 1)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Warning if total is 0 */}
+            {options.operatorCount === 0 && (
+              <div className="text-xs text-red-600 text-center mt-2">
+                ⚠️ Please select at least 1 operator
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Number of equals signs */}
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
@@ -306,6 +555,31 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
             <div className="text-gray-600">Blank (?)</div>
           </div>
         </div>
+        
+        {/* Show specific operators if in specific mode */}
+        {options.operatorMode === 'specific' && options.specificOperators && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <h4 className="text-xs font-semibold text-gray-600 mb-2 text-center">Operator Details</h4>
+            <div className="grid grid-cols-4 gap-1 text-xs">
+              <div className="text-center p-1 bg-green-50 rounded">
+                <div className="font-bold text-green-700">{options.specificOperators.plus || 0}</div>
+                <div className="text-gray-600">+</div>
+              </div>
+              <div className="text-center p-1 bg-red-50 rounded">
+                <div className="font-bold text-red-700">{options.specificOperators.minus || 0}</div>
+                <div className="text-gray-600">−</div>
+              </div>
+              <div className="text-center p-1 bg-blue-50 rounded">
+                <div className="font-bold text-blue-700">{options.specificOperators.multiply || 0}</div>
+                <div className="text-gray-600">×</div>
+              </div>
+              <div className="text-center p-1 bg-orange-50 rounded">
+                <div className="font-bold text-orange-700">{options.specificOperators.divide || 0}</div>
+                <div className="text-gray-600">÷</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

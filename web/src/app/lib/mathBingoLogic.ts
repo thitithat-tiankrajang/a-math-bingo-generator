@@ -1,4 +1,4 @@
-// src/lib/mathBingoLogic.ts - แก้ไขปัญหาเครื่องหมาย = หลายตัวและเลขเบาติดกัน + ระบบเศษส่วน
+// src/lib/mathBingoLogic.ts - Updated to support specific operator selection
 import type { MathBingoOptions, MathBingoResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/mathBingo';
 
 // All AMath tiles, total 100
@@ -50,12 +50,14 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
   }
 
   let attempts = 0;
-  const maxAttempts = 3000; // เพิ่มจำนวนครั้งในการลอง
+  const maxAttempts = 300; // เพิ่มจำนวนครั้งในการลอง
 
   while (attempts < maxAttempts) {
     try {
       // Reset and generate tokens for each attempt (reset pool)
       const tokens = generateTokensBasedOnOptions(options);
+      // log ชุดตัวเบี้ยที่สุ่มได้
+      // console.log('Attempt', attempts + 1, 'tokens:', tokens.map(t => t.originalToken).join(' '));
       const equations = findValidEquations(tokens, options.equalsCount);
       
       if (equations.length > 0) {
@@ -83,7 +85,7 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
   const tokenValues = tokens.map(t => t.originalToken);
   
   // Generate possible permutations
-  const permutations = generateLimitedPermutations(tokenValues, 2000); // เพิ่มจำนวน permutations
+  const permutations = generateLimitedPermutations(tokenValues, 10000); // เพิ่มจำนวน permutations
   
   for (const perm of permutations) {
     try {
@@ -653,10 +655,10 @@ function isOperator(token: string): boolean {
 }
 
 /**
- * Validate MathBingo options
+ * Validate MathBingo options - Updated for specific operators
  */
 function validateMathBingoOptions(options: MathBingoOptions): string | null {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount } = options;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount, operatorMode, specificOperators } = options;
   
   if (totalCount < 8) {
     return 'Total count must be at least 8.';
@@ -664,6 +666,32 @@ function validateMathBingoOptions(options: MathBingoOptions): string | null {
   
   if (equalsCount < 1) {
     return 'Number of equals must be at least 1.';
+  }
+  
+  // Validate operator count when in specific mode
+  if (operatorMode === 'specific' && specificOperators) {
+    const specifiedTotal = (specificOperators.plus || 0) + 
+                          (specificOperators.minus || 0) + 
+                          (specificOperators.multiply || 0) + 
+                          (specificOperators.divide || 0);
+    
+    if (specifiedTotal !== operatorCount) {
+      return `Specified operators (${specifiedTotal}) must equal total operator count (${operatorCount}).`;
+    }
+    
+    // Check individual operator availability
+    if ((specificOperators.plus || 0) > AMATH_TOKENS['+'].count) {
+      return `Requested number of + operators (${specificOperators.plus}) exceeds available tokens (${AMATH_TOKENS['+'].count}).`;
+    }
+    if ((specificOperators.minus || 0) > AMATH_TOKENS['-'].count) {
+      return `Requested number of - operators (${specificOperators.minus}) exceeds available tokens (${AMATH_TOKENS['-'].count}).`;
+    }
+    if ((specificOperators.multiply || 0) > AMATH_TOKENS['×'].count) {
+      return `Requested number of × operators (${specificOperators.multiply}) exceeds available tokens (${AMATH_TOKENS['×'].count}).`;
+    }
+    if ((specificOperators.divide || 0) > AMATH_TOKENS['÷'].count) {
+      return `Requested number of ÷ operators (${specificOperators.divide}) exceeds available tokens (${AMATH_TOKENS['÷'].count}).`;
+    }
   }
   
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
@@ -678,12 +706,14 @@ function validateMathBingoOptions(options: MathBingoOptions): string | null {
     return `Requested number of equals (${equalsCount}) exceeds available tokens (${availableEquals}).`;
   }
   
-  // Check operators
-  const availableOperators = Object.entries(AMATH_TOKENS)
-    .filter(([, info]) => info.type === 'operator')
-    .reduce((sum, [, info]) => sum + info.count, 0);
-  if (operatorCount > availableOperators) {
-    return `Requested number of operators (${operatorCount}) exceeds available tokens (${availableOperators}).`;
+  // Check operators (only when in random mode)
+  if (operatorMode === 'random') {
+    const availableOperators = Object.entries(AMATH_TOKENS)
+      .filter(([, info]) => info.type === 'operator')
+      .reduce((sum, [, info]) => sum + info.count, 0);
+    if (operatorCount > availableOperators) {
+      return `Requested number of operators (${operatorCount}) exceeds available tokens (${availableOperators}).`;
+    }
   }
   
   // Check heavy numbers
@@ -718,10 +748,10 @@ function validateMathBingoOptions(options: MathBingoOptions): string | null {
 }
 
 /**
- * Generate tokens based on selected options
+ * Generate tokens based on selected options - Updated for specific operators
  */
 function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElement[] {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount } = options;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount, operatorMode, specificOperators } = options;
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
   
   if (lightNumberCount < 0) {
@@ -733,13 +763,17 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
   const selectedTokens: EquationElement[] = [];
   
   // Pick token from pool by type
-  const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'wildcard' | 'zero'): AmathToken | null => {
+  const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'wildcard' | 'zero', specificOperator?: '+' | '-' | '×' | '÷'): AmathToken | null => {
     let candidates: AmathToken[] = [];
     
     if (tokenType === 'equals') {
       candidates = availablePool.filter(token => token === '=');
     } else if (tokenType === 'operator') {
-      candidates = availablePool.filter(token => ['+', '-', '×', '÷'].includes(token));
+      if (specificOperator) {
+        candidates = availablePool.filter(token => token === specificOperator);
+      } else {
+        candidates = availablePool.filter(token => ['+', '-', '×', '÷'].includes(token));
+      }
     } else if (tokenType === 'light') {
       candidates = availablePool.filter(token => ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(token));
     } else if (tokenType === 'heavy') {
@@ -772,13 +806,34 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // Pick operator tokens
-  for (let i = 0; i < operatorCount; i++) {
-    const token = pickTokenFromPool('operator');
-    if (!token) {
-      throw new Error('Not enough operator tokens in pool.');
+  // Pick operator tokens based on mode
+  if (operatorMode === 'specific' && specificOperators) {
+    // Specific mode - pick exact operators
+    const operatorTypes: Array<{type: '+' | '-' | '×' | '÷', count: number}> = [
+      { type: '+', count: specificOperators.plus || 0 },
+      { type: '-', count: specificOperators.minus || 0 },
+      { type: '×', count: specificOperators.multiply || 0 },
+      { type: '÷', count: specificOperators.divide || 0 }
+    ];
+    
+    for (const { type, count } of operatorTypes) {
+      for (let i = 0; i < count; i++) {
+        const token = pickTokenFromPool('operator', type);
+        if (!token) {
+          throw new Error(`Not enough ${type} tokens in pool.`);
+        }
+        selectedTokens.push(createElementFromToken(token));
+      }
     }
-    selectedTokens.push(createElementFromToken(token));
+  } else {
+    // Random mode - pick random operators
+    for (let i = 0; i < operatorCount; i++) {
+      const token = pickTokenFromPool('operator');
+      if (!token) {
+        throw new Error('Not enough operator tokens in pool.');
+      }
+      selectedTokens.push(createElementFromToken(token));
+    }
   }
   
   // Pick heavy number tokens

@@ -11,11 +11,12 @@ import type { MathBingoOptions, MathBingoResult } from '@/app/types/mathBingo';
 export default function MathBingoGenerator() {
   const [options, setOptions] = useState<MathBingoOptions>({
     totalCount: 8,
+    operatorMode: 'random',    // Default to random mode
     operatorCount: 2,
     equalsCount: 1,
-    heavyNumberCount: 1,  // 1 heavy number
-    wildcardCount: 0,     // no wildcard
-    zeroCount: 0          // no zero
+    heavyNumberCount: 1,
+    wildcardCount: 0,
+    zeroCount: 0
   });
 
   const [result, setResult] = useState<MathBingoResult | null>(null);

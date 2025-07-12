@@ -2,7 +2,14 @@
 
 export interface MathBingoOptions {
   totalCount: number;      // จำนวนชุดตัวเลขและเครื่องหมายทั้งหมด (8+)
-  operatorCount: number;   // จำนวนเครื่องหมายคำนวณ (+, -, *, /)
+  operatorMode: 'random' | 'specific'; // โหมดการเลือกเครื่องหมาย
+  operatorCount: number;   // จำนวนเครื่องหมายคำนวณทั้งหมด
+  specificOperators?: {    // จำนวนเครื่องหมายแต่ละประเภท (ใช้เมื่อ mode = specific)
+    plus?: number;         // จำนวน +
+    minus?: number;        // จำนวน -
+    multiply?: number;     // จำนวน ×
+    divide?: number;       // จำนวน ÷
+  };
   equalsCount: number;     // จำนวนเครื่องหมาย =
   heavyNumberCount: number; // จำนวนเลขหนัก (10-20)
   wildcardCount: number;   // จำนวน ? (wildcard)
