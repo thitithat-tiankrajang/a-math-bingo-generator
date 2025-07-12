@@ -1,4 +1,4 @@
-// src/lib/mathBingoLogic.ts
+// src/lib/mathBingoLogic.ts - แก้ไขปัญหาเครื่องหมาย = หลายตัวและเลขเบาติดกัน
 import type { MathBingoOptions, MathBingoResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/mathBingo';
 
 // All AMath tiles, total 100
@@ -44,13 +44,13 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
   }
 
   let attempts = 0;
-  const maxAttempts = 2000;
+  const maxAttempts = 3000; // เพิ่มจำนวนครั้งในการลอง
 
   while (attempts < maxAttempts) {
     try {
       // Reset and generate tokens for each attempt (reset pool)
       const tokens = generateTokensBasedOnOptions(options);
-      const equations = findValidEquations(tokens);
+      const equations = findValidEquations(tokens, options.equalsCount);
       
       if (equations.length > 0) {
         return {
@@ -67,6 +67,381 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
   }
 
   throw new Error('Could not generate a valid problem. Please adjust your options or reduce the number of tiles/operators.');
+}
+
+/**
+ * Find valid equations from given tokens - แก้ไขให้รองรับ = หลายตัว
+ */
+function findValidEquations(tokens: EquationElement[], equalsCount: number): string[] {
+  const validEquations: string[] = [];
+  const tokenValues = tokens.map(t => t.originalToken);
+  
+  // Generate possible permutations
+  const permutations = generateLimitedPermutations(tokenValues, 2000); // เพิ่มจำนวน permutations
+  
+  for (const perm of permutations) {
+    try {
+      const equation = createEquationFromPermutation(perm, equalsCount);
+      if (equation && isValidEquationByRules(equation, equalsCount)) {
+        validEquations.push(equation);
+        if (validEquations.length >= 20) break; // หยุดเมื่อพบ 20 สมการ
+      }
+    } catch (error) {
+      // Skip invalid permutations
+      continue;
+    }
+  }
+  
+  return validEquations;
+}
+
+/**
+ * Create equation from permutation - แก้ไขให้รองรับ = หลายตัว
+ */
+function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number): string | null {
+  const processed = combineAdjacentNumbers(tokens);
+  if (processed.length === 0) return null;
+  
+  if (!isValidTokenStructure(processed, equalsCount)) return null;
+  
+  let equation = processed.join('');
+  
+  // Handle choice tokens
+  equation = equation.replace(/\+\/-/g, () => Math.random() < 0.5 ? '+' : '-');
+  equation = equation.replace(/×\/÷/g, () => Math.random() < 0.5 ? '×' : '÷');
+  
+  return equation;
+}
+
+/**
+ * Combine adjacent numbers with improved logic - แก้ไขให้ป้องกันหลักพัน
+ */
+function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
+  const result: string[] = [];
+  let i = 0;
+  
+  while (i < tokens.length) {
+    const token = tokens[i];
+    
+    // Heavy numbers are separate and cannot be adjacent to other numbers
+    if (isHeavyNumber(token)) {
+      // Check if heavy number is not adjacent to other numbers
+      const prev = result[result.length - 1];
+      const next = tokens[i + 1];
+      
+      if ((prev && (isLightNumber(prev) || isHeavyNumber(prev) || prev === '0')) || 
+          (next && (isLightNumber(next) || isHeavyNumber(next) || next === '0'))) {
+        return []; // return empty array to indicate invalid
+      }
+      
+      result.push(token);
+      i++;
+      continue;
+    }
+    
+    // Combine only light numbers and 0s adjacent to each other
+    if (isLightNumber(token) || token === '0') {
+      // Check if light/0 is not adjacent to heavy numbers
+      const prev = result[result.length - 1];
+      if (prev && isHeavyNumber(prev)) {
+        return []; // return empty array to indicate invalid
+      }
+      
+      let combinedNumber = token;
+      let j = i + 1;
+      
+      // Combine only light numbers and 0s adjacent to each other, up to 3 digits
+      while (j < tokens.length && j - i < 3 && (isLightNumber(tokens[j]) || tokens[j] === '0')) {
+        // Check if the next token is not a heavy number
+        if (j + 1 < tokens.length && isHeavyNumber(tokens[j + 1])) {
+          break; // Stop combining if the next is a heavy number
+        }
+        
+        // Do not allow 0 to precede other numbers
+        if (combinedNumber === '0' && tokens[j] !== '0') {
+          break;
+        }
+        
+        // **แก้ไข: ป้องกันการสร้างเลขเกิน 999 (หลักพัน)**
+        const tempCombined = combinedNumber + tokens[j];
+        if (parseInt(tempCombined) > 999) {
+          break; // หยุดการรวมเลขถ้าเกิน 999
+        }
+        
+        combinedNumber += tokens[j];
+        j++;
+      }
+      
+      // If 0 is at the beginning and there are numbers following, use only 0
+      if (combinedNumber.startsWith('0') && combinedNumber.length > 1) {
+        result.push('0');
+        i++;
+      } else {
+        result.push(combinedNumber);
+        i = j;
+      }
+    } else {
+      // Others (operators, =, wildcard, choice)
+      result.push(token);
+      i++;
+    }
+  }
+  
+  // Additional check: 0 should not be adjacent to -
+  for (let i = 0; i < result.length - 1; i++) {
+    if (result[i] === '0' && result[i + 1] === '-') {
+      return [];
+    }
+    if (result[i] === '-' && result[i + 1] === '0') {
+      return [];
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Check if token structure is valid - แก้ไขให้รองรับ = หลายตัว
+ */
+function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
+  if (tokens.length < 3) return false;
+  
+  // Must have exact number of = as specified
+  const equalsInTokens = tokens.filter(t => t === '=').length;
+  if (equalsInTokens !== equalsCount) return false;
+  
+  // **แก้ไข: ตรวจสอบโครงสร้างสำหรับ = หลายตัว**
+  if (equalsCount > 1) {
+    // สำหรับ = หลายตัว ต้องมีรูปแบบ: expression = expression = expression
+    const parts = tokens.join('').split('=');
+    if (parts.length !== equalsCount + 1) return false;
+    
+    // แต่ละส่วนต้องไม่ว่าง และมีอย่างน้อย 1 ตัวเลข
+    for (const part of parts) {
+      if (part.length === 0) return false;
+      if (!/\d/.test(part)) return false; // ต้องมีเลขอย่างน้อย 1 ตัว
+    }
+  }
+  
+  for (let i = 0; i < tokens.length; i++) {
+    const current = tokens[i];
+    const next = tokens[i + 1];
+    const prev = tokens[i - 1];
+    
+    // Check adjacency rules
+    if (isHeavyNumber(current)) {
+      // Heavy numbers must be adjacent to operators only
+      if (prev && !isOperator(prev) && prev !== '=') {
+        return false;
+      }
+      if (next && !isOperator(next) && next !== '=') {
+        return false;
+      }
+    }
+    
+    // Check for 0 adjacent to -
+    if (current === '0') {
+      if (next === '-' || prev === '-') {
+        return false;
+      }
+    }
+    
+    if (isOperator(current)) {
+      // Operators should not be adjacent, except for =-
+      if (isOperator(next) && !(current === '=' && next === '-')) {
+        return false;
+      }
+      if (isOperator(prev) && !(prev === '=' && current === '-')) {
+        return false;
+      }
+      
+      // + should not be at the beginning of the equation
+      if (current === '+' && i === 0) {
+        return false;
+      }
+      
+      // + should not be after =
+      if (current === '+' && prev === '=') {
+        return false;
+      }
+      
+      // - should not be adjacent to 0
+      if (current === '-') {
+        if (next === '0' || prev === '0') {
+          return false;
+        }
+      }
+    }
+    
+    if (current === '=') {
+      // = should not be at the beginning or end of the equation
+      if (i === 0 || i === tokens.length - 1) {
+        return false;
+      }
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Check if equation is valid according to rules - แก้ไขให้รองรับ = หลายตัว
+ */
+function isValidEquationByRules(equation: string, equalsCount: number): boolean {
+  try {
+    // **แก้ไข: รองรับ = หลายตัว**
+    const parts = equation.split('=');
+    if (parts.length !== equalsCount + 1) return false;
+    
+    if (parts.some(part => part.length === 0)) return false;
+    
+    // Calculate values for all parts
+    const values: number[] = [];
+    for (const part of parts) {
+      const value = evaluateExpressionSafely(part);
+      if (value === null) return false;
+      values.push(value);
+    }
+    
+    // Check if all values are equal
+    const firstValue = values[0];
+    return values.every(value => Math.abs(value - firstValue) < 0.0001);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Evaluate expression safely
+ */
+function evaluateExpressionSafely(expr: string): number | null {
+  try {
+    // Replace AMath symbols
+    const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
+    
+    // Check safety of expression
+    if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
+      return null;
+    }
+    
+    // Check division by zero
+    if (processedExpr.includes('/0')) {
+      return null;
+    }
+    
+    // Calculate
+    const result = Function('"use strict"; return (' + processedExpr + ')')();
+    
+    // Check result
+    if (typeof result !== 'number' || !isFinite(result)) {
+      return null;
+    }
+    
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+// ส่วนที่เหลือของโค้ดยังคงเดิม...
+
+/**
+ * Check if it's a light number
+ */
+function isLightNumber(token: string): boolean {
+  return /^[1-9]$/.test(token);
+}
+
+/**
+ * Check if it's a heavy number
+ */
+function isHeavyNumber(token: string): boolean {
+  const num = parseInt(token);
+  return num >= 10 && num <= 20;
+}
+
+/**
+ * Check if it's an operator
+ */
+function isOperator(token: string): boolean {
+  return ['+', '-', '×', '÷'].includes(token);
+}
+
+/**
+ * Handle choice tokens (+/- or ×/÷)
+ */
+function handleChoiceToken(token: AmathToken): string | null {
+  if (token === '+/-') {
+    return Math.random() < 0.5 ? '+' : '-';
+  } else if (token === '×/÷') {
+    return Math.random() < 0.5 ? '×' : '÷';
+  }
+  return null;
+}
+
+/**
+ * Validate MathBingo options
+ */
+function validateMathBingoOptions(options: MathBingoOptions): string | null {
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount } = options;
+  
+  if (totalCount < 8) {
+    return 'Total count must be at least 8.';
+  }
+  
+  if (equalsCount < 1) {
+    return 'Number of equals must be at least 1.';
+  }
+  
+  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
+  
+  if (lightNumberCount < 1) {
+    return 'There must be at least 1 light number.';
+  }
+  
+  // Check equals
+  const availableEquals = AMATH_TOKENS['='].count;
+  if (equalsCount > availableEquals) {
+    return `Requested number of equals (${equalsCount}) exceeds available tokens (${availableEquals}).`;
+  }
+  
+  // Check operators
+  const availableOperators = Object.entries(AMATH_TOKENS)
+    .filter(([, info]) => info.type === 'operator')
+    .reduce((sum, [, info]) => sum + info.count, 0);
+  if (operatorCount > availableOperators) {
+    return `Requested number of operators (${operatorCount}) exceeds available tokens (${availableOperators}).`;
+  }
+  
+  // Check heavy numbers
+  const availableHeavyNumbers = Object.entries(AMATH_TOKENS)
+    .filter(([, info]) => info.type === 'heavyNumber')
+    .reduce((sum, [, info]) => sum + info.count, 0);
+  if (heavyNumberCount > availableHeavyNumbers) {
+    return `Requested number of heavy numbers (${heavyNumberCount}) exceeds available tokens (${availableHeavyNumbers}).`;
+  }
+  
+  // Check wildcards
+  const availableBlank = AMATH_TOKENS['?'].count;
+  if (wildcardCount > availableBlank) {
+    return `Requested number of blank (${wildcardCount}) exceeds available tokens (${availableBlank}).`;
+  }
+  
+  // Check zero
+  const availableZeros = AMATH_TOKENS['0'].count;
+  if (zeroCount > availableZeros) {
+    return `Requested number of zeros (${zeroCount}) exceeds available tokens (${availableZeros}).`;
+  }
+  
+  // Check light numbers (1-9)
+  const availableLightNumbers = Object.entries(AMATH_TOKENS)
+    .filter(([token, info]) => info.type === 'lightNumber' && token !== '0')
+    .reduce((sum, [, info]) => sum + info.count, 0);
+  if (lightNumberCount > availableLightNumbers) {
+    return `Requested number of light numbers (1-9) (${lightNumberCount}) exceeds available tokens (${availableLightNumbers}).`;
+  }
+  
+  return null;
 }
 
 /**
@@ -226,316 +601,20 @@ function getElementType(token: string): EquationElement['type'] {
 }
 
 /**
- * Find valid equations from given tokens
+ * Sort tokens by priority for better readability
  */
-function findValidEquations(tokens: EquationElement[]): string[] {
-  const validEquations: string[] = [];
-  const tokenValues = tokens.map(t => t.originalToken);
-  
-  // Generate possible permutations
-  const permutations = generateLimitedPermutations(tokenValues, 1500);
-  
-  for (const perm of permutations) {
-    try {
-      const equation = createEquationFromPermutation(perm);
-      if (equation && isValidEquationByRules(equation)) {
-        validEquations.push(equation);
-        if (validEquations.length >= 15) break; // Limit number of checks
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return [...new Set(validEquations)]; // Remove duplicate equations
-}
-
-/**
- * Create equation from token permutation
- */
-function createEquationFromPermutation(tokens: AmathToken[]): string | null {
-  const processedTokens: string[] = [];
-  
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    const tokenInfo = AMATH_TOKENS[token];
+function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
+  return tokens.sort((a, b) => {
+    const getPriority = (token: EquationElement): number => {
+      if (token.type === 'number') return 1;
+      if (token.type === 'operator') return 2;
+      if (token.type === 'equals') return 3;
+      if (token.type === 'choice') return 4;
+      return 5;
+    };
     
-    if (!tokenInfo) continue;
-
-    // Handle choice tokens
-    if (tokenInfo.type === 'choice') {
-      const choiceResult = handleChoiceToken(token);
-      if (!choiceResult) return null;
-      processedTokens.push(choiceResult);
-    } 
-    // Handle wildcard - simplify to a simple number
-    else if (tokenInfo.type === 'wildcard') {
-      const wildcardOptions = ['1', '2', '3', '4', '5'];
-      const randomWildcard = wildcardOptions[Math.floor(Math.random() * wildcardOptions.length)];
-      processedTokens.push(randomWildcard);
-    }
-    else {
-      processedTokens.push(token);
-    }
-  }
-  
-  // Combine consecutive light numbers
-  const finalTokens = combineLightNumbers(processedTokens);
-  
-  // If combineLightNumbers returns empty array, it's not valid (0 with -)
-  if (finalTokens.length === 0) {
-    return null;
-  }
-  
-  // Basic structure check
-  if (!isValidTokenStructure(finalTokens)) {
-    return null;
-  }
-  
-  return finalTokens.join('');
-}
-
-/**
- * Combine consecutive light numbers into multi-digit numbers
- */
-function combineLightNumbers(tokens: string[]): string[] {
-  const result: string[] = [];
-  let i = 0;
-  
-  while (i < tokens.length) {
-    const token = tokens[i];
-    
-    // Heavy numbers must be separate and cannot be adjacent to other numbers
-    if (isHeavyNumber(token)) {
-      // Check if heavy number is not adjacent to other numbers
-      const prev = tokens[i - 1];
-      const next = tokens[i + 1];
-      
-      if ((prev && (isLightNumber(prev) || isHeavyNumber(prev) || prev === '0')) || 
-          (next && (isLightNumber(next) || isHeavyNumber(next) || next === '0'))) {
-        return []; // return empty array to indicate invalid
-      }
-      
-      result.push(token);
-      i++;
-      continue;
-    }
-    
-    // Combine only light numbers and 0s adjacent to each other
-    if (isLightNumber(token) || token === '0') {
-      // Check if light/0 is not adjacent to heavy numbers
-      const prev = tokens[i - 1];
-      if (prev && isHeavyNumber(prev)) {
-        return []; // return empty array to indicate invalid
-      }
-      
-      let combinedNumber = token;
-      let j = i + 1;
-      
-      // Combine only light numbers and 0s adjacent to each other, up to 3 digits
-      while (j < tokens.length && j - i < 3 && (isLightNumber(tokens[j]) || tokens[j] === '0')) {
-        // Check if the next token is not a heavy number
-        if (j + 1 < tokens.length && isHeavyNumber(tokens[j + 1])) {
-          break; // Stop combining if the next is a heavy number
-        }
-        
-        // Do not allow 0 to precede other numbers
-        if (combinedNumber === '0' && tokens[j] !== '0') {
-          break;
-        }
-        combinedNumber += tokens[j];
-        j++;
-      }
-      
-      // If 0 is at the beginning and there are numbers following, use only 0
-      if (combinedNumber.startsWith('0') && combinedNumber.length > 1) {
-        result.push('0');
-        i++;
-      } else {
-        result.push(combinedNumber);
-        i = j;
-      }
-    } else {
-      // Others (operators, =, wildcard, choice)
-      result.push(token);
-      i++;
-    }
-  }
-  
-  // Additional check: 0 should not be adjacent to -
-  for (let i = 0; i < result.length - 1; i++) {
-    if (result[i] === '0' && result[i + 1] === '-') {
-      return [];
-    }
-    if (result[i] === '-' && result[i + 1] === '0') {
-      return [];
-    }
-  }
-  
-  return result;
-}
-
-/**
- * Check if it's a light number
- */
-function isLightNumber(token: string): boolean {
-  return /^[1-9]$/.test(token);
-}
-
-/**
- * Check if it's a heavy number
- */
-function isHeavyNumber(token: string): boolean {
-  const num = parseInt(token);
-  return num >= 10 && num <= 20;
-}
-
-/**
- * Check if it's an operator
- */
-function isOperator(token: string): boolean {
-  return ['+', '-', '×', '÷'].includes(token);
-}
-
-/**
- * Check if token structure is valid
- */
-function isValidTokenStructure(tokens: string[]): boolean {
-  if (tokens.length < 3) return false;
-  
-  // Must have at least 1 =
-  if (!tokens.includes('=')) return false;
-  
-  for (let i = 0; i < tokens.length; i++) {
-    const current = tokens[i];
-    const next = tokens[i + 1];
-    const prev = tokens[i - 1];
-    
-    // Check adjacency rules
-    if (isHeavyNumber(current)) {
-      // Heavy numbers must be adjacent to operators only
-      if (prev && !isOperator(prev) && prev !== '=') {
-        return false;
-      }
-      if (next && !isOperator(next) && next !== '=') {
-        return false;
-      }
-    }
-    
-    // Check for 0 adjacent to -
-    if (current === '0') {
-      if (next === '-' || prev === '-') {
-        return false;
-      }
-    }
-    
-    if (isOperator(current)) {
-      // Operators should not be adjacent, except for =-
-      if (isOperator(next) && !(current === '=' && next === '-')) {
-        return false;
-      }
-      if (isOperator(prev) && !(prev === '=' && current === '-')) {
-        return false;
-      }
-      
-      // + should not be at the beginning of the equation
-      if (current === '+' && i === 0) {
-        return false;
-      }
-      
-      // + should not be after =
-      if (current === '+' && prev === '=') {
-        return false;
-      }
-      
-      // - should not be adjacent to 0
-      if (current === '-') {
-        if (next === '0' || prev === '0') {
-          return false;
-        }
-      }
-    }
-    
-    if (current === '=') {
-      // = should not be at the beginning or end of the equation
-      if (i === 0 || i === tokens.length - 1) {
-        return false;
-      }
-    }
-  }
-  
-  return true;
-}
-
-/**
- * Handle choice tokens (+/- or ×/÷)
- */
-function handleChoiceToken(token: AmathToken): string | null {
-  if (token === '+/-') {
-    return Math.random() < 0.5 ? '+' : '-';
-  } else if (token === '×/÷') {
-    return Math.random() < 0.5 ? '×' : '÷';
-  }
-  return null;
-}
-
-/**
- * Check if equation is valid according to rules
- */
-function isValidEquationByRules(equation: string): boolean {
-  try {
-    // Split equation by =
-    const equalIndex = equation.indexOf('=');
-    if (equalIndex === -1) return false;
-    
-    const leftSide = equation.substring(0, equalIndex);
-    const rightSide = equation.substring(equalIndex + 1);
-    
-    if (leftSide.length === 0 || rightSide.length === 0) return false;
-    
-    // Calculate values on both sides
-    const leftValue = evaluateExpressionSafely(leftSide);
-    const rightValue = evaluateExpressionSafely(rightSide);
-    
-    if (leftValue === null || rightValue === null) return false;
-    
-    // Check if results are equal
-    return Math.abs(leftValue - rightValue) < 0.0001;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Evaluate expression safely
- */
-function evaluateExpressionSafely(expr: string): number | null {
-  try {
-    // Replace AMath symbols
-    const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
-    
-    // Check safety of expression
-    if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
-      return null;
-    }
-    
-    // Check division by zero
-    if (processedExpr.includes('/0')) {
-      return null;
-    }
-    
-    // Calculate
-    const result = Function('"use strict"; return (' + processedExpr + ')')();
-    
-    // Check result
-    if (typeof result !== 'number' || !isFinite(result)) {
-      return null;
-    }
-    
-    return result;
-  } catch {
-    return null;
-  }
+    return getPriority(a) - getPriority(b);
+  });
 }
 
 /**
@@ -591,152 +670,6 @@ function shuffleArray<T>(array: T[]): void {
 }
 
 /**
- * Sort tokens by priority
- */
-function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
-  return tokens.sort((a, b) => {
-    const priorityA = getTokenPriority(a.originalToken);
-    const priorityB = getTokenPriority(b.originalToken);
-    
-    if (priorityA !== priorityB) {
-      return priorityA - priorityB;
-    }
-    
-    // If priorities are the same, sort by value
-    return compareTokenValues(a.originalToken, b.originalToken);
-  });
-}
-
-/**
- * Assign priority to each token type
- */
-function getTokenPriority(token: AmathToken): number {
-  const tokenInfo = AMATH_TOKENS[token];
-  if (!tokenInfo) return 999;
-  
-  switch (tokenInfo.type) {
-    case 'lightNumber': 
-      return token === '0' ? 0.5 : 1; // Give 0 precedence over other light numbers
-    case 'heavyNumber': return 2;   // Heavy numbers 10-20
-    case 'operator': return 3;      // Add, Subtract, Multiply, Divide
-    case 'choice': return 4;        // Add or Subtract, Multiply or Divide
-    case 'equals': return 5;        // Equals
-    case 'wildcard': return 6;      // ?
-    default: return 999;
-  }
-}
-
-/**
- * Compare values of tokens within the same group
- */
-function compareTokenValues(a: AmathToken, b: AmathToken): number {
-  const aInfo = AMATH_TOKENS[a];
-  const bInfo = AMATH_TOKENS[b];
-  
-  // Light numbers and heavy numbers are sorted by their numeric value
-  if ((aInfo.type === 'lightNumber' || aInfo.type === 'heavyNumber') &&
-      (bInfo.type === 'lightNumber' || bInfo.type === 'heavyNumber')) {
-    return parseInt(a) - parseInt(b);
-  }
-  
-  // Operators are sorted by +, -, ×, ÷
-  if (aInfo.type === 'operator' && bInfo.type === 'operator') {
-    const operatorOrder = ['+', '-', '×', '÷'];
-    return operatorOrder.indexOf(a) - operatorOrder.indexOf(b);
-  }
-  
-  // Choice operators are sorted by +/-, ×/÷
-  if (aInfo.type === 'choice' && bInfo.type === 'choice') {
-    const choiceOrder = ['+/-', '×/÷'];
-    return choiceOrder.indexOf(a) - choiceOrder.indexOf(b);
-  }
-  
-  // Others are sorted by string
-  return a.localeCompare(b);
-}
-
-/**
- * Validate options
- */
-export function validateMathBingoOptions(options: MathBingoOptions): string | null {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount } = options;
-  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
-  
-  if (totalCount < 8) {
-    return "Total number of tiles and operators must be at least 8.";
-  }
-  
-  if (totalCount > 20) {
-    return "Total number of tiles and operators must not exceed 20.";
-  }
-  
-  if (operatorCount < 1) {
-    return "Must have at least 1 operator.";
-  }
-  
-  if (equalsCount < 1) {
-    return "Must have at least 1 equals (=) sign.";
-  }
-  
-  if (lightNumberCount < 0) {
-    return "Not enough light numbers. Please adjust your options.";
-  }
-  
-  if (lightNumberCount + heavyNumberCount + zeroCount < 2) {
-    return "Must have at least 2 numbers.";
-  }
-  
-  // Check if the requested number is available in the pool
-  const totalAvailableTokens = Object.values(AMATH_TOKENS).reduce((sum, token) => sum + token.count, 0);
-  if (totalCount > totalAvailableTokens) {
-    return `Requested number of sets (${totalCount}) exceeds available tokens (${totalAvailableTokens}).`;
-  }
-  
-  // Check equals sign
-  const availableEquals = AMATH_TOKENS['='].count;
-  if (equalsCount > availableEquals) {
-    return `Requested number of equals (=) (${equalsCount}) exceeds available tokens (${availableEquals}).`;
-  }
-  
-  // Check operators
-  const availableOperators = AMATH_TOKENS['+'].count + AMATH_TOKENS['-'].count + 
-                            AMATH_TOKENS['×'].count + AMATH_TOKENS['÷'].count;
-  if (operatorCount > availableOperators) {
-    return `Requested number of operators (${operatorCount}) exceeds available tokens (${availableOperators}).`;
-  }
-  
-  // Check heavy numbers
-  const availableHeavyNumbers = Object.entries(AMATH_TOKENS)
-    .filter(([, info]) => info.type === 'heavyNumber')
-    .reduce((sum, [, info]) => sum + info.count, 0);
-  if (heavyNumberCount > availableHeavyNumbers) {
-    return `Requested number of heavy numbers (${heavyNumberCount}) exceeds available tokens (${availableHeavyNumbers}).`;
-  }
-  
-  // Check wildcard
-  const availableBlank = AMATH_TOKENS['?'].count;
-  if (wildcardCount > availableBlank) {
-    return `Requested number of blank (${wildcardCount}) exceeds available tokens (${availableBlank}).`;
-  }
-  
-  // Check zero
-  const availableZeros = AMATH_TOKENS['0'].count;
-  if (zeroCount > availableZeros) {
-    return `Requested number of zeros (${zeroCount}) exceeds available tokens (${availableZeros}).`;
-  }
-  
-  // Check light numbers (1-9)
-  const availableLightNumbers = Object.entries(AMATH_TOKENS)
-    .filter(([token, info]) => info.type === 'lightNumber' && token !== '0')
-    .reduce((sum, [, info]) => sum + info.count, 0);
-  if (lightNumberCount > availableLightNumbers) {
-    return `Requested number of light numbers (1-9) (${lightNumberCount}) exceeds available tokens (${availableLightNumbers}).`;
-  }
-  
-  return null;
-}
-
-/**
  * Check if a set of numbers and operators can form a valid equation
  */
 export function canFormValidEquation(elements: string[]): boolean {
@@ -747,7 +680,7 @@ export function canFormValidEquation(elements: string[]): boolean {
       originalToken: el as AmathToken
     }));
     
-    const equations = findValidEquations(tokens);
+    const equations = findValidEquations(tokens, 1);
     return equations.length > 0;
   } catch {
     return false;
@@ -765,7 +698,7 @@ export function findAllPossibleEquations(elements: string[]): string[] {
       originalToken: el as AmathToken
     }));
     
-    return findValidEquations(tokens);
+    return findValidEquations(tokens, 1);
   } catch {
     return [];
   }
