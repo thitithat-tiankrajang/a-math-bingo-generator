@@ -1,4 +1,4 @@
-// src/lib/mathBingoLogic.ts - แก้ไขปัญหาเครื่องหมาย = หลายตัวและเลขเบาติดกัน
+// src/lib/mathBingoLogic.ts - แก้ไขปัญหาเครื่องหมาย = หลายตัวและเลขเบาติดกัน + ระบบเศษส่วน
 import type { MathBingoOptions, MathBingoResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/mathBingo';
 
 // All AMath tiles, total 100
@@ -33,6 +33,12 @@ const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
   '=': { token: '=', count: 11, type: 'equals' },
   '?': { token: '?', count: 4, type: 'wildcard' }
 };
+
+// เพิ่มอินเตอร์เฟซสำหรับเศษส่วน
+interface Fraction {
+  numerator: number;
+  denominator: number;
+}
 
 /**
  * Generate AMath bingo problem based on options
@@ -114,7 +120,7 @@ function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number
 }
 
 /**
- * Combine adjacent numbers with improved logic - แก้ไขให้ป้องกันหลักพัน
+ * Combine adjacent numbers with improved logic - แก้ไขให้ป้องกันหลักพันและเข้มงวดขึ้น
  */
 function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
   const result: string[] = [];
@@ -123,15 +129,15 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
   while (i < tokens.length) {
     const token = tokens[i];
     
-    // Heavy numbers are separate and cannot be adjacent to other numbers
+    // Heavy numbers (10-20) ต้องอยู่แยกเดี่ยวเสมอ
     if (isHeavyNumber(token)) {
-      // Check if heavy number is not adjacent to other numbers
+      // ตรวจสอบว่าไม่ได้อยู่ติดกับเลขอื่น (เข้มงวดขึ้น)
       const prev = result[result.length - 1];
       const next = tokens[i + 1];
       
       if ((prev && (isLightNumber(prev) || isHeavyNumber(prev) || prev === '0')) || 
           (next && (isLightNumber(next) || isHeavyNumber(next) || next === '0'))) {
-        return []; // return empty array to indicate invalid
+        return []; // ส่งกลับ array ว่างเพื่อบอกว่าไม่ถูกต้อง
       }
       
       result.push(token);
@@ -139,40 +145,51 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
       continue;
     }
     
-    // Combine only light numbers and 0s adjacent to each other
+    // Light numbers (1-9) และ 0 สามารถรวมกันได้ แต่จำกัดไม่เกิน 3 หลัก
     if (isLightNumber(token) || token === '0') {
-      // Check if light/0 is not adjacent to heavy numbers
+      // ตรวจสอบว่าไม่ได้อยู่ติดกับ heavy number
       const prev = result[result.length - 1];
       if (prev && isHeavyNumber(prev)) {
-        return []; // return empty array to indicate invalid
+        return []; // ไม่ถูกต้อง
       }
       
       let combinedNumber = token;
       let j = i + 1;
       
-      // Combine only light numbers and 0s adjacent to each other, up to 3 digits
-      while (j < tokens.length && j - i < 3 && (isLightNumber(tokens[j]) || tokens[j] === '0')) {
-        // Check if the next token is not a heavy number
-        if (j + 1 < tokens.length && isHeavyNumber(tokens[j + 1])) {
-          break; // Stop combining if the next is a heavy number
+      // รวมเลขที่อยู่ติดกัน แต่จำกัดไม่เกิน 3 หลัก (เข้มงวดขึ้น)
+      while (j < tokens.length && (isLightNumber(tokens[j]) || tokens[j] === '0')) {
+        // **1. ตรวจสอบว่าไม่เกิน 3 หลัก (ก่อนรวม)**
+        if (combinedNumber.length >= 3) {
+          break; // หยุดทันทีเมื่อถึง 3 หลักแล้ว
         }
         
-        // Do not allow 0 to precede other numbers
+        // **2. ตรวจสอบว่าตัวต่อไปไม่ใช่ heavy number**
+        if (j + 1 < tokens.length && isHeavyNumber(tokens[j + 1])) {
+          break;
+        }
+        
+        // **3. ป้องกัน 0 นำหน้าเลขอื่น (เช่น 01, 02)**
         if (combinedNumber === '0' && tokens[j] !== '0') {
           break;
         }
         
-        // **แก้ไข: ป้องกันการสร้างเลขเกิน 999 (หลักพัน)**
+        // **4. ตรวจสอบค่าตัวเลขที่จะได้ไม่เกิน 999**
         const tempCombined = combinedNumber + tokens[j];
-        if (parseInt(tempCombined) > 999) {
-          break; // หยุดการรวมเลขถ้าเกิน 999
+        const numValue = parseInt(tempCombined);
+        if (numValue > 999) {
+          break; // หยุดถ้าจะเกิน 999
+        }
+        
+        // **5. ป้องกันการสร้างเลขที่มากกว่า 3 หลัก**
+        if (tempCombined.length > 3) {
+          break;
         }
         
         combinedNumber += tokens[j];
         j++;
       }
       
-      // If 0 is at the beginning and there are numbers following, use only 0
+      // จัดการกรณี 0 พิเศษ
       if (combinedNumber.startsWith('0') && combinedNumber.length > 1) {
         result.push('0');
         i++;
@@ -181,19 +198,33 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
         i = j;
       }
     } else {
-      // Others (operators, =, wildcard, choice)
+      // สัญลักษณ์อื่น ๆ (operators, =, wildcard, choice)
       result.push(token);
       i++;
     }
   }
   
-  // Additional check: 0 should not be adjacent to -
-  for (let i = 0; i < result.length - 1; i++) {
-    if (result[i] === '0' && result[i + 1] === '-') {
-      return [];
+  // **การตรวจสอบเพิ่มเติมหลังจากรวมเลขแล้ว**
+  for (let i = 0; i < result.length; i++) {
+    const current = result[i];
+    
+    // 1. ตรวจสอบว่าไม่มีเลขที่เกิน 3 หลัก
+    if (isNumber(current) && current.length > 3) {
+      return []; // ไม่ถูกต้อง
     }
-    if (result[i] === '-' && result[i + 1] === '0') {
-      return [];
+    
+    // 2. ตรวจสอบว่าไม่มีเลขที่เกิน 999
+    if (isNumber(current) && parseInt(current) > 999) {
+      return []; // ไม่ถูกต้อง
+    }
+    
+    // 3. ตรวจสอบ 0 ไม่อยู่ติดกับ -
+    if (current === '0') {
+      const next = result[i + 1];
+      const prev = result[i - 1];
+      if (next === '-' || prev === '-') {
+        return [];
+      }
     }
   }
   
@@ -285,34 +316,179 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
 }
 
 /**
- * Check if equation is valid according to rules - แก้ไขให้รองรับ = หลายตัว
+ * Check if equation is valid according to rules - แก้ไขให้ใช้เศษส่วนแทนทศนิยม
  */
 function isValidEquationByRules(equation: string, equalsCount: number): boolean {
   try {
-    // **แก้ไข: รองรับ = หลายตัว**
+    // **แก้ไข: รองรับ = หลายตัว และใช้เศษส่วน**
     const parts = equation.split('=');
     if (parts.length !== equalsCount + 1) return false;
     
     if (parts.some(part => part.length === 0)) return false;
     
-    // Calculate values for all parts
-    const values: number[] = [];
+    // Calculate values for all parts using fractions
+    const fractions: Fraction[] = [];
     for (const part of parts) {
-      const value = evaluateExpressionSafely(part);
-      if (value === null) return false;
-      values.push(value);
+      const fraction = evaluateExpressionAsFraction(part);
+      if (!fraction) return false;
+      fractions.push(fraction);
     }
     
-    // Check if all values are equal
-    const firstValue = values[0];
-    return values.every(value => Math.abs(value - firstValue) < 0.0001);
+    // Check if all fractions are equal
+    const firstFraction = fractions[0];
+    return fractions.every(fraction => compareFractions(fraction, firstFraction));
   } catch {
     return false;
   }
 }
 
 /**
- * Evaluate expression safely
+ * คำนวณนิพจน์เป็นเศษส่วน - ระบบใหม่
+ */
+function evaluateExpressionAsFraction(expression: string): Fraction | null {
+  try {
+    // ลบ whitespace
+    expression = expression.trim().replace(/\s/g, '');
+    
+    // ตรวจสอบความปลอดภัยของนิพจน์
+    if (!/^[0-9+\-×÷\s\.]+$/.test(expression)) {
+      return null;
+    }
+    
+    // แปลงเลขเดี่ยวเป็นเศษส่วน
+    if (/^\d+$/.test(expression)) {
+      return { numerator: parseInt(expression), denominator: 1 };
+    }
+    
+    // แปลง ÷ เป็นการหารเศษส่วน และ × เป็นการคูณ
+    return parseComplexFractionExpression(expression);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * แปลงนิพจน์ที่ซับซ้อนเป็นเศษส่วน
+ */
+function parseComplexFractionExpression(expression: string): Fraction | null {
+  try {
+    // จัดการกับ + และ - ก่อน (left to right)
+    for (let i = 1; i < expression.length; i++) {
+      if (expression[i] === '+' || expression[i] === '-') {
+        const left = expression.substring(0, i);
+        const operator = expression[i];
+        const right = expression.substring(i + 1);
+        
+        const leftFraction = evaluateExpressionAsFraction(left);
+        const rightFraction = evaluateExpressionAsFraction(right);
+        
+        if (!leftFraction || !rightFraction) continue;
+        
+        if (operator === '+') {
+          return addFractions(leftFraction, rightFraction);
+        } else {
+          return subtractFractions(leftFraction, rightFraction);
+        }
+      }
+    }
+    
+    // จัดการกับ × และ ÷
+    for (let i = 1; i < expression.length; i++) {
+      if (expression[i] === '×' || expression[i] === '÷') {
+        const left = expression.substring(0, i);
+        const operator = expression[i];
+        const right = expression.substring(i + 1);
+        
+        const leftFraction = evaluateExpressionAsFraction(left);
+        const rightFraction = evaluateExpressionAsFraction(right);
+        
+        if (!leftFraction || !rightFraction) continue;
+        
+        if (operator === '×') {
+          return multiplyFractions(leftFraction, rightFraction);
+        } else {
+          // ตรวจสอบการหารด้วย 0
+          if (rightFraction.numerator === 0) return null;
+          return divideFractions(leftFraction, rightFraction);
+        }
+      }
+    }
+    
+    // ถ้าไม่ตรงรูปแบบใด ให้ลองแปลงเป็นเลขธรรมดา
+    if (/^\d+$/.test(expression)) {
+      return { numerator: parseInt(expression), denominator: 1 };
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * การดำเนินการเศษส่วน
+ */
+function addFractions(a: Fraction, b: Fraction): Fraction {
+  const numerator = a.numerator * b.denominator + b.numerator * a.denominator;
+  const denominator = a.denominator * b.denominator;
+  return simplifyFraction({ numerator, denominator });
+}
+
+function subtractFractions(a: Fraction, b: Fraction): Fraction {
+  const numerator = a.numerator * b.denominator - b.numerator * a.denominator;
+  const denominator = a.denominator * b.denominator;
+  return simplifyFraction({ numerator, denominator });
+}
+
+function multiplyFractions(a: Fraction, b: Fraction): Fraction {
+  const numerator = a.numerator * b.numerator;
+  const denominator = a.denominator * b.denominator;
+  return simplifyFraction({ numerator, denominator });
+}
+
+function divideFractions(a: Fraction, b: Fraction): Fraction {
+  const numerator = a.numerator * b.denominator;
+  const denominator = a.denominator * b.numerator;
+  return simplifyFraction({ numerator, denominator });
+}
+
+/**
+ * ลดเศษส่วนให้อยู่ในรูปต่ำสุด
+ */
+function simplifyFraction(fraction: Fraction): Fraction {
+  const gcd = findGCD(Math.abs(fraction.numerator), Math.abs(fraction.denominator));
+  return {
+    numerator: fraction.numerator / gcd,
+    denominator: fraction.denominator / gcd
+  };
+}
+
+/**
+ * หาห.ร.ม.
+ */
+function findGCD(a: number, b: number): number {
+  while (b !== 0) {
+    const temp = b;
+    b = a % b;
+    a = temp;
+  }
+  return a;
+}
+
+/**
+ * เปรียบเทียบเศษส่วน
+ */
+function compareFractions(a: Fraction, b: Fraction): boolean {
+  // ลดเศษส่วนทั้งสองให้อยู่ในรูปต่ำสุด
+  const simplifiedA = simplifyFraction(a);
+  const simplifiedB = simplifyFraction(b);
+  
+  return simplifiedA.numerator === simplifiedB.numerator && 
+         simplifiedA.denominator === simplifiedB.denominator;
+}
+
+/**
+ * Evaluate expression safely - เก็บไว้เป็น fallback
  */
 function evaluateExpressionSafely(expr: string): number | null {
   try {
@@ -343,7 +519,12 @@ function evaluateExpressionSafely(expr: string): number | null {
   }
 }
 
-// ส่วนที่เหลือของโค้ดยังคงเดิม...
+/**
+ * ตรวจสอบว่าเป็นตัวเลขหรือไม่ (ทั้ง light และ heavy และ combined)
+ */
+function isNumber(token: string): boolean {
+  return /^\d+$/.test(token);
+}
 
 /**
  * Check if it's a light number
@@ -366,18 +547,6 @@ function isHeavyNumber(token: string): boolean {
 function isOperator(token: string): boolean {
   return ['+', '-', '×', '÷'].includes(token);
 }
-
-/**
- * Handle choice tokens (+/- or ×/÷)
- */
-// function handleChoiceToken(token: AmathToken): string | null {
-//   if (token === '+/-') {
-//     return Math.random() < 0.5 ? '+' : '-';
-//   } else if (token === '×/÷') {
-//     return Math.random() < 0.5 ? '×' : '÷';
-//   }
-//   return null;
-// }
 
 /**
  * Validate MathBingo options
@@ -702,4 +871,69 @@ export function findAllPossibleEquations(elements: string[]): string[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * ฟังก์ชันเพิ่มเติมสำหรับทดสอบระบบเศษส่วน
+ */
+export function testFractionEquation(equation: string): boolean {
+  try {
+    return isValidEquationByRules(equation, 1);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * แปลงเศษส่วนเป็นสตริงสำหรับแสดงผล
+ */
+export function fractionToString(fraction: Fraction): string {
+  if (fraction.denominator === 1) {
+    return fraction.numerator.toString();
+  }
+  return `${fraction.numerator}/${fraction.denominator}`;
+}
+
+/**
+ * สร้างตัวอย่างสมการที่ใช้เศษส่วน
+ */
+export function generateFractionExampleEquations(): string[] {
+  return [
+    "8÷6+15÷9=5÷3",    // 4/3 + 5/3 = 5/3 ❌ ต้องแก้
+    "8÷2+6÷3=6",       // 4 + 2 = 6 ✓
+    "12÷4+6÷2=6",      // 3 + 3 = 6 ✓
+    "10÷5×3=6",        // 2 × 3 = 6 ✓
+    "9÷3-1=2",         // 3 - 1 = 2 ✓
+    "16÷8+14÷7=4",     // 2 + 2 = 4 ✓
+    "6÷2×4÷2=6",       // 3 × 2 = 6 ✓
+    "15÷3+10÷5=7",     // 5 + 2 = 7 ✓
+    "18÷6×2÷3=2",      // 3 × 2 ÷ 3 = 2 ✓
+  ];
+}
+
+/**
+ * ตรวจสอบความถูกต้องของระบบ - สำหรับการทดสอบ
+ */
+export function validateFractionSystem(): {
+  passed: number;
+  failed: number;
+  examples: string[];
+} {
+  const examples = generateFractionExampleEquations();
+  let passed = 0;
+  let failed = 0;
+  const results: string[] = [];
+  
+  examples.forEach(equation => {
+    const isValid = testFractionEquation(equation);
+    if (isValid) {
+      passed++;
+      results.push(`✓ ${equation}`);
+    } else {
+      failed++;
+      results.push(`❌ ${equation}`);
+    }
+  });
+  
+  return { passed, failed, examples: results };
 }
