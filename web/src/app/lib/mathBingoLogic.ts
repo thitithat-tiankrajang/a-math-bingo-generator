@@ -520,34 +520,34 @@ function compareFractions(a: Fraction, b: Fraction): boolean {
 /**
  * Evaluate expression safely - เก็บไว้เป็น fallback
  */
-function evaluateExpressionSafely(expr: string): number | null {
-  try {
-    // Replace AMath symbols
-    const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
+// function evaluateExpressionSafely(expr: string): number | null {
+//   try {
+//     // Replace AMath symbols
+//     const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
     
-    // Check safety of expression
-    if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
-      return null;
-    }
+//     // Check safety of expression
+//     if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
+//       return null;
+//     }
     
-    // Check division by zero
-    if (processedExpr.includes('/0')) {
-      return null;
-    }
+//     // Check division by zero
+//     if (processedExpr.includes('/0')) {
+//       return null;
+//     }
     
-    // Calculate
-    const result = Function('"use strict"; return (' + processedExpr + ')')();
+//     // Calculate
+//     const result = Function('"use strict"; return (' + processedExpr + ')')();
     
-    // Check result
-    if (typeof result !== 'number' || !isFinite(result)) {
-      return null;
-    }
+//     // Check result
+//     if (typeof result !== 'number' || !isFinite(result)) {
+//       return null;
+//     }
     
-    return result;
-  } catch {
-    return null;
-  }
-}
+//     return result;
+//   } catch {
+//     return null;
+//   }
+// }
 
 /**
  * ตรวจสอบว่าเป็นตัวเลขหรือไม่ (ทั้ง light และ heavy และ combined)
