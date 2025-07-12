@@ -1,7 +1,7 @@
 // src/lib/mathBingoLogic.ts
 import type { MathBingoOptions, MathBingoResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/mathBingo';
 
-// เบี้ยเอแม็ททั้งหมด 100 ตัว
+// All AMath tiles, total 100
 const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
   '0': { token: '0', count: 4, type: 'lightNumber' },
   '1': { token: '1', count: 6, type: 'lightNumber' },
@@ -35,7 +35,7 @@ const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
 };
 
 /**
- * สร้างโจทย์บิงโกเอแม็ทตามกฎของเอแม็ท
+ * Generate AMath bingo problem based on options
  */
 export async function generateMathBingo(options: MathBingoOptions): Promise<MathBingoResult> {
   const validation = validateMathBingoOptions(options);
@@ -48,7 +48,7 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
 
   while (attempts < maxAttempts) {
     try {
-      // Reset และสร้าง tokens ใหม่ทุกครั้ง (เพื่อให้ pool รีเซ็ต)
+      // Reset and generate tokens for each attempt (reset pool)
       const tokens = generateTokensBasedOnOptions(options);
       const equations = findValidEquations(tokens);
       
@@ -56,35 +56,35 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
         return {
           elements: tokens.map(t => t.originalToken),
           sampleEquation: equations[0],
-          possibleEquations: equations.slice(0, 10) // แสดงสูงสุด 10 สมการ
+          possibleEquations: equations.slice(0, 10) // Show up to 10 equations
         };
       }
     } catch (error) {
-      // ถ้าหมด tokens ในพูล ให้ลองใหม่ (pool จะถูก reset อัตโนมัติ)
+      // If token selection fails, reset pool and try again
       console.log(`Attempt ${attempts + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     attempts++;
   }
 
-  throw new Error('ไม่สามารถสร้างโจทย์ที่มีคำตอบได้ กรุณาลองปรับตัวเลือก หรือลดจำนวนชุดตัวเลข/เครื่องหมาย');
+  throw new Error('Could not generate a valid problem. Please adjust your options or reduce the number of tiles/operators.');
 }
 
 /**
- * สร้างชุด tokens ตามข้อกำหนดที่เลือก
+ * Generate tokens based on selected options
  */
 function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElement[] {
   const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount } = options;
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
   
   if (lightNumberCount < 0) {
-    throw new Error('จำนวนตัวเลขเบาไม่เพียงพอ กรุณาปรับตัวเลือก');
+    throw new Error('Not enough light numbers. Please adjust your options.');
   }
   
-  // สร้าง pool ที่มีจำนวนจริงตามเบี้ยเอแม็ท
+  // Create pool with actual AMath tile counts
   const availablePool = createAvailableTokenPool();
   const selectedTokens: EquationElement[] = [];
   
-  // ฟังก์ชันหยิบ token จาก pool
+  // Pick token from pool by type
   const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'wildcard' | 'zero'): AmathToken | null => {
     let candidates: AmathToken[] = [];
     
@@ -104,7 +104,7 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
     
     if (candidates.length === 0) return null;
     
-    // สุ่มเลือก และลบออกจาก pool
+    // Remove from pool after pick
     const randomIndex = Math.floor(Math.random() * candidates.length);
     const selectedToken = candidates[randomIndex];
     const poolIndex = availablePool.indexOf(selectedToken);
@@ -115,68 +115,68 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
     return selectedToken;
   };
   
-  // หยิบเครื่องหมาย = ตามจำนวนที่กำหนด
+  // Pick equals tokens
   for (let i = 0; i < equalsCount; i++) {
     const token = pickTokenFromPool('equals');
     if (!token) {
-      throw new Error('หมดเครื่องหมาย = ในพูล');
+      throw new Error('Not enough equals (=) tokens in pool.');
     }
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // หยิบเครื่องหมายคำนวณ
+  // Pick operator tokens
   for (let i = 0; i < operatorCount; i++) {
     const token = pickTokenFromPool('operator');
     if (!token) {
-      throw new Error('หมดเครื่องหมายคำนวณในพูล');
+      throw new Error('Not enough operator tokens in pool.');
     }
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // หยิบเลขหนัก
+  // Pick heavy number tokens
   for (let i = 0; i < heavyNumberCount; i++) {
     const token = pickTokenFromPool('heavy');
     if (!token) {
-      throw new Error('หมดเลขหนักในพูล');
+      throw new Error('Not enough heavy number tokens in pool.');
     }
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // หยิบไวลด์การ์ด
+  // Pick wildcard tokens
   for (let i = 0; i < wildcardCount; i++) {
     const token = pickTokenFromPool('wildcard');
     if (!token) {
-      throw new Error('หมดไวลด์การ์ดในพูล');
+      throw new Error('Not enough wildcard tokens in pool.');
     }
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // หยิบเลข 0
+  // Pick zero tokens
   for (let i = 0; i < zeroCount; i++) {
     const token = pickTokenFromPool('zero');
     if (!token) {
-      throw new Error('หมดเลข 0 ในพูล');
+      throw new Error('Not enough zero tokens in pool.');
     }
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // หยิบตัวเลขเบา (1-9)
+  // Pick light number tokens (1-9)
   for (let i = 0; i < lightNumberCount; i++) {
     const token = pickTokenFromPool('light');
     if (!token) {
-      throw new Error('หมดตัวเลขเบาในพูล');
+      throw new Error('Not enough light number tokens in pool.');
     }
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // เรียงลำดับ tokens ให้สวยงาม
+  // Sort tokens for better readability
   const sortedTokens = sortTokensByPriority(selectedTokens);
   
   return sortedTokens;
 }
 
 /**
- * สร้าง pool ของ tokens ที่สามารถใช้ได้ (ตามจำนวนจริงของเบี้ยเอแม็ท)
+ * Create a pool of available tokens (based on actual AMath tile counts)
  */
 function createAvailableTokenPool(): AmathToken[] {
   const pool: AmathToken[] = [];
@@ -191,7 +191,7 @@ function createAvailableTokenPool(): AmathToken[] {
 }
 
 /**
- * สร้าง EquationElement จาก token
+ * Create EquationElement from token
  */
 function createElementFromToken(token: AmathToken): EquationElement {
   return {
@@ -202,7 +202,7 @@ function createElementFromToken(token: AmathToken): EquationElement {
 }
 
 /**
- * กำหนดประเภทของ element
+ * Determine element type
  */
 function getElementType(token: string): EquationElement['type'] {
   const tokenInfo = AMATH_TOKENS[token as AmathToken];
@@ -226,13 +226,13 @@ function getElementType(token: string): EquationElement['type'] {
 }
 
 /**
- * หาสมการที่ถูกต้องจาก tokens ที่ให้มา
+ * Find valid equations from given tokens
  */
 function findValidEquations(tokens: EquationElement[]): string[] {
   const validEquations: string[] = [];
   const tokenValues = tokens.map(t => t.originalToken);
   
-  // สร้างการเรียงลำดับที่เป็นไปได้
+  // Generate possible permutations
   const permutations = generateLimitedPermutations(tokenValues, 1500);
   
   for (const perm of permutations) {
@@ -240,18 +240,18 @@ function findValidEquations(tokens: EquationElement[]): string[] {
       const equation = createEquationFromPermutation(perm);
       if (equation && isValidEquationByRules(equation)) {
         validEquations.push(equation);
-        if (validEquations.length >= 15) break; // จำกัดจำนวนที่ตรวจสอบ
+        if (validEquations.length >= 15) break; // Limit number of checks
       }
     } catch {
       continue;
     }
   }
 
-  return [...new Set(validEquations)]; // ลบสมการที่ซ้ำ
+  return [...new Set(validEquations)]; // Remove duplicate equations
 }
 
 /**
- * สร้างสมการจากการเรียงลำดับ tokens
+ * Create equation from token permutation
  */
 function createEquationFromPermutation(tokens: AmathToken[]): string | null {
   const processedTokens: string[] = [];
@@ -262,13 +262,13 @@ function createEquationFromPermutation(tokens: AmathToken[]): string | null {
     
     if (!tokenInfo) continue;
 
-    // จัดการ choice tokens
+    // Handle choice tokens
     if (tokenInfo.type === 'choice') {
       const choiceResult = handleChoiceToken(token);
       if (!choiceResult) return null;
       processedTokens.push(choiceResult);
     } 
-    // จัดการ wildcard - ให้เป็นตัวเลขง่าย ๆ
+    // Handle wildcard - simplify to a simple number
     else if (tokenInfo.type === 'wildcard') {
       const wildcardOptions = ['1', '2', '3', '4', '5'];
       const randomWildcard = wildcardOptions[Math.floor(Math.random() * wildcardOptions.length)];
@@ -279,15 +279,15 @@ function createEquationFromPermutation(tokens: AmathToken[]): string | null {
     }
   }
   
-  // สร้างสมการโดยการรวม light numbers ที่ติดกัน
+  // Combine consecutive light numbers
   const finalTokens = combineLightNumbers(processedTokens);
   
-  // ถ้า combineLightNumbers return empty array แสดงว่าไม่ valid (0 ติดกับ -)
+  // If combineLightNumbers returns empty array, it's not valid (0 with -)
   if (finalTokens.length === 0) {
     return null;
   }
   
-  // ตรวจสอบโครงสร้างพื้นฐาน
+  // Basic structure check
   if (!isValidTokenStructure(finalTokens)) {
     return null;
   }
@@ -296,7 +296,7 @@ function createEquationFromPermutation(tokens: AmathToken[]): string | null {
 }
 
 /**
- * รวม light numbers ที่ติดกันเป็นตัวเลขหลายหลัก
+ * Combine consecutive light numbers into multi-digit numbers
  */
 function combineLightNumbers(tokens: string[]): string[] {
   const result: string[] = [];
@@ -305,15 +305,15 @@ function combineLightNumbers(tokens: string[]): string[] {
   while (i < tokens.length) {
     const token = tokens[i];
     
-    // เลขหนักต้องแยกเดี่ยวเสมอ และห้ามติดกับเลขอื่น ๆ
+    // Heavy numbers must be separate and cannot be adjacent to other numbers
     if (isHeavyNumber(token)) {
-      // ตรวจสอบว่าเลขหนักไม่ติดกับเลขอื่น ๆ
+      // Check if heavy number is not adjacent to other numbers
       const prev = tokens[i - 1];
       const next = tokens[i + 1];
       
       if ((prev && (isLightNumber(prev) || isHeavyNumber(prev) || prev === '0')) || 
           (next && (isLightNumber(next) || isHeavyNumber(next) || next === '0'))) {
-        return []; // return empty array เพื่อบอกว่าไม่ valid
+        return []; // return empty array to indicate invalid
       }
       
       result.push(token);
@@ -321,25 +321,25 @@ function combineLightNumbers(tokens: string[]): string[] {
       continue;
     }
     
-    // combine เฉพาะเลขเบาและ 0 ติดกันเท่านั้น
+    // Combine only light numbers and 0s adjacent to each other
     if (isLightNumber(token) || token === '0') {
-      // ตรวจสอบว่าเลขเบา/0 ไม่ติดกับเลขหนัก
+      // Check if light/0 is not adjacent to heavy numbers
       const prev = tokens[i - 1];
       if (prev && isHeavyNumber(prev)) {
-        return []; // return empty array เพื่อบอกว่าไม่ valid
+        return []; // return empty array to indicate invalid
       }
       
       let combinedNumber = token;
       let j = i + 1;
       
-      // รวมเฉพาะเลขเบาและ 0 ติดกัน ไม่เกิน 3 หลัก
+      // Combine only light numbers and 0s adjacent to each other, up to 3 digits
       while (j < tokens.length && j - i < 3 && (isLightNumber(tokens[j]) || tokens[j] === '0')) {
-        // ตรวจสอบว่าเลขถัดไปไม่ใช่เลขหนัก
+        // Check if the next token is not a heavy number
         if (j + 1 < tokens.length && isHeavyNumber(tokens[j + 1])) {
-          break; // หยุดการรวมถ้าถัดไปเป็นเลขหนัก
+          break; // Stop combining if the next is a heavy number
         }
         
-        // ไม่ให้ 0 นำหน้าตัวเลขอื่น
+        // Do not allow 0 to precede other numbers
         if (combinedNumber === '0' && tokens[j] !== '0') {
           break;
         }
@@ -347,7 +347,7 @@ function combineLightNumbers(tokens: string[]): string[] {
         j++;
       }
       
-      // ถ้า 0 อยู่ข้างหน้าและมีตัวเลขตามมา ให้ใช้แค่ 0
+      // If 0 is at the beginning and there are numbers following, use only 0
       if (combinedNumber.startsWith('0') && combinedNumber.length > 1) {
         result.push('0');
         i++;
@@ -356,13 +356,13 @@ function combineLightNumbers(tokens: string[]): string[] {
         i = j;
       }
     } else {
-      // อื่น ๆ (operator, =, wildcard, choice)
+      // Others (operators, =, wildcard, choice)
       result.push(token);
       i++;
     }
   }
   
-  // ตรวจสอบเพิ่มเติม: 0 ห้ามติดกับ -
+  // Additional check: 0 should not be adjacent to -
   for (let i = 0; i < result.length - 1; i++) {
     if (result[i] === '0' && result[i + 1] === '-') {
       return [];
@@ -376,14 +376,14 @@ function combineLightNumbers(tokens: string[]): string[] {
 }
 
 /**
- * ตรวจสอบว่าเป็นตัวเลขเบาหรือไม่
+ * Check if it's a light number
  */
 function isLightNumber(token: string): boolean {
   return /^[1-9]$/.test(token);
 }
 
 /**
- * ตรวจสอบว่าเป็นตัวเลขหนักหรือไม่
+ * Check if it's a heavy number
  */
 function isHeavyNumber(token: string): boolean {
   const num = parseInt(token);
@@ -391,19 +391,19 @@ function isHeavyNumber(token: string): boolean {
 }
 
 /**
- * ตรวจสอบว่าเป็นเครื่องหมายคำนวณหรือไม่
+ * Check if it's an operator
  */
 function isOperator(token: string): boolean {
   return ['+', '-', '×', '÷'].includes(token);
 }
 
 /**
- * ตรวจสอบโครงสร้างของ tokens ว่าถูกต้องหรือไม่
+ * Check if token structure is valid
  */
 function isValidTokenStructure(tokens: string[]): boolean {
   if (tokens.length < 3) return false;
   
-  // ต้องมี = อย่างน้อย 1 ตัว
+  // Must have at least 1 =
   if (!tokens.includes('=')) return false;
   
   for (let i = 0; i < tokens.length; i++) {
@@ -411,9 +411,9 @@ function isValidTokenStructure(tokens: string[]): boolean {
     const next = tokens[i + 1];
     const prev = tokens[i - 1];
     
-    // ตรวจสอบกฎการติดกัน
+    // Check adjacency rules
     if (isHeavyNumber(current)) {
-      // เลขหนักต้องติดกับเครื่องหมายเท่านั้น
+      // Heavy numbers must be adjacent to operators only
       if (prev && !isOperator(prev) && prev !== '=') {
         return false;
       }
@@ -422,7 +422,7 @@ function isValidTokenStructure(tokens: string[]): boolean {
       }
     }
     
-    // ตรวจสอบเลข 0 ห้ามติดกับ -
+    // Check for 0 adjacent to -
     if (current === '0') {
       if (next === '-' || prev === '-') {
         return false;
@@ -430,7 +430,7 @@ function isValidTokenStructure(tokens: string[]): boolean {
     }
     
     if (isOperator(current)) {
-      // เครื่องหมายห้ามติดกัน ยกเว้น =- 
+      // Operators should not be adjacent, except for =-
       if (isOperator(next) && !(current === '=' && next === '-')) {
         return false;
       }
@@ -438,17 +438,17 @@ function isValidTokenStructure(tokens: string[]): boolean {
         return false;
       }
       
-      // + ห้ามอยู่ต้นสมการ
+      // + should not be at the beginning of the equation
       if (current === '+' && i === 0) {
         return false;
       }
       
-      // + ห้ามอยู่หลัง =
+      // + should not be after =
       if (current === '+' && prev === '=') {
         return false;
       }
       
-      // - ห้ามติดกับ 0
+      // - should not be adjacent to 0
       if (current === '-') {
         if (next === '0' || prev === '0') {
           return false;
@@ -457,7 +457,7 @@ function isValidTokenStructure(tokens: string[]): boolean {
     }
     
     if (current === '=') {
-      // = ห้ามอยู่ต้นหรือท้ายสมการ
+      // = should not be at the beginning or end of the equation
       if (i === 0 || i === tokens.length - 1) {
         return false;
       }
@@ -468,7 +468,7 @@ function isValidTokenStructure(tokens: string[]): boolean {
 }
 
 /**
- * จัดการ choice token (+/- หรือ ×/÷)
+ * Handle choice tokens (+/- or ×/÷)
  */
 function handleChoiceToken(token: AmathToken): string | null {
   if (token === '+/-') {
@@ -480,11 +480,11 @@ function handleChoiceToken(token: AmathToken): string | null {
 }
 
 /**
- * ตรวจสอบความถูกต้องของสมการตามกฎ
+ * Check if equation is valid according to rules
  */
 function isValidEquationByRules(equation: string): boolean {
   try {
-    // แยกสมการตาม =
+    // Split equation by =
     const equalIndex = equation.indexOf('=');
     if (equalIndex === -1) return false;
     
@@ -493,13 +493,13 @@ function isValidEquationByRules(equation: string): boolean {
     
     if (leftSide.length === 0 || rightSide.length === 0) return false;
     
-    // คำนวณค่าทั้งสองฝั่ง
+    // Calculate values on both sides
     const leftValue = evaluateExpressionSafely(leftSide);
     const rightValue = evaluateExpressionSafely(rightSide);
     
     if (leftValue === null || rightValue === null) return false;
     
-    // ตรวจสอบว่าผลลัพธ์เท่ากัน
+    // Check if results are equal
     return Math.abs(leftValue - rightValue) < 0.0001;
   } catch {
     return false;
@@ -507,27 +507,27 @@ function isValidEquationByRules(equation: string): boolean {
 }
 
 /**
- * คำนวณค่าของ expression อย่างปลอดภัย
+ * Evaluate expression safely
  */
 function evaluateExpressionSafely(expr: string): number | null {
   try {
-    // แทนที่เครื่องหมายเอแม็ท
+    // Replace AMath symbols
     const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
     
-    // ตรวจสอบความปลอดภัยของ expression
+    // Check safety of expression
     if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
       return null;
     }
     
-    // ตรวจสอบหารด้วยศูนย์
+    // Check division by zero
     if (processedExpr.includes('/0')) {
       return null;
     }
     
-    // คำนวณ
+    // Calculate
     const result = Function('"use strict"; return (' + processedExpr + ')')();
     
-    // ตรวจสอบผลลัพธ์
+    // Check result
     if (typeof result !== 'number' || !isFinite(result)) {
       return null;
     }
@@ -539,7 +539,7 @@ function evaluateExpressionSafely(expr: string): number | null {
 }
 
 /**
- * สร้างการเรียงลำดับแบบจำกัด
+ * Generate limited permutations
  */
 function generateLimitedPermutations<T>(arr: T[], maxCount: number): T[][] {
   if (arr.length <= 1) return [arr];
@@ -553,7 +553,7 @@ function generateLimitedPermutations<T>(arr: T[], maxCount: number): T[][] {
     permutations.push(shuffled);
   }
   
-  // ลบรายการที่ซ้ำ
+  // Remove duplicate entries
   const uniquePermutations: T[][] = [];
   const seen = new Set<string>();
   
@@ -569,19 +569,19 @@ function generateLimitedPermutations<T>(arr: T[], maxCount: number): T[][] {
 }
 
 /**
- * คำนวณแฟกทอเรียล
+ * Calculate factorial
  */
 function factorial(n: number): number {
   if (n <= 1) return 1;
   let result = 1;
-  for (let i = 2; i <= Math.min(n, 10); i++) { // จำกัดไม่เกิน 10!
+  for (let i = 2; i <= Math.min(n, 10); i++) { // Limit to 10!
     result *= i;
   }
   return result;
 }
 
 /**
- * สับเปลี่ยนลำดับของ array
+ * Shuffle array
  */
 function shuffleArray<T>(array: T[]): void {
   for (let i = array.length - 1; i > 0; i--) {
@@ -591,7 +591,7 @@ function shuffleArray<T>(array: T[]): void {
 }
 
 /**
- * เรียงลำดับ tokens ตาม priority ที่กำหนด
+ * Sort tokens by priority
  */
 function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
   return tokens.sort((a, b) => {
@@ -602,13 +602,13 @@ function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
       return priorityA - priorityB;
     }
     
-    // ถ้า priority เท่ากัน ให้เรียงตามค่า
+    // If priorities are the same, sort by value
     return compareTokenValues(a.originalToken, b.originalToken);
   });
 }
 
 /**
- * กำหนด priority ของแต่ละประเภท token
+ * Assign priority to each token type
  */
 function getTokenPriority(token: AmathToken): number {
   const tokenInfo = AMATH_TOKENS[token];
@@ -616,128 +616,128 @@ function getTokenPriority(token: AmathToken): number {
   
   switch (tokenInfo.type) {
     case 'lightNumber': 
-      return token === '0' ? 0.5 : 1; // ให้ 0 มาก่อนเลขเบาอื่น ๆ
-    case 'heavyNumber': return 2;   // เลขหนัก 10-20
-    case 'operator': return 3;      // บวกลบคูณหาร
-    case 'choice': return 4;        // บวกหรือลบ, คูณหรือหาร
-    case 'equals': return 5;        // เท่ากับ
+      return token === '0' ? 0.5 : 1; // Give 0 precedence over other light numbers
+    case 'heavyNumber': return 2;   // Heavy numbers 10-20
+    case 'operator': return 3;      // Add, Subtract, Multiply, Divide
+    case 'choice': return 4;        // Add or Subtract, Multiply or Divide
+    case 'equals': return 5;        // Equals
     case 'wildcard': return 6;      // ?
     default: return 999;
   }
 }
 
 /**
- * เปรียบเทียบค่าของ token ในกลุ่มเดียวกัน
+ * Compare values of tokens within the same group
  */
 function compareTokenValues(a: AmathToken, b: AmathToken): number {
   const aInfo = AMATH_TOKENS[a];
   const bInfo = AMATH_TOKENS[b];
   
-  // เลขเบาและเลขหนัก เรียงตามค่าตัวเลข
+  // Light numbers and heavy numbers are sorted by their numeric value
   if ((aInfo.type === 'lightNumber' || aInfo.type === 'heavyNumber') &&
       (bInfo.type === 'lightNumber' || bInfo.type === 'heavyNumber')) {
     return parseInt(a) - parseInt(b);
   }
   
-  // เครื่องหมายคำนวณ เรียงตาม +, -, ×, ÷
+  // Operators are sorted by +, -, ×, ÷
   if (aInfo.type === 'operator' && bInfo.type === 'operator') {
     const operatorOrder = ['+', '-', '×', '÷'];
     return operatorOrder.indexOf(a) - operatorOrder.indexOf(b);
   }
   
-  // เครื่องหมายทางเลือก เรียงตาม +/-, ×/÷
+  // Choice operators are sorted by +/-, ×/÷
   if (aInfo.type === 'choice' && bInfo.type === 'choice') {
     const choiceOrder = ['+/-', '×/÷'];
     return choiceOrder.indexOf(a) - choiceOrder.indexOf(b);
   }
   
-  // อื่น ๆ เรียงตาม string
+  // Others are sorted by string
   return a.localeCompare(b);
 }
 
 /**
- * ตรวจสอบความถูกต้องของตัวเลือก
+ * Validate options
  */
 export function validateMathBingoOptions(options: MathBingoOptions): string | null {
   const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount } = options;
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
   
   if (totalCount < 8) {
-    return "จำนวนชุดตัวเลขและเครื่องหมายต้องมีอย่างน้อย 8 ตัว";
+    return "Total number of tiles and operators must be at least 8.";
   }
   
   if (totalCount > 20) {
-    return "จำนวนชุดตัวเลขและเครื่องหมายต้องไม่เกิน 20 ตัว";
+    return "Total number of tiles and operators must not exceed 20.";
   }
   
   if (operatorCount < 1) {
-    return "ต้องมีเครื่องหมายคำนวณอย่างน้อย 1 ตัว";
+    return "Must have at least 1 operator.";
   }
   
   if (equalsCount < 1) {
-    return "ต้องมีเครื่องหมาย = อย่างน้อย 1 ตัว";
+    return "Must have at least 1 equals (=) sign.";
   }
   
   if (lightNumberCount < 0) {
-    return "จำนวนตัวเลขเบาไม่เพียงพอ กรุณาปรับตัวเลือก";
+    return "Not enough light numbers. Please adjust your options.";
   }
   
   if (lightNumberCount + heavyNumberCount + zeroCount < 2) {
-    return "ต้องมีตัวเลขอย่างน้อย 2 ตัว";
+    return "Must have at least 2 numbers.";
   }
   
-  // ตรวจสอบว่าจำนวนที่ขอมีใน pool หรือไม่
+  // Check if the requested number is available in the pool
   const totalAvailableTokens = Object.values(AMATH_TOKENS).reduce((sum, token) => sum + token.count, 0);
   if (totalCount > totalAvailableTokens) {
-    return `จำนวนชุดที่ขอ (${totalCount}) เกินจำนวนเบี้ยที่มี (${totalAvailableTokens})`;
+    return `Requested number of sets (${totalCount}) exceeds available tokens (${totalAvailableTokens}).`;
   }
   
-  // ตรวจสอบเครื่องหมาย =
+  // Check equals sign
   const availableEquals = AMATH_TOKENS['='].count;
   if (equalsCount > availableEquals) {
-    return `จำนวนเครื่องหมาย = ที่ขอ (${equalsCount}) เกินจำนวนที่มี (${availableEquals})`;
+    return `Requested number of equals (=) (${equalsCount}) exceeds available tokens (${availableEquals}).`;
   }
   
-  // ตรวจสอบเครื่องหมายคำนวณ
+  // Check operators
   const availableOperators = AMATH_TOKENS['+'].count + AMATH_TOKENS['-'].count + 
                             AMATH_TOKENS['×'].count + AMATH_TOKENS['÷'].count;
   if (operatorCount > availableOperators) {
-    return `จำนวนเครื่องหมายคำนวณที่ขอ (${operatorCount}) เกินจำนวนที่มี (${availableOperators})`;
+    return `Requested number of operators (${operatorCount}) exceeds available tokens (${availableOperators}).`;
   }
   
-  // ตรวจสอบเลขหนัก
+  // Check heavy numbers
   const availableHeavyNumbers = Object.entries(AMATH_TOKENS)
     .filter(([, info]) => info.type === 'heavyNumber')
     .reduce((sum, [, info]) => sum + info.count, 0);
   if (heavyNumberCount > availableHeavyNumbers) {
-    return `จำนวนเลขหนักที่ขอ (${heavyNumberCount}) เกินจำนวนที่มี (${availableHeavyNumbers})`;
+    return `Requested number of heavy numbers (${heavyNumberCount}) exceeds available tokens (${availableHeavyNumbers}).`;
   }
   
-  // ตรวจสอบไวลด์การ์ด
-  const availableWildcards = AMATH_TOKENS['?'].count;
-  if (wildcardCount > availableWildcards) {
-    return `จำนวนไวลด์การ์ดที่ขอ (${wildcardCount}) เกินจำนวนที่มี (${availableWildcards})`;
+  // Check wildcard
+  const availableBlank = AMATH_TOKENS['?'].count;
+  if (wildcardCount > availableBlank) {
+    return `Requested number of blank (${wildcardCount}) exceeds available tokens (${availableBlank}).`;
   }
   
-  // ตรวจสอบเลข 0
+  // Check zero
   const availableZeros = AMATH_TOKENS['0'].count;
   if (zeroCount > availableZeros) {
-    return `จำนวนเลข 0 ที่ขอ (${zeroCount}) เกินจำนวนที่มี (${availableZeros})`;
+    return `Requested number of zeros (${zeroCount}) exceeds available tokens (${availableZeros}).`;
   }
   
-  // ตรวจสอบตัวเลขเบา (1-9)
+  // Check light numbers (1-9)
   const availableLightNumbers = Object.entries(AMATH_TOKENS)
     .filter(([token, info]) => info.type === 'lightNumber' && token !== '0')
     .reduce((sum, [, info]) => sum + info.count, 0);
   if (lightNumberCount > availableLightNumbers) {
-    return `จำนวนตัวเลขเบา (1-9) ที่ขอ (${lightNumberCount}) เกินจำนวนที่มี (${availableLightNumbers})`;
+    return `Requested number of light numbers (1-9) (${lightNumberCount}) exceeds available tokens (${availableLightNumbers}).`;
   }
   
   return null;
 }
 
 /**
- * ตรวจสอบว่าชุดตัวเลขและเครื่องหมายสามารถสร้างสมการที่ถูกต้องได้หรือไม่
+ * Check if a set of numbers and operators can form a valid equation
  */
 export function canFormValidEquation(elements: string[]): boolean {
   try {
@@ -755,7 +755,7 @@ export function canFormValidEquation(elements: string[]): boolean {
 }
 
 /**
- * หาสมการที่เป็นไปได้ทั้งหมดจากชุดตัวเลขและเครื่องหมายที่ให้มา
+ * Find all possible equations from a given set of numbers and operators
  */
 export function findAllPossibleEquations(elements: string[]): string[] {
   try {

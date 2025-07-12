@@ -13,9 +13,9 @@ export default function MathBingoGenerator() {
     totalCount: 8,
     operatorCount: 2,
     equalsCount: 1,
-    heavyNumberCount: 1,  // เลขหนัก 1 ตัว
-    wildcardCount: 0,     // ไม่มี wildcard
-    zeroCount: 0          // ไม่มีเลข 0
+    heavyNumberCount: 1,  // 1 heavy number
+    wildcardCount: 0,     // no wildcard
+    zeroCount: 0          // no zero
   });
 
   const [result, setResult] = useState<MathBingoResult | null>(null);
@@ -33,7 +33,7 @@ export default function MathBingoGenerator() {
     } catch (error) {
       console.error('Error generating math bingo:', error);
       // TODO: Add error handling UI
-      alert(`เกิดข้อผิดพลาด: ${error instanceof Error ? error.message : 'ไม่ทราบสาเหตุ'}`);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -42,7 +42,11 @@ export default function MathBingoGenerator() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Display Box */}
-      <DisplayBox result={result} />
+      <DisplayBox 
+        result={result}
+        onGenerate={handleGenerate}
+        isGenerating={isGenerating}
+      />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Option Box */}

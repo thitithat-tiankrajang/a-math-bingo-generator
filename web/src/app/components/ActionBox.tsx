@@ -8,7 +8,7 @@ interface ActionBoxProps {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">
-          การดำเนินการ
+          Actions
         </h2>
         
         <div className="space-y-4">
@@ -28,21 +28,20 @@ interface ActionBoxProps {
             {isGenerating ? (
               <div className="flex items-center justify-center space-x-2">
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>กำลังสร้างโจทย์...</span>
+                <span>Generating problem...</span>
               </div>
             ) : (
-              'สร้างโจทย์'
+              'Generate Problem'
             )}
           </button>
   
           {/* คำอธิบายเพิ่มเติม */}
           <div className="text-sm text-gray-600 space-y-2">
             <p>
-              <strong>โจทย์บิงโกเอแม็ท</strong> คือชุดตัวเลขและเครื่องหมายที่สามารถ
-              นำมาเรียงเป็นสมการที่ถูกต้องได้อย่างน้อย 1 สมการ
+              <strong>DS Bingo Problem</strong> is a set of numbers and operators that can be arranged into at least one valid equation.
             </p>
             <p className="text-xs text-gray-500">
-              ตัวอย่าง: 1 2 3 4 5 + * = สามารถเรียงเป็น 4*2+5=13 ได้
+              Example: 1 2 3 4 5 + * = can be arranged as 4*2+5=13
             </p>
           </div>
         </div>

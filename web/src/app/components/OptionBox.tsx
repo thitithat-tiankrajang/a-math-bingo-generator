@@ -31,16 +31,16 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
     <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 transition-all duration-300 max-w-full">
       <h2 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
         <span className="text-blue-600">⚙️</span>
-        ตัวเลือก
+        Options
       </h2>
       
       <div className="space-y-4">
-        {/* จำนวนชุดตัวเลขและเครื่องหมายทั้งหมด */}
+        {/* Total number of tiles */}
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            จำนวนชุดตัวเลขและเครื่องหมายทั้งหมด
+            Total number of tiles
             <span className="block text-xs text-gray-500 mt-1 font-normal">
-              (ขั้นต่ำ 8 ชุด, สูงสุด 20 ชุด)
+              (Min 8, Max 20)
             </span>
           </label>
           <div className="flex items-center justify-center gap-2">
@@ -71,10 +71,10 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           </div>
         </div>
 
-        {/* จำนวนเครื่องหมายคำนวณ */}
+        {/* Number of operators */}
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            จำนวนเครื่องหมายคำนวณ
+            Number of operators
             <span className="block text-xs text-gray-500 mt-1 font-normal">
               (+, −, ×, ÷)
             </span>
@@ -107,10 +107,10 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           </div>
         </div>
 
-        {/* จำนวนเครื่องหมาย = */}
+        {/* Number of equals signs */}
         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            จำนวนเครื่องหมาย <span className="font-bold">=</span>
+            Number of <span className="font-bold">=</span> signs
           </label>
           <div className="flex items-center justify-center gap-2">
             <button
@@ -140,10 +140,10 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           </div>
         </div>
 
-        {/* จำนวนเลขหนัก */}
+        {/* Number of heavy numbers */}
         <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            จำนวนเลขหนัก
+            Number of heavy numbers
             <span className="block text-xs text-gray-500 mt-1 font-normal">
               (10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
             </span>
@@ -176,12 +176,12 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           </div>
         </div>
 
-        {/* จำนวน Wildcard */}
+        {/* Number of Blank */}
         <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            จำนวนไวลด์การ์ด
+            Number of Blank
             <span className="block text-xs text-gray-500 mt-1 font-normal">
-              (?) สามารถแทนที่เป็นอะไรก็ได้
+              (?) Can be any value
             </span>
           </label>
           <div className="flex items-center justify-center gap-2">
@@ -212,12 +212,12 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           </div>
         </div>
 
-        {/* จำนวนเลข 0 */}
+        {/* Number of zeros */}
         <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            จำนวนเลข 0
+            Number of zeros
             <span className="block text-xs text-gray-500 mt-1 font-normal">
-              (ศูนย์ - มีกฎพิเศษในการใช้งาน)
+              (Zero - special rules apply)
             </span>
           </label>
           <div className="flex items-center justify-center gap-2">
@@ -248,9 +248,9 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           </div>
         </div>
 
-        {/* แสดงจำนวนเลขเบาที่เหลือ */}
+        {/* Show remaining light numbers */}
         <div className="bg-green-50 rounded-lg p-3 border border-green-200 text-center">
-          <p className="text-xs font-medium text-gray-700 mb-1">จำนวนเลขเบา (1-9)</p>
+          <p className="text-xs font-medium text-gray-700 mb-1">Number of light numbers (1-9)</p>
           <div className={`rounded-md p-2 border inline-block min-w-[48px] ${
             lightNumberCount >= 0 ? 'bg-white border-green-100' : 'bg-red-50 border-red-200'
           }`}>
@@ -259,21 +259,21 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
             }`}>
               {lightNumberCount}
             </span>
-            <span className="text-xs text-gray-500 ml-1">ตัว</span>
+            <span className="text-xs text-gray-500 ml-1">tiles</span>
           </div>
           {lightNumberCount < 0 && (
-            <p className="text-xs text-red-600 mt-1">⚠️ จำนวนไม่เพียงพอ</p>
+            <p className="text-xs text-red-600 mt-1">⚠️ Not enough tiles</p>
           )}
         </div>
       </div>
 
-      {/* summary ข้อมูล */}
+      {/* summary */}
       <div className="mt-5 p-3 bg-gray-50 rounded-lg border border-gray-200">
-        <h3 className="text-xs font-semibold text-gray-700 mb-2 text-center">สรุปการตั้งค่า</h3>
+        <h3 className="text-xs font-semibold text-gray-700 mb-2 text-center">Summary</h3>
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div className="text-center p-2 bg-white rounded">
             <div className="font-bold text-black">{options.totalCount}</div>
-            <div className="text-gray-600">ชุดทั้งหมด</div>
+            <div className="text-gray-600">Total tiles</div>
           </div>
           <div className={`text-center p-2 rounded ${
             lightNumberCount >= 0 ? 'bg-white' : 'bg-red-50'
@@ -283,27 +283,27 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
             }`}>
               {lightNumberCount}
             </div>
-            <div className="text-gray-600">เลขเบา (1-9)</div>
+            <div className="text-gray-600">Light numbers (1-9)</div>
           </div>
           <div className="text-center p-2 bg-white rounded">
             <div className="font-bold text-black">{options.heavyNumberCount}</div>
-            <div className="text-gray-600">เลขหนัก (10-20)</div>
+            <div className="text-gray-600">Heavy numbers (10-20)</div>
           </div>
           <div className="text-center p-2 bg-white rounded">
             <div className="font-bold text-black">{options.zeroCount}</div>
-            <div className="text-gray-600">เลข 0</div>
+            <div className="text-gray-600">Zeros</div>
           </div>
           <div className="text-center p-2 bg-white rounded">
             <div className="font-bold text-black">{options.operatorCount}</div>
-            <div className="text-gray-600">เครื่องหมายคำนวณ</div>
+            <div className="text-gray-600">Operators</div>
           </div>
           <div className="text-center p-2 bg-white rounded">
             <div className="font-bold text-black">{options.equalsCount}</div>
-            <div className="text-gray-600">เครื่องหมาย =</div>
+            <div className="text-gray-600">Equals (=)</div>
           </div>
           <div className="text-center p-2 bg-white rounded col-span-3">
             <div className="font-bold text-black">{options.wildcardCount}</div>
-            <div className="text-gray-600">ไวลด์การ์ด (?)</div>
+            <div className="text-gray-600">Blank (?)</div>
           </div>
         </div>
       </div>
