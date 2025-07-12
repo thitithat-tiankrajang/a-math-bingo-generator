@@ -244,7 +244,6 @@ function findValidEquations(tokens: EquationElement[]): string[] {
  * สร้างสมการจากการเรียงลำดับ tokens
  */
 function createEquationFromPermutation(tokens: AmathToken[]): string | null {
-  let equation = '';
   const processedTokens: string[] = [];
   
   for (let i = 0; i < tokens.length; i++) {
@@ -503,7 +502,7 @@ function isValidEquationByRules(equation: string): boolean {
 function evaluateExpressionSafely(expr: string): number | null {
   try {
     // แทนที่เครื่องหมายเอแม็ท
-    let processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
+    const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
     
     // ตรวจสอบความปลอดภัยของ expression
     if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
@@ -693,8 +692,8 @@ export function validateMathBingoOptions(options: MathBingoOptions): string | nu
   
   // ตรวจสอบตัวเลข
   const availableNumbers = Object.entries(AMATH_TOKENS)
-    .filter(([token, info]) => info.type === 'lightNumber' || info.type === 'heavyNumber')
-    .reduce((sum, [, info]) => sum + info.count, 0);
+    .filter(([_, info]) => info.type === 'lightNumber' || info.type === 'heavyNumber')
+    .reduce((sum, [_, info]) => sum + info.count, 0);
   if (numberCount > availableNumbers) {
     return `จำนวนตัวเลขที่ขอ (${numberCount}) เกินจำนวนที่มี (${availableNumbers})`;
   }
