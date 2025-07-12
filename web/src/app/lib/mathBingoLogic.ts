@@ -244,7 +244,6 @@ function findValidEquations(tokens: EquationElement[]): string[] {
  * สร้างสมการจากการเรียงลำดับ tokens
  */
 function createEquationFromPermutation(tokens: AmathToken[]): string | null {
-  let equation = '';
   const processedTokens: string[] = [];
   
   for (let i = 0; i < tokens.length; i++) {
@@ -503,7 +502,7 @@ function isValidEquationByRules(equation: string): boolean {
 function evaluateExpressionSafely(expr: string): number | null {
   try {
     // แทนที่เครื่องหมายเอแม็ท
-    let processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
+    const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
     
     // ตรวจสอบความปลอดภัยของ expression
     if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
