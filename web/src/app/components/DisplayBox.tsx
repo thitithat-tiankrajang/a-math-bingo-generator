@@ -267,7 +267,7 @@ export default function DisplayBox({ result, onGenerate, isGenerating }: Display
           <div className="text-gray-500 text-center py-12">
             <div className="text-6xl mb-4">🎲</div>
             <h3 className="text-xl font-semibold mb-2">Start generating DS Bingo problems</h3>
-            <p className="mb-4">Press "Generate Problem" to start</p>
+            <p className="mb-4">Press &quot;Generate Problem&quot; to start</p>
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 max-w-md mx-auto">
               <p className="text-sm text-blue-800 font-medium">
                 DS Bingo
