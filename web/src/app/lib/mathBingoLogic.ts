@@ -342,89 +342,119 @@ function isValidEquationByRules(equation: string, equalsCount: number): boolean 
   }
 }
 
-/**
- * คำนวณนิพจน์เป็นเศษส่วน - ระบบใหม่
- */
 function evaluateExpressionAsFraction(expression: string): Fraction | null {
-  try {
-    // ลบ whitespace
-    expression = expression.trim().replace(/\s/g, '');
-    
-    // ตรวจสอบความปลอดภัยของนิพจน์
-    if (!/^[0-9+\-×÷\s\.]+$/.test(expression)) {
+    try {
+      // ลบ whitespace
+      expression = expression.trim().replace(/\s/g, '');
+      
+      // ตรวจสอบความปลอดภัยของนิพจน์
+      if (!/^[0-9+\-×÷\.]+$/.test(expression)) {
+        return null;
+      }
+      
+      // แปลงเลขเดี่ยวเป็นเศษส่วน
+      if (/^\d+$/.test(expression)) {
+        return { numerator: parseInt(expression), denominator: 1 };
+      }
+      
+      // แปลงนิพจน์ที่ซับซ้อนเป็นเศษส่วน (คำนวณจากซ้ายไปขวา)
+      return evaluateLeftToRight(expression);
+    } catch {
       return null;
     }
-    
-    // แปลงเลขเดี่ยวเป็นเศษส่วน
-    if (/^\d+$/.test(expression)) {
-      return { numerator: parseInt(expression), denominator: 1 };
-    }
-    
-    // แปลง ÷ เป็นการหารเศษส่วน และ × เป็นการคูณ
-    return parseComplexFractionExpression(expression);
-  } catch {
-    return null;
-  }
 }
 
 /**
- * แปลงนิพจน์ที่ซับซ้อนเป็นเศษส่วน
+ * คำนวณนิพจน์จากซ้ายไปขวาตามลำดับ Operator Precedence
  */
-function parseComplexFractionExpression(expression: string): Fraction | null {
-  try {
-    // จัดการกับ + และ - ก่อน (left to right)
-    for (let i = 1; i < expression.length; i++) {
-      if (expression[i] === '+' || expression[i] === '-') {
-        const left = expression.substring(0, i);
-        const operator = expression[i];
-        const right = expression.substring(i + 1);
+function evaluateLeftToRight(expression: string): Fraction | null {
+    try {
+      // แยก tokens (numbers และ operators)
+      const tokens = tokenizeExpression(expression);
+      if (!tokens || tokens.length === 0) return null;
+      
+      // ตรวจสอบว่าเริ่มต้นด้วยตัวเลข
+      if (isNaN(parseInt(tokens[0]))) return null;
+      
+      // เริ่มต้นด้วยตัวเลขแรก
+      let result: Fraction = { numerator: parseInt(tokens[0]), denominator: 1 };
+      
+      // คำนวณจากซ้ายไปขวา (left-to-right evaluation)
+      for (let i = 1; i < tokens.length; i += 2) {
+        const operator = tokens[i];
+        const nextNumberStr = tokens[i + 1];
         
-        const leftFraction = evaluateExpressionAsFraction(left);
-        const rightFraction = evaluateExpressionAsFraction(right);
+        if (!nextNumberStr || isNaN(parseInt(nextNumberStr))) {
+          return null; // Invalid expression
+        }
         
-        if (!leftFraction || !rightFraction) continue;
+        const nextNumber: Fraction = { numerator: parseInt(nextNumberStr), denominator: 1 };
         
-        if (operator === '+') {
-          return addFractions(leftFraction, rightFraction);
-        } else {
-          return subtractFractions(leftFraction, rightFraction);
+        // ดำเนินการตาม operator
+        switch (operator) {
+          case '+':
+            result = addFractions(result, nextNumber);
+            break;
+          case '-':
+            result = subtractFractions(result, nextNumber);
+            break;
+          case '×':
+            result = multiplyFractions(result, nextNumber);
+            break;
+          case '÷':
+            // ตรวจสอบการหารด้วย 0
+            if (nextNumber.numerator === 0) return null;
+            result = divideFractions(result, nextNumber);
+            break;
+          default:
+            return null; // Unknown operator
         }
       }
+      
+      return result;
+    } catch {
+      return null;
     }
-    
-    // จัดการกับ × และ ÷
-    for (let i = 1; i < expression.length; i++) {
-      if (expression[i] === '×' || expression[i] === '÷') {
-        const left = expression.substring(0, i);
-        const operator = expression[i];
-        const right = expression.substring(i + 1);
-        
-        const leftFraction = evaluateExpressionAsFraction(left);
-        const rightFraction = evaluateExpressionAsFraction(right);
-        
-        if (!leftFraction || !rightFraction) continue;
-        
-        if (operator === '×') {
-          return multiplyFractions(leftFraction, rightFraction);
-        } else {
-          // ตรวจสอบการหารด้วย 0
-          if (rightFraction.numerator === 0) return null;
-          return divideFractions(leftFraction, rightFraction);
-        }
-      }
-    }
-    
-    // ถ้าไม่ตรงรูปแบบใด ให้ลองแปลงเป็นเลขธรรมดา
-    if (/^\d+$/.test(expression)) {
-      return { numerator: parseInt(expression), denominator: 1 };
-    }
-    
-    return null;
-  } catch {
-    return null;
-  }
 }
 
+/**
+ * แยก expression เป็น tokens (numbers และ operators)
+ */
+function tokenizeExpression(expression: string): string[] | null {
+    try {
+      const tokens: string[] = [];
+      let currentNumber = '';
+      
+      for (let i = 0; i < expression.length; i++) {
+        const char = expression[i];
+        
+        if (/\d/.test(char)) {
+          // ตัวเลข
+          currentNumber += char;
+        } else if (['+', '-', '×', '÷'].includes(char)) {
+          // Operator
+          if (currentNumber) {
+            tokens.push(currentNumber);
+            currentNumber = '';
+          }
+          tokens.push(char);
+        } else {
+          // Invalid character
+          return null;
+        }
+      }
+      
+      // เพิ่มตัวเลขสุดท้าย
+      if (currentNumber) {
+        tokens.push(currentNumber);
+      }
+      
+      return tokens;
+    } catch {
+      return null;
+    }
+  }
+  
 /**
  * การดำเนินการเศษส่วน
  */
@@ -892,48 +922,4 @@ export function fractionToString(fraction: Fraction): string {
     return fraction.numerator.toString();
   }
   return `${fraction.numerator}/${fraction.denominator}`;
-}
-
-/**
- * สร้างตัวอย่างสมการที่ใช้เศษส่วน
- */
-export function generateFractionExampleEquations(): string[] {
-  return [
-    "8÷6+15÷9=5÷3",    // 4/3 + 5/3 = 5/3 ❌ ต้องแก้
-    "8÷2+6÷3=6",       // 4 + 2 = 6 ✓
-    "12÷4+6÷2=6",      // 3 + 3 = 6 ✓
-    "10÷5×3=6",        // 2 × 3 = 6 ✓
-    "9÷3-1=2",         // 3 - 1 = 2 ✓
-    "16÷8+14÷7=4",     // 2 + 2 = 4 ✓
-    "6÷2×4÷2=6",       // 3 × 2 = 6 ✓
-    "15÷3+10÷5=7",     // 5 + 2 = 7 ✓
-    "18÷6×2÷3=2",      // 3 × 2 ÷ 3 = 2 ✓
-  ];
-}
-
-/**
- * ตรวจสอบความถูกต้องของระบบ - สำหรับการทดสอบ
- */
-export function validateFractionSystem(): {
-  passed: number;
-  failed: number;
-  examples: string[];
-} {
-  const examples = generateFractionExampleEquations();
-  let passed = 0;
-  let failed = 0;
-  const results: string[] = [];
-  
-  examples.forEach(equation => {
-    const isValid = testFractionEquation(equation);
-    if (isValid) {
-      passed++;
-      results.push(`✓ ${equation}`);
-    } else {
-      failed++;
-      results.push(`❌ ${equation}`);
-    }
-  });
-  
-  return { passed, failed, examples: results };
 }

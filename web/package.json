@@ -8,7 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:coverage:open": "jest --coverage && open coverage/lcov-report/index.html",
+    "test:coverage:ci": "jest --coverage --watchAll=false --passWithNoTests",
+    "test:debug": "jest --detectOpenHandles --forceExit",
+    "test:verbose": "jest --verbose",
+    "test:silent": "jest --silent",
+    "test:specific": "jest --testNamePattern",
+    "test:file": "jest --testPathPattern"
   },
   "dependencies": {
     "next": "15.3.5",
