@@ -298,7 +298,6 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
 
   // 🔥 FIX: Must have at least 1 equals, regardless of equalsCount parameter
   const equalsInTokens = tokens.filter(t => t === '=').length;
-  const minRequiredEquals = Math.max(equalsCount, 1);
   
   if (equalsInTokens < 1) {
     return false; // Always require at least 1 equals
@@ -403,7 +402,6 @@ function isValidEquationByRules(equation: string, equalsCount: number): boolean 
       return false; // No equals found
     }
     
-    const minRequiredEquals = Math.max(equalsCount, 1);
     const actualEquals = parts.length - 1;
     
     if (equalsCount > 0 && actualEquals !== equalsCount) {

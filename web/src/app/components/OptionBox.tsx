@@ -1,7 +1,6 @@
 // src/components/OptionBox.tsx
 import type { MathBingoOptions } from '@/app/types/mathBingo';
-import { useCallback, useEffect, useState } from 'react';
-import { useId } from 'react';
+import { useId, useCallback, useEffect, useState } from 'react';
 import { FaDice, FaBullseye } from 'react-icons/fa';
 
 interface OptionBoxProps {
@@ -24,7 +23,7 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
         });
       }
     }
-  }, [options.specificOperators, options.operatorMode]);
+  }, [options, onOptionsChange]);
 
   const handleChange = (field: keyof MathBingoOptions, value: number | string) => {
     onOptionsChange({
@@ -57,16 +56,19 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
     }
   };
 
-  const handleSpecificOperatorChange = (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, value: number) => {
-    const newSpecificOperators = {
-      ...options.specificOperators,
-      [operator]: value
-    };
-    onOptionsChange({
-      ...options,
-      specificOperators: newSpecificOperators
-    });
-  };
+  const handleSpecificOperatorChange = useCallback(
+    (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, value: number) => {
+      const newSpecificOperators = {
+        ...options.specificOperators,
+        [operator]: value
+      };
+      onOptionsChange({
+        ...options,
+        specificOperators: newSpecificOperators
+      });
+    },
+    [options, onOptionsChange]
+  );
 
   const handleStep = useCallback((field: keyof MathBingoOptions, step: number, min: number, max: number) => {
     const current = options[field];
@@ -93,12 +95,14 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
     handleSpecificOperatorChange(operator, next);
   }, [options, handleSpecificOperatorChange]);
 
-  // คำนวณจำนวนเลขเบาที่เหลือ
-  const lightNumberCount = options.totalCount - options.operatorCount - options.equalsCount - 
-                          options.heavyNumberCount - options.BlankCount - options.zeroCount;
+  // const lightNumberCount = options.totalCount - options.operatorCount - options.equalsCount - 
+  //                         options.heavyNumberCount - options.BlankCount - options.zeroCount;
 
   const maxOperators = Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - 
                                    options.BlankCount - options.zeroCount - 1);
+
+  // Move useId to top-level
+  const switchId = useId();
 
   return (
     <div className="bg-green-100 rounded-lg shadow-md border border-green-200 p-6 transition-all duration-300 max-w-full">
@@ -113,14 +117,14 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           <label className="block text-sm font-medium text-green-900 mb-2">
             Total number of tiles
             <span className="block text-xs text-yellow-900 mt-1 font-normal">
-              (Min 8, Max 15)
+              (Min 8, Max 20)
             </span>
           </label>
           <div className="flex items-center justify-center gap-2">
             <button
               type="button"
               className="w-9 h-9 rounded-full bg-yellow-200 hover:bg-yellow-300 text-yellow-900 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-              onClick={() => handleStep('totalCount', -1, 8, 15)}
+              onClick={() => handleStep('totalCount', -1, 8, 20)}
               disabled={options.totalCount <= 8}
             >
               −
@@ -128,17 +132,17 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
             <input
               type="number"
               min="8"
-              max="15"
+              max="20"
               value={options.totalCount}
-              onChange={(e) => handleChange('totalCount', Math.max(8, Math.min(15, parseInt(e.target.value) || 8)))}
+              onChange={(e) => handleChange('totalCount', Math.max(8, Math.min(20, parseInt(e.target.value) || 8)))}
               className="w-16 h-10 text-center px-2 py-2 border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-200 text-lg font-bold bg-white text-green-900 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               readOnly
             />
             <button
               type="button"
               className="w-9 h-9 rounded-full bg-yellow-200 hover:bg-yellow-300 text-yellow-900 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-              onClick={() => handleStep('totalCount', 1, 8, 15)}
-              disabled={options.totalCount >= 15}
+              onClick={() => handleStep('totalCount', 1, 8, 20)}
+              disabled={options.totalCount >= 20}
             >
               +
             </button>
@@ -160,31 +164,26 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
                   Total: {options.operatorCount}
                 </span>
                 {/* Toggle */}
-                {(() => {
-                  const switchId = useId();
-                  return (
-                    <label htmlFor={switchId} className="flex items-center cursor-pointer select-none group ml-2">
-                      <span className="mr-1 text-base">
-                        {options.operatorMode === 'specific' ? <FaBullseye className="text-yellow-500" /> : <FaDice className="text-yellow-500" />}
-                      </span>
-                      <div className="relative">
-                        <input
-                          id={switchId}
-                          type="checkbox"
-                          checked={options.operatorMode === 'specific'}
-                          onChange={e => handleModeChange(e.target.checked ? 'specific' : 'random')}
-                          className="sr-only"
-                          aria-label="Toggle operator mode"
-                        />
-                        <div className={`block w-10 h-6 rounded-full transition-colors duration-200 border-2 ${options.operatorMode === 'specific' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-300 border-gray-400'}`}></div>
-                        <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow transition-transform duration-200 ${options.operatorMode === 'specific' ? 'translate-x-4' : ''}`}></div>
-                      </div>
-                      <span className="ml-2 text-xs font-semibold text-yellow-900 whitespace-nowrap">
-                        {options.operatorMode === 'specific' ? 'Specific' : 'Random'}
-                      </span>
-                    </label>
-                  );
-                })()}
+                <label htmlFor={switchId} className="flex items-center cursor-pointer select-none group ml-2">
+                  <span className="mr-1 text-base">
+                    {options.operatorMode === 'specific' ? <FaBullseye className="text-yellow-500" /> : <FaDice className="text-yellow-500" />}
+                  </span>
+                  <div className="relative">
+                    <input
+                      id={switchId}
+                      type="checkbox"
+                      checked={options.operatorMode === 'specific'}
+                      onChange={e => handleModeChange(e.target.checked ? 'specific' : 'random')}
+                      className="sr-only"
+                      aria-label="Toggle operator mode"
+                    />
+                    <div className={`block w-10 h-6 rounded-full transition-colors duration-200 border-2 ${options.operatorMode === 'specific' ? 'bg-yellow-400 border-yellow-500' : 'bg-gray-300 border-gray-400'}`}></div>
+                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow transition-transform duration-200 ${options.operatorMode === 'specific' ? 'translate-x-4' : ''}`}></div>
+                  </div>
+                  <span className="ml-2 text-xs font-semibold text-yellow-900 whitespace-nowrap">
+                    {options.operatorMode === 'specific' ? 'Specific' : 'Random'}
+                  </span>
+                </label>
               </div>
             </div>
             {/* Animated card content */}
@@ -345,7 +344,18 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
 
 // AnimatedCardContent component for smooth transitions
 import React from 'react';
-function AnimatedCardContent({ mode, operatorCount, handleStep, handleChange, maxOperators, options, handleSpecificOperatorChange, handleSpecificStep }: any) {
+type AnimatedCardContentProps = {
+  mode: 'random' | 'specific';
+  operatorCount: number;
+  handleStep: (field: keyof MathBingoOptions, step: number, min: number, max: number) => void;
+  handleChange: (field: keyof MathBingoOptions, value: number | string) => void;
+  maxOperators: number;
+  options: MathBingoOptions;
+  handleSpecificOperatorChange: (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, value: number) => void;
+  handleSpecificStep: (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, step: number) => void;
+};
+
+function AnimatedCardContent({ mode, operatorCount, handleStep, handleChange, maxOperators, options, handleSpecificOperatorChange, handleSpecificStep }: AnimatedCardContentProps) {
   const [show, setShow] = useState<'random' | 'specific'>(mode);
   const [fade, setFade] = useState<'in' | 'out'>('in');
   React.useEffect(() => {
