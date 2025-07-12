@@ -158,7 +158,7 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
       
       // รวมเลขที่อยู่ติดกัน แต่จำกัดไม่เกิน 3 หลัก (เข้มงวดขึ้น)
       while (j < tokens.length && (isLightNumber(tokens[j]) || tokens[j] === '0')) {
-        // **1. ตรวจสอบว่าไม่เกิน 3 หลัก (ก่อนรวม)**
+        // **1. ตรวจสอบว่าไม่เกิน 3 หลัก (ก่อนรวม) - STRICT**
         if (combinedNumber.length >= 3) {
           break; // หยุดทันทีเมื่อถึง 3 หลักแล้ว
         }
@@ -168,21 +168,31 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
           break;
         }
         
-        // **3. ป้องกัน 0 นำหน้าเลขอื่น (เช่น 01, 02)**
+        // **3. ป้องกัน 0 นำหน้าเลขอื่น (เช่น 01, 02) - STRICT**
         if (combinedNumber === '0' && tokens[j] !== '0') {
-          break;
+          break; // ไม่อนุญาตให้ 0 นำหน้าเลขอื่น
         }
         
-        // **4. ตรวจสอบค่าตัวเลขที่จะได้ไม่เกิน 999**
+        // **4. ป้องกัน 0 อยู่ตำแหน่งแรกของเลขหลายหลัก - STRICT**
+        if (combinedNumber.startsWith('0') && combinedNumber.length >= 1) {
+          break; // หยุดทันทีถ้าขึ้นต้นด้วย 0 แล้ว
+        }
+        
+        // **5. ตรวจสอบค่าตัวเลขที่จะได้ไม่เกิน 999**
         const tempCombined = combinedNumber + tokens[j];
         const numValue = parseInt(tempCombined);
         if (numValue > 999) {
           break; // หยุดถ้าจะเกิน 999
         }
         
-        // **5. ป้องกันการสร้างเลขที่มากกว่า 3 หลัก**
+        // **6. ป้องกันการสร้างเลขที่มากกว่า 3 หลัก - STRICT**
         if (tempCombined.length > 3) {
           break;
+        }
+        
+        // **7. ป้องกันการสร้างเลขที่ขึ้นต้นด้วย 0 หลายหลัก - STRICT**
+        if (tempCombined.startsWith('0') && tempCombined.length > 1) {
+          break; // ห้าม 01, 02, 012, 0144 เป็นต้น
         }
         
         combinedNumber += tokens[j];
@@ -352,8 +362,17 @@ function evaluateExpressionAsFraction(expression: string): Fraction | null {
         return null;
       }
       
+      // **ตรวจสอบเลขที่ขึ้นต้นด้วย 0 ในสมการ - STRICT**
+      if (containsInvalidZeroLeadingNumbers(expression)) {
+        return null; // ปฏิเสธถ้าพบเลขขึ้นต้นด้วย 0
+      }
+      
       // แปลงเลขเดี่ยวเป็นเศษส่วน
       if (/^\d+$/.test(expression)) {
+        // ตรวจสอบเลขเดี่ยวว่าไม่ขึ้นต้นด้วย 0 (ยกเว้น 0 เดี่ยว)
+        if (expression.length > 1 && expression.startsWith('0')) {
+          return null;
+        }
         return { numerator: parseInt(expression), denominator: 1 };
       }
       
@@ -362,6 +381,28 @@ function evaluateExpressionAsFraction(expression: string): Fraction | null {
     } catch {
       return null;
     }
+}
+
+/**
+ * ตรวจสอบว่ามีเลขที่ขึ้นต้นด้วย 0 ในสมการหรือไม่ (เช่น 01, 02, 0247)
+ */
+function containsInvalidZeroLeadingNumbers(expression: string): boolean {
+  // หาตัวเลขทั้งหมดในสมการ
+  const numbers = expression.match(/\d+/g);
+  if (!numbers) return false;
+  
+  for (const num of numbers) {
+    // ถ้าเลขยาวกว่า 1 หลักและขึ้นต้นด้วย 0 = ผิด
+    if (num.length > 1 && num.startsWith('0')) {
+      return true; // พบเลขผิดรูปแบบ เช่น 01, 02, 0247
+    }
+    // ถ้าเลขเกิน 3 หลัก = ผิด
+    if (num.length > 3) {
+      return true; // พบเลขเกิน 3 หลัก เช่น 1234, 0247
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -449,7 +490,7 @@ function evaluateLeftToRight(expression: string): Fraction | null {
 }
 
 /**
- * แยก expression เป็น tokens (numbers และ operators)
+ * แยก expression เป็น tokens (numbers และ operators) - WITH VALIDATION
  */
 function tokenizeExpression(expression: string): string[] | null {
     try {
@@ -465,6 +506,10 @@ function tokenizeExpression(expression: string): string[] | null {
         } else if (['+', '-', '×', '÷'].includes(char)) {
           // Operator
           if (currentNumber) {
+            // **ตรวจสอบตัวเลขก่อน push**
+            if (!isValidNumberToken(currentNumber)) {
+              return null; // ปฏิเสธถ้าเลขผิดรูปแบบ
+            }
             tokens.push(currentNumber);
             currentNumber = '';
           }
@@ -477,6 +522,10 @@ function tokenizeExpression(expression: string): string[] | null {
       
       // เพิ่มตัวเลขสุดท้าย
       if (currentNumber) {
+        // **ตรวจสอบตัวเลขสุดท้ายก่อน push**
+        if (!isValidNumberToken(currentNumber)) {
+          return null; // ปฏิเสธถ้าเลขผิดรูปแบบ
+        }
         tokens.push(currentNumber);
       }
       
@@ -484,7 +533,33 @@ function tokenizeExpression(expression: string): string[] | null {
     } catch {
       return null;
     }
+}
+
+/**
+ * ตรวจสอบว่าตัวเลขถูกรูปแบบหรือไม่
+ */
+function isValidNumberToken(numberStr: string): boolean {
+  // 1. ต้องเป็นตัวเลขเท่านั้น
+  if (!/^\d+$/.test(numberStr)) return false;
+  
+  // 2. ห้ามขึ้นต้นด้วย 0 (ยกเว้น 0 เดี่ยว)
+  if (numberStr.length > 1 && numberStr.startsWith('0')) {
+    return false; // ปฏิเสธ 01, 02, 012, 0247 เป็นต้น
   }
+  
+  // 3. ห้ามเกิน 3 หลัก
+  if (numberStr.length > 3) {
+    return false; // ปฏิเสธ 1234, 5678, 0247 เป็นต้น
+  }
+  
+  // 4. ห้ามเกิน 999
+  const numValue = parseInt(numberStr);
+  if (numValue > 999) {
+    return false;
+  }
+  
+  return true;
+}
   
 /**
  * การดำเนินการเศษส่วน
