@@ -41,7 +41,7 @@ interface ActionBoxProps {
               <strong>DS Bingo Problem</strong> is a set of numbers and operators that can be arranged into at least one valid equation.
             </p>
             <p className="text-xs text-gray-500">
-              Example: 1 2 3 4 5 + * = can be arranged as 4*2+5=13
+              Example: 1 2 3 4 5 + × = can be arranged as 4×2+5=13
             </p>
           </div>
         </div>

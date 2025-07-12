@@ -115,15 +115,14 @@ export default function DisplayBox({ result, onGenerate, isGenerating }: Display
                   <div
                     key={index}
                     className={`
-                      relative px-4 py-3 rounded-lg text-xl font-bold
+                      relative w-14 h-14 flex items-center justify-center
+                      rounded-lg text-xl font-bold
                       transform transition-all duration-200 hover:scale-105 hover:shadow-md
                       ${getElementStyle(element)}
                     `}
                     title={getElementTypeLabel(element)}
                   >
-                    <div className="text-center">
-                      {element}
-                    </div>
+                    <div className="text-center w-full">{element}</div>
                     <div className="absolute -top-2 -right-2 bg-white text-xs text-gray-500 px-1 rounded-full border text-center min-w-[20px]">
                       {index + 1}
                     </div>
