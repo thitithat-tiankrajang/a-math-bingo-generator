@@ -81,7 +81,7 @@ export default function DisplayBox({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold text-green-900">
-            🎯 DS Bingo Problem
+            🎯 DASC Bingo Problem
           </h2>
           {result && (
             <div className="text-sm text-green-800 bg-yellow-100 px-3 py-1 rounded-full">
@@ -89,36 +89,6 @@ export default function DisplayBox({
             </div>
           )}
         </div>
-
-        {/* ปุ่มสร้างโจทย์ที่มุมขวาบน */}
-        {onGenerate && (
-          <button
-            onClick={onGenerate}
-            disabled={isGenerating}
-            className={`
-              px-4 py-2 rounded-lg font-medium text-white text-sm
-              transition-all duration-200 shadow-md hover:shadow-lg
-              flex items-center gap-2 min-w-[120px] justify-center
-              ${
-                isGenerating
-                  ? "bg-yellow-300 cursor-not-allowed"
-                  : "bg-green-500 hover:bg-green-600 active:bg-green-700 hover:scale-105"
-              }
-            `}
-          >
-            {isGenerating ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Generating...</span>
-              </>
-            ) : (
-              <>
-                <span>🎲</span>
-                <span>Generate Problem</span>
-              </>
-            )}
-          </button>
-        )}
       </div>
 
       <div className="min-h-32">
@@ -163,6 +133,38 @@ export default function DisplayBox({
                 ))}
               </div>
             </div>
+
+            {/* ปุ่มสร้างโจทย์ที่มุมขวาบน --> ปุ่มสร้างโจทย์ตรงกลางใต้ tile rack */}
+            {onGenerate && (
+              <div className="flex justify-center mt-2">
+                <button
+                  onClick={onGenerate}
+                  disabled={isGenerating}
+                  className={`
+                    px-4 py-2 rounded-lg font-medium text-white text-sm
+                    transition-all duration-200 shadow-md hover:shadow-lg
+                    flex items-center gap-2 min-w-[120px] justify-center
+                    ${
+                      isGenerating
+                        ? "bg-yellow-300 cursor-not-allowed"
+                        : "bg-green-500 hover:bg-green-600 active:bg-green-700 hover:scale-105"
+                    }
+                  `}
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🎲</span>
+                      <span>Generate Problem</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* แสดงตัวอย่างสมการ */}
             {result.sampleEquation && (
