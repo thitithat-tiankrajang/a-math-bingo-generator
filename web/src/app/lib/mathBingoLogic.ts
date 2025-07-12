@@ -1,37 +1,36 @@
-// src/lib/mathBingoLogic.ts - Updated to support specific operator selection
+// src/lib/mathBingoLogic.ts - Updated to fix blank/wildcard logic and ensure equations always have equals
 import type { MathBingoOptions, MathBingoResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/mathBingo';
 
-// All AMath tiles, total 100
-const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
-  '0': { token: '0', count: 4, type: 'lightNumber' },
-  '1': { token: '1', count: 6, type: 'lightNumber' },
-  '2': { token: '2', count: 6, type: 'lightNumber' },
-  '3': { token: '3', count: 5, type: 'lightNumber' },
-  '4': { token: '4', count: 5, type: 'lightNumber' },
-  '5': { token: '5', count: 4, type: 'lightNumber' },
-  '6': { token: '6', count: 4, type: 'lightNumber' },
-  '7': { token: '7', count: 4, type: 'lightNumber' },
-  '8': { token: '8', count: 4, type: 'lightNumber' },
-  '9': { token: '9', count: 4, type: 'lightNumber' },
-  '10': { token: '10', count: 2, type: 'heavyNumber' },
-  '11': { token: '11', count: 1, type: 'heavyNumber' },
-  '12': { token: '12', count: 2, type: 'heavyNumber' },
-  '13': { token: '13', count: 1, type: 'heavyNumber' },
-  '14': { token: '14', count: 1, type: 'heavyNumber' },
-  '15': { token: '15', count: 1, type: 'heavyNumber' },
-  '16': { token: '16', count: 1, type: 'heavyNumber' },
-  '17': { token: '17', count: 1, type: 'heavyNumber' },
-  '18': { token: '18', count: 1, type: 'heavyNumber' },
-  '19': { token: '19', count: 1, type: 'heavyNumber' },
-  '20': { token: '20', count: 1, type: 'heavyNumber' },
-  '+': { token: '+', count: 4, type: 'operator' },
-  '-': { token: '-', count: 4, type: 'operator' },
-  '×': { token: '×', count: 4, type: 'operator' },
-  '÷': { token: '÷', count: 4, type: 'operator' },
-  '+/-': { token: '+/-', count: 5, type: 'choice' },
-  '×/÷': { token: '×/÷', count: 4, type: 'choice' },
-  '=': { token: '=', count: 11, type: 'equals' },
-  '?': { token: '?', count: 4, type: 'wildcard' }
+export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
+  '0': { token: '0', count: 4, type: 'lightNumber', point: 1 },
+  '1': { token: '1', count: 6, type: 'lightNumber', point: 1 },
+  '2': { token: '2', count: 6, type: 'lightNumber', point: 1 },
+  '3': { token: '3', count: 5, type: 'lightNumber', point: 1 },
+  '4': { token: '4', count: 5, type: 'lightNumber', point: 2 },
+  '5': { token: '5', count: 4, type: 'lightNumber', point: 1 },
+  '6': { token: '6', count: 4, type: 'lightNumber', point: 1 },
+  '7': { token: '7', count: 4, type: 'lightNumber', point: 1 },
+  '8': { token: '8', count: 4, type: 'lightNumber', point: 1 },
+  '9': { token: '9', count: 4, type: 'lightNumber', point: 1 },
+  '10': { token: '10', count: 2, type: 'heavyNumber', point: 3 },
+  '11': { token: '11', count: 1, type: 'heavyNumber', point: 4 },
+  '12': { token: '12', count: 2, type: 'heavyNumber', point: 3 },
+  '13': { token: '13', count: 1, type: 'heavyNumber', point: 6 },
+  '14': { token: '14', count: 1, type: 'heavyNumber', point: 4 },
+  '15': { token: '15', count: 1, type: 'heavyNumber', point: 4 },
+  '16': { token: '16', count: 1, type: 'heavyNumber', point: 4 },
+  '17': { token: '17', count: 1, type: 'heavyNumber', point: 6 },
+  '18': { token: '18', count: 1, type: 'heavyNumber', point: 4 },
+  '19': { token: '19', count: 1, type: 'heavyNumber', point: 7 },
+  '20': { token: '20', count: 1, type: 'heavyNumber', point: 5 },
+  '+': { token: '+', count: 4, type: 'operator', point: 2 },
+  '-': { token: '-', count: 4, type: 'operator', point: 2 },
+  '×': { token: '×', count: 4, type: 'operator', point: 2 },
+  '÷': { token: '÷', count: 4, type: 'operator', point: 2 },
+  '+/-': { token: '+/-', count: 5, type: 'choice', point: 1 },
+  '×/÷': { token: '×/÷', count: 4, type: 'choice', point: 1 },
+  '=': { token: '=', count: 11, type: 'equals', point: 1 },
+  '?': { token: '?', count: 4, type: 'Blank', point: 0 }
 };
 
 // เพิ่มอินเตอร์เฟซสำหรับเศษส่วน
@@ -50,14 +49,12 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
   }
 
   let attempts = 0;
-  const maxAttempts = 300; // เพิ่มจำนวนครั้งในการลอง
+  const maxAttempts = 300;
 
   while (attempts < maxAttempts) {
     try {
       // Reset and generate tokens for each attempt (reset pool)
       const tokens = generateTokensBasedOnOptions(options);
-      // log ชุดตัวเบี้ยที่สุ่มได้
-      // console.log('Attempt', attempts + 1, 'tokens:', tokens.map(t => t.originalToken).join(' '));
       const equations = findValidEquations(tokens, options.equalsCount);
       
       if (equations.length > 0) {
@@ -68,7 +65,6 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
         };
       }
     } catch (error) {
-      // If token selection fails, reset pool and try again
       console.log(`Attempt ${attempts + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     attempts++;
@@ -78,39 +74,90 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
 }
 
 /**
- * Find valid equations from given tokens - แก้ไขให้รองรับ = หลายตัว
+ * Expand all ? in tokens to all possible values - FIXED: Include both numbers and operators
+ */
+function expandBlanks(tokens: string[]): string[][] {
+  // 🔥 FIX: Include ALL possible AMath tokens as replacement options for blank/wildcard
+  const BLANK_REPLACEMENTS = [
+    // Numbers (light)
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    // Numbers (heavy) 
+    '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+    // Operators
+    '+', '-', '×', '÷',
+    // Equals
+    '='
+  ];
+  const results: string[][] = [];
+
+  function helper(current: string[], idx: number) {
+    if (idx === tokens.length) {
+      results.push([...current]);
+      return;
+    }
+    if (tokens[idx] === '?') {
+      for (const rep of BLANK_REPLACEMENTS) {
+        current.push(rep);
+        helper(current, idx + 1);
+        current.pop();
+      }
+    } else {
+      current.push(tokens[idx]);
+      helper(current, idx + 1);
+      current.pop();
+    }
+  }
+  helper([], 0);
+  return results;
+}
+
+/**
+ * Find valid equations from given tokens - FIXED: Ensure equations always have equals
  */
 function findValidEquations(tokens: EquationElement[], equalsCount: number): string[] {
   const validEquations: string[] = [];
   const tokenValues = tokens.map(t => t.originalToken);
-  
-  // Generate possible permutations
-  const permutations = generateLimitedPermutations(tokenValues, 10000); // เพิ่มจำนวน permutations
-  
-  for (const perm of permutations) {
-    try {
-      const equation = createEquationFromPermutation(perm, equalsCount);
-      if (equation && isValidEquationByRules(equation, equalsCount)) {
-        validEquations.push(equation);
-        if (validEquations.length >= 20) break; // หยุดเมื่อพบ 20 สมการ
-      }
-    } catch {
-      // Skip invalid permutations
-      continue;
+
+  // Expand all ? to all possible operator and equals values
+  const expandedTokenSets = expandBlanks(tokenValues);
+
+  // Generate possible permutations for each expanded set
+  for (const expandedTokens of expandedTokenSets) {
+    // 🔥 FIX: Skip any token sets that don't have at least one equals sign
+    const equalsInSet = expandedTokens.filter(t => t === '=').length;
+    if (equalsInSet === 0) {
+      continue; // Skip this expansion as it has no equals
     }
+    
+    const permutations = generateLimitedPermutations(expandedTokens, 10000);
+    for (const perm of permutations) {
+      try {
+        const equation = createEquationFromPermutation(perm as AmathToken[], Math.max(equalsCount, 1));
+        if (equation && isValidEquationByRules(equation, Math.max(equalsCount, 1))) {
+          validEquations.push(equation);
+          if (validEquations.length >= 15) break;
+        }
+      } catch {
+        continue;
+      }
+    }
+    if (validEquations.length >= 15) break;
   }
-  
+
   return validEquations;
 }
 
 /**
- * Create equation from permutation - แก้ไขให้รองรับ = หลายตัว
+ * Create equation from permutation - FIXED: Ensure minimum equals count
  */
 function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number): string | null {
   const processed = combineAdjacentNumbers(tokens);
   if (processed.length === 0) return null;
   
-  if (!isValidTokenStructure(processed, equalsCount)) return null;
+  // 🔥 FIX: Use at least 1 equals, even if equalsCount is 0
+  const minEqualsCount = Math.max(equalsCount, 1);
+  
+  if (!isValidTokenStructure(processed, minEqualsCount)) return null;
   
   let equation = processed.join('');
   
@@ -122,7 +169,7 @@ function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number
 }
 
 /**
- * Combine adjacent numbers with improved logic - แก้ไขให้ป้องกันหลักพันและเข้มงวดขึ้น
+ * Combine adjacent numbers with improved logic
  */
 function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
   const result: string[] = [];
@@ -210,7 +257,7 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
         i = j;
       }
     } else {
-      // สัญลักษณ์อื่น ๆ (operators, =, wildcard, choice)
+      // สัญลักษณ์อื่น ๆ (operators, =, Blank, choice)
       result.push(token);
       i++;
     }
@@ -244,21 +291,28 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
 }
 
 /**
- * Check if token structure is valid - แก้ไขให้รองรับ = หลายตัว
+ * Check if token structure is valid - FIXED: Allow negative numbers
  */
 function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
   if (tokens.length < 3) return false;
-  
-  // Must have exact number of = as specified
+
+  // 🔥 FIX: Must have at least 1 equals, regardless of equalsCount parameter
   const equalsInTokens = tokens.filter(t => t === '=').length;
-  if (equalsInTokens !== equalsCount) return false;
+  const minRequiredEquals = Math.max(equalsCount, 1);
   
+  if (equalsInTokens < 1) {
+    return false; // Always require at least 1 equals
+  }
+  
+  if (equalsCount > 0 && equalsInTokens !== equalsCount) {
+    return false; // If specific count requested, must match exactly
+  }
+
   // **แก้ไข: ตรวจสอบโครงสร้างสำหรับ = หลายตัว**
-  if (equalsCount > 1) {
+  if (equalsInTokens > 1) {
     // สำหรับ = หลายตัว ต้องมีรูปแบบ: expression = expression = expression
     const parts = tokens.join('').split('=');
-    if (parts.length !== equalsCount + 1) return false;
-    
+    if (parts.length !== equalsInTokens + 1) return false;
     // แต่ละส่วนต้องไม่ว่าง และมีอย่างน้อย 1 ตัวเลข
     for (const part of parts) {
       if (part.length === 0) return false;
@@ -282,38 +336,49 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
       }
     }
     
-    // Check for 0 adjacent to -
-    if (current === '0') {
-      if (next === '-' || prev === '-') {
-        return false;
-      }
-    }
+    // 🔥 REMOVED: Check for 0 adjacent to - (now allowing negative numbers)
+    // if (current === '0') {
+    //   if (next === '-' || prev === '-') {
+    //     return false;
+    //   }
+    // }
     
     if (isOperator(current)) {
-      // Operators should not be adjacent, except for =-
-      if (isOperator(next) && !(current === '=' && next === '-')) {
-        return false;
-      }
-      if (isOperator(prev) && !(prev === '=' && current === '-')) {
-        return false;
-      }
-      
-      // + should not be at the beginning of the equation
-      if (current === '+' && i === 0) {
-        return false;
-      }
-      
-      // + should not be after =
-      if (current === '+' && prev === '=') {
-        return false;
-      }
-      
-      // - should not be adjacent to 0
-      if (current === '-') {
-        if (next === '0' || prev === '0') {
-          return false;
+      // Operators should not be adjacent, except for specific cases
+      if (isOperator(next)) {
+        // 🔥 NEW: Allow = followed by - for negative numbers (e.g., "=-3")
+        if (current === '=' && next === '-') {
+          // This is allowed: equals followed by minus for negative number
+        } else {
+          return false; // Other operator adjacencies not allowed
         }
       }
+      
+      if (isOperator(prev)) {
+        // 🔥 NEW: Allow - preceded by = for negative numbers (e.g., "=-3")  
+        if (prev === '=' && current === '-') {
+          // This is allowed: minus after equals for negative number
+        } else {
+          return false; // Other operator adjacencies not allowed
+        }
+      }
+      
+      // 🔥 MODIFIED: Allow + at the beginning for positive numbers (though uncommon)
+      // if (current === '+' && i === 0) {
+      //   return false;
+      // }
+      
+      // 🔥 MODIFIED: Allow + after = for positive numbers  
+      // if (current === '+' && prev === '=') {
+      //   return false;
+      // }
+      
+      // 🔥 MODIFIED: Allow - adjacent to any number (including 0) for negative numbers
+      // if (current === '-') {
+      //   if (next === '0' || prev === '0') {
+      //     return false;
+      //   }
+      // }
     }
     
     if (current === '=') {
@@ -328,13 +393,26 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
 }
 
 /**
- * Check if equation is valid according to rules - แก้ไขให้ใช้เศษส่วนแทนทศนิยม
+ * Check if equation is valid according to rules - FIXED: Always require at least 1 equals
  */
 function isValidEquationByRules(equation: string, equalsCount: number): boolean {
   try {
-    // **แก้ไข: รองรับ = หลายตัว และใช้เศษส่วน**
+    // 🔥 FIX: Always require at least 1 equals
     const parts = equation.split('=');
-    if (parts.length !== equalsCount + 1) return false;
+    if (parts.length < 2) {
+      return false; // No equals found
+    }
+    
+    const minRequiredEquals = Math.max(equalsCount, 1);
+    const actualEquals = parts.length - 1;
+    
+    if (equalsCount > 0 && actualEquals !== equalsCount) {
+      return false; // If specific count requested, must match exactly
+    }
+    
+    if (actualEquals < 1) {
+      return false; // Always require at least 1 equals
+    }
     
     if (parts.some(part => part.length === 0)) return false;
     
@@ -359,14 +437,24 @@ function evaluateExpressionAsFraction(expression: string): Fraction | null {
       // ลบ whitespace
       expression = expression.trim().replace(/\s/g, '');
       
-      // ตรวจสอบความปลอดภัยของนิพจน์
-      if (!/^[0-9+\-×÷\.]+$/.test(expression)) {
+      // 🔥 UPDATED: ตรวจสอบความปลอดภัยของนิพจน์ (รวมเครื่องหมายลบสำหรับตัวเลขติดลบ)
+      if (!/^[\-0-9+\-×÷\.]+$/.test(expression)) {
         return null;
       }
       
-      // **ตรวจสอบเลขที่ขึ้นต้นด้วย 0 ในสมการ - STRICT**
+      // **ตรวจสอบเลขที่ขึ้นต้นด้วย 0 ในสมการ - STRICT (แต่อนุญาตเลขติดลบ)**
       if (containsInvalidZeroLeadingNumbers(expression)) {
         return null; // ปฏิเสธถ้าพบเลขขึ้นต้นด้วย 0
+      }
+      
+      // 🔥 NEW: Handle negative numbers at the beginning
+      if (expression.startsWith('-')) {
+        // แปลงเลขติดลบเดี่ยวเป็นเศษส่วน
+        if (/^-\d+$/.test(expression)) {
+          const num = parseInt(expression);
+          if (isNaN(num)) return null;
+          return { numerator: num, denominator: 1 };
+        }
       }
       
       // แปลงเลขเดี่ยวเป็นเศษส่วน
@@ -492,14 +580,15 @@ function evaluateLeftToRight(expression: string): Fraction | null {
 }
 
 /**
- * แยก expression เป็น tokens (numbers และ operators) - WITH VALIDATION
+ * แยก expression เป็น tokens (numbers และ operators) - FIXED: Handle negative numbers
  */
 function tokenizeExpression(expression: string): string[] | null {
     try {
       const tokens: string[] = [];
       let currentNumber = '';
+      let i = 0;
       
-      for (let i = 0; i < expression.length; i++) {
+      while (i < expression.length) {
         const char = expression[i];
         
         if (/\d/.test(char)) {
@@ -515,11 +604,35 @@ function tokenizeExpression(expression: string): string[] | null {
             tokens.push(currentNumber);
             currentNumber = '';
           }
-          tokens.push(char);
+          
+          // 🔥 NEW: Handle negative numbers
+          if (char === '-') {
+            // Check if this minus is for a negative number
+            const isNegativeNumber = (
+              tokens.length === 0 || // Beginning of expression
+              tokens[tokens.length - 1] === '=' || // After equals sign
+              tokens[tokens.length - 1] === '+' || // After plus (though rare)
+              tokens[tokens.length - 1] === '-' || // After minus (though rare)
+              tokens[tokens.length - 1] === '×' || // After multiply
+              tokens[tokens.length - 1] === '÷'    // After divide
+            );
+            
+            if (isNegativeNumber && i + 1 < expression.length && /\d/.test(expression[i + 1])) {
+              // This is a negative number, start collecting the number with minus
+              currentNumber = '-';
+            } else {
+              // This is a subtraction operator
+              tokens.push(char);
+            }
+          } else {
+            tokens.push(char);
+          }
         } else {
           // Invalid character
           return null;
         }
+        
+        i++;
       }
       
       // เพิ่มตัวเลขสุดท้าย
@@ -538,26 +651,43 @@ function tokenizeExpression(expression: string): string[] | null {
 }
 
 /**
- * ตรวจสอบว่าตัวเลขถูกรูปแบบหรือไม่
+ * ตรวจสอบว่าตัวเลขถูกรูปแบบหรือไม่ - FIXED: Allow negative numbers
  */
 function isValidNumberToken(numberStr: string): boolean {
-  // 1. ต้องเป็นตัวเลขเท่านั้น
-  if (!/^\d+$/.test(numberStr)) return false;
+  // 1. Handle negative numbers
+  let actualNumber = numberStr;
+  let isNegative = false;
   
-  // 2. ห้ามขึ้นต้นด้วย 0 (ยกเว้น 0 เดี่ยว)
-  if (numberStr.length > 1 && numberStr.startsWith('0')) {
-    return false; // ปฏิเสธ 01, 02, 012, 0247 เป็นต้น
+  if (numberStr.startsWith('-')) {
+    isNegative = true;
+    actualNumber = numberStr.substring(1);
   }
   
-  // 3. ห้ามเกิน 3 หลัก
-  if (numberStr.length > 3) {
-    return false; // ปฏิเสธ 1234, 5678, 0247 เป็นต้น
+  // 2. ต้องเป็นตัวเลขเท่านั้น (หลังจากตัด - ออกแล้ว)
+  if (!/^\d+$/.test(actualNumber)) return false;
+  
+  // 3. ห้ามขึ้นต้นด้วย 0 (ยกเว้น 0 เดี่ยว)
+  if (actualNumber.length > 1 && actualNumber.startsWith('0')) {
+    return false; // ปฏิเสธ 01, 02, 012, 0247 เป็นต้น (รวมทั้ง -01, -02)
   }
   
-  // 4. ห้ามเกิน 999
-  const numValue = parseInt(numberStr);
+  // 4. ห้ามเกิน 3 หลัก
+  if (actualNumber.length > 3) {
+    return false; // ปฏิเสธ 1234, 5678, 0247 เป็นต้น (รวมทั้ง -1234)
+  }
+  
+  // 5. ห้ามเกิน 999 (สำหรับส่วนตัวเลข)
+  const numValue = parseInt(actualNumber);
   if (numValue > 999) {
     return false;
+  }
+  
+  // 6. 🔥 NEW: Additional validation for negative numbers
+  if (isNegative) {
+    // ห้าม -0 (แต่อนุญาต 0 ปกติ)
+    if (actualNumber === '0') {
+      return false; // ปฏิเสธ -0
+    }
   }
   
   return true;
@@ -644,7 +774,7 @@ function isLightNumber(token: string): boolean {
  */
 function isHeavyNumber(token: string): boolean {
   const num = parseInt(token);
-  return num >= 10 && num <= 20;
+  return num >= 10 && num <= 15;
 }
 
 /**
@@ -655,17 +785,18 @@ function isOperator(token: string): boolean {
 }
 
 /**
- * Validate MathBingo options - Updated for specific operators
+ * Validate MathBingo options - FIXED: Always require at least 1 equals
  */
 function validateMathBingoOptions(options: MathBingoOptions): string | null {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount, operatorMode, specificOperators } = options;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators } = options;
   
   if (totalCount < 8) {
     return 'Total count must be at least 8.';
   }
   
+  // 🔥 FIX: Always require at least 1 equals (can't have equalsCount = 0)
   if (equalsCount < 1) {
-    return 'Number of equals must be at least 1.';
+    return 'Number of equals must be at least 1. Valid equations require equals sign.';
   }
   
   // Validate operator count when in specific mode
@@ -694,7 +825,7 @@ function validateMathBingoOptions(options: MathBingoOptions): string | null {
     }
   }
   
-  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
+  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
   
   if (lightNumberCount < 1) {
     return 'There must be at least 1 light number.';
@@ -724,10 +855,10 @@ function validateMathBingoOptions(options: MathBingoOptions): string | null {
     return `Requested number of heavy numbers (${heavyNumberCount}) exceeds available tokens (${availableHeavyNumbers}).`;
   }
   
-  // Check wildcards
+  // Check Blanks
   const availableBlank = AMATH_TOKENS['?'].count;
-  if (wildcardCount > availableBlank) {
-    return `Requested number of blank (${wildcardCount}) exceeds available tokens (${availableBlank}).`;
+  if (BlankCount > availableBlank) {
+    return `Requested number of blank (${BlankCount}) exceeds available tokens (${availableBlank}).`;
   }
   
   // Check zero
@@ -751,8 +882,8 @@ function validateMathBingoOptions(options: MathBingoOptions): string | null {
  * Generate tokens based on selected options - Updated for specific operators
  */
 function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElement[] {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, wildcardCount, zeroCount, operatorMode, specificOperators } = options;
-  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - wildcardCount - zeroCount;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators } = options;
+  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
   
   if (lightNumberCount < 0) {
     throw new Error('Not enough light numbers. Please adjust your options.');
@@ -763,7 +894,7 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
   const selectedTokens: EquationElement[] = [];
   
   // Pick token from pool by type
-  const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'wildcard' | 'zero', specificOperator?: '+' | '-' | '×' | '÷'): AmathToken | null => {
+  const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', specificOperator?: '+' | '-' | '×' | '÷'): AmathToken | null => {
     let candidates: AmathToken[] = [];
     
     if (tokenType === 'equals') {
@@ -778,7 +909,7 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
       candidates = availablePool.filter(token => ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(token));
     } else if (tokenType === 'heavy') {
       candidates = availablePool.filter(token => ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'].includes(token));
-    } else if (tokenType === 'wildcard') {
+    } else if (tokenType === 'Blank') {
       candidates = availablePool.filter(token => token === '?');
     } else if (tokenType === 'zero') {
       candidates = availablePool.filter(token => token === '0');
@@ -845,11 +976,11 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
     selectedTokens.push(createElementFromToken(token));
   }
   
-  // Pick wildcard tokens
-  for (let i = 0; i < wildcardCount; i++) {
-    const token = pickTokenFromPool('wildcard');
+  // Pick Blank tokens
+  for (let i = 0; i < BlankCount; i++) {
+    const token = pickTokenFromPool('Blank');
     if (!token) {
-      throw new Error('Not enough wildcard tokens in pool.');
+      throw new Error('Not enough Blank tokens in pool.');
     }
     selectedTokens.push(createElementFromToken(token));
   }
@@ -909,7 +1040,7 @@ function createElementFromToken(token: AmathToken): EquationElement {
  */
 function getElementType(token: string): EquationElement['type'] {
   const tokenInfo = AMATH_TOKENS[token as AmathToken];
-  if (!tokenInfo) return 'wildcard';
+  if (!tokenInfo) return 'Blank';
   
   switch (tokenInfo.type) {
     case 'lightNumber':
@@ -921,10 +1052,10 @@ function getElementType(token: string): EquationElement['type'] {
       return 'equals';
     case 'choice':
       return 'choice';
-    case 'wildcard':
-      return 'wildcard';
+    case 'Blank':
+      return 'Blank';
     default:
-      return 'wildcard';
+      return 'Blank';
   }
 }
 
@@ -932,6 +1063,7 @@ function getElementType(token: string): EquationElement['type'] {
  * Sort tokens by priority for better readability
  */
 function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
+  const amathOrder = Object.keys(AMATH_TOKENS);
   return tokens.sort((a, b) => {
     const getPriority = (token: EquationElement): number => {
       if (token.type === 'number') return 1;
@@ -940,8 +1072,11 @@ function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
       if (token.type === 'choice') return 4;
       return 5;
     };
-    
-    return getPriority(a) - getPriority(b);
+    const pa = getPriority(a);
+    const pb = getPriority(b);
+    if (pa !== pb) return pa - pb;
+    // secondary sort by value order in AMATH_TOKENS
+    return amathOrder.indexOf(a.value) - amathOrder.indexOf(b.value);
   });
 }
 

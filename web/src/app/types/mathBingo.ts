@@ -12,7 +12,7 @@ export interface MathBingoOptions {
   };
   equalsCount: number;     // จำนวนเครื่องหมาย =
   heavyNumberCount: number; // จำนวนเลขหนัก (10-20)
-  wildcardCount: number;   // จำนวน ? (wildcard)
+  BlankCount: number;   // จำนวน ? (Blank)
   zeroCount: number;       // จำนวนเลข 0
 }
 
@@ -30,11 +30,12 @@ export type AmathToken =
 export interface AmathTokenInfo {
   token: AmathToken;
   count: number;
-  type: 'lightNumber' | 'heavyNumber' | 'operator' | 'choice' | 'equals' | 'wildcard';
+  type: 'lightNumber' | 'heavyNumber' | 'operator' | 'choice' | 'equals' | 'Blank';
+  point: number;
 }
 
 export interface EquationElement {
-  type: 'number' | 'operator' | 'equals' | 'choice' | 'wildcard';
+  type: 'number' | 'operator' | 'equals' | 'choice' | 'Blank';
   value: string;
   originalToken: AmathToken;
 }

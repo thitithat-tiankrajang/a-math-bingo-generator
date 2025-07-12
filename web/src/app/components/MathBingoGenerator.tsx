@@ -14,8 +14,8 @@ export default function MathBingoGenerator() {
     operatorMode: 'random',    // Default to random mode
     operatorCount: 2,
     equalsCount: 1,
-    heavyNumberCount: 1,
-    wildcardCount: 0,
+    heavyNumberCount: 0,
+    BlankCount: 0,
     zeroCount: 0
   });
 
@@ -41,7 +41,7 @@ export default function MathBingoGenerator() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-4 md:px-8">
       {/* Display Box */}
       <DisplayBox 
         result={result}
@@ -49,18 +49,22 @@ export default function MathBingoGenerator() {
         isGenerating={isGenerating}
       />
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 sm:gap-6">
         {/* Option Box */}
-        <OptionBox 
-          options={options} 
-          onOptionsChange={handleOptionsChange}
-        />
+        <div className="lg:col-span-3 mb-4 lg:mb-0">
+          <OptionBox 
+            options={options} 
+            onOptionsChange={handleOptionsChange}
+          />
+        </div>
         
         {/* Action Box */}
-        <ActionBox 
-          onGenerate={handleGenerate}
-          isGenerating={isGenerating}
-        />
+        <div className="lg:col-span-2">
+          <ActionBox 
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+          />
+        </div>
       </div>
     </div>
   );

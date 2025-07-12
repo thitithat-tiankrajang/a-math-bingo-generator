@@ -6,8 +6,8 @@ interface ActionBoxProps {
   
   export default function ActionBox({ onGenerate, isGenerating }: ActionBoxProps) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">
+      <div className="bg-green-100 rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-semibold mb-4 text-green-900">
           Actions
         </h2>
         
@@ -20,8 +20,8 @@ interface ActionBoxProps {
               w-full py-3 px-4 rounded-lg font-medium text-white text-lg
               transition-colors duration-200
               ${isGenerating
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                ? 'bg-yellow-300 cursor-not-allowed'
+                : 'bg-green-500 hover:bg-green-600 active:bg-green-700'
               }
             `}
           >
@@ -36,11 +36,11 @@ interface ActionBoxProps {
           </button>
   
           {/* คำอธิบายเพิ่มเติม */}
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-green-800 space-y-2">
             <p>
               <strong>DS Bingo Problem</strong> is a set of numbers and operators that can be arranged into at least one valid equation.
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-yellow-900">
               Example: 1 2 3 4 5 + × = can be arranged as 4×2+5=13
             </p>
           </div>
