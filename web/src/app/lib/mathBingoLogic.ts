@@ -159,10 +159,10 @@ function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElemen
     }
   }
   
-  // สับเปลี่ยนลำดับ
-  shuffleArray(selectedTokens);
+  // เรียงลำดับ tokens ให้สวยงาม
+  const sortedTokens = sortTokensByPriority(selectedTokens);
   
-  return selectedTokens;
+  return sortedTokens;
 }
 
 /**
@@ -244,6 +244,7 @@ function findValidEquations(tokens: EquationElement[]): string[] {
  * สร้างสมการจากการเรียงลำดับ tokens
  */
 function createEquationFromPermutation(tokens: AmathToken[]): string | null {
+  let equation = '';
   const processedTokens: string[] = [];
   
   for (let i = 0; i < tokens.length; i++) {
@@ -502,7 +503,7 @@ function isValidEquationByRules(equation: string): boolean {
 function evaluateExpressionSafely(expr: string): number | null {
   try {
     // แทนที่เครื่องหมายเอแม็ท
-    const processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
+    let processedExpr = expr.replace(/×/g, '*').replace(/÷/g, '/');
     
     // ตรวจสอบความปลอดภัยของ expression
     if (!/^[0-9+\-*/\s\.]+$/.test(processedExpr)) {
@@ -581,6 +582,70 @@ function shuffleArray<T>(array: T[]): void {
 }
 
 /**
+ * เรียงลำดับ tokens ตาม priority ที่กำหนด
+ */
+function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
+  return tokens.sort((a, b) => {
+    const priorityA = getTokenPriority(a.originalToken);
+    const priorityB = getTokenPriority(b.originalToken);
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    
+    // ถ้า priority เท่ากัน ให้เรียงตามค่า
+    return compareTokenValues(a.originalToken, b.originalToken);
+  });
+}
+
+/**
+ * กำหนด priority ของแต่ละประเภท token
+ */
+function getTokenPriority(token: AmathToken): number {
+  const tokenInfo = AMATH_TOKENS[token];
+  if (!tokenInfo) return 999;
+  
+  switch (tokenInfo.type) {
+    case 'lightNumber': return 1;   // เลขเบา 0-9
+    case 'heavyNumber': return 2;   // เลขหนัก 10-20
+    case 'operator': return 3;      // บวกลบคูณหาร
+    case 'choice': return 4;        // บวกหรือลบ, คูณหรือหาร
+    case 'equals': return 5;        // เท่ากับ
+    case 'wildcard': return 6;      // ?
+    default: return 999;
+  }
+}
+
+/**
+ * เปรียบเทียบค่าของ token ในกลุ่มเดียวกัน
+ */
+function compareTokenValues(a: AmathToken, b: AmathToken): number {
+  const aInfo = AMATH_TOKENS[a];
+  const bInfo = AMATH_TOKENS[b];
+  
+  // เลขเบาและเลขหนัก เรียงตามค่าตัวเลข
+  if ((aInfo.type === 'lightNumber' || aInfo.type === 'heavyNumber') &&
+      (bInfo.type === 'lightNumber' || bInfo.type === 'heavyNumber')) {
+    return parseInt(a) - parseInt(b);
+  }
+  
+  // เครื่องหมายคำนวณ เรียงตาม +, -, ×, ÷
+  if (aInfo.type === 'operator' && bInfo.type === 'operator') {
+    const operatorOrder = ['+', '-', '×', '÷'];
+    return operatorOrder.indexOf(a) - operatorOrder.indexOf(b);
+  }
+  
+  // เครื่องหมายทางเลือก เรียงตาม +/-, ×/÷
+  if (aInfo.type === 'choice' && bInfo.type === 'choice') {
+    const choiceOrder = ['+/-', '×/÷'];
+    return choiceOrder.indexOf(a) - choiceOrder.indexOf(b);
+  }
+  
+  // อื่น ๆ เรียงตาม string
+  return a.localeCompare(b);
+}
+
+/**
  * ตรวจสอบความถูกต้องของตัวเลือก
  */
 export function validateMathBingoOptions(options: MathBingoOptions): string | null {
@@ -628,7 +693,7 @@ export function validateMathBingoOptions(options: MathBingoOptions): string | nu
   
   // ตรวจสอบตัวเลข
   const availableNumbers = Object.entries(AMATH_TOKENS)
-    .filter(([_, info]) => info.type === 'lightNumber' || info.type === 'heavyNumber')
+    .filter(([token, info]) => info.type === 'lightNumber' || info.type === 'heavyNumber')
     .reduce((sum, [, info]) => sum + info.count, 0);
   if (numberCount > availableNumbers) {
     return `จำนวนตัวเลขที่ขอ (${numberCount}) เกินจำนวนที่มี (${availableNumbers})`;
