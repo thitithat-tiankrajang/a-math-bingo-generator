@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // ฟังก์ชันเกี่ยวกับเศษส่วน
 export interface Fraction {
   numerator: number;
