@@ -174,119 +174,51 @@ function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number
 function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
   const result: string[] = [];
   let i = 0;
-  
+
   while (i < tokens.length) {
     const token = tokens[i];
-    
-    // Heavy numbers (10-20) ต้องอยู่แยกเดี่ยวเสมอ
-    if (isHeavyNumber(token)) {
-      // ตรวจสอบว่าไม่ได้อยู่ติดกับเลขอื่น (เข้มงวดขึ้น)
+
+    // เลขหนัก (10-20) และ 0 ต้องอยู่เดี่ยวเสมอ
+    if (isHeavyNumber(token) || token === '0') {
+      // ตรวจสอบว่าข้างๆ เป็นเลขเบาหรือเลขหนักหรือ 0 หรือไม่ (ห้ามติดกับเลขใดๆ)
       const prev = result[result.length - 1];
       const next = tokens[i + 1];
-      
-      if ((prev && (isLightNumber(prev) || isHeavyNumber(prev) || prev === '0')) || 
+      if ((prev && (isLightNumber(prev) || isHeavyNumber(prev) || prev === '0')) ||
           (next && (isLightNumber(next) || isHeavyNumber(next) || next === '0'))) {
-        return []; // ส่งกลับ array ว่างเพื่อบอกว่าไม่ถูกต้อง
+        return [];
       }
-      
       result.push(token);
       i++;
       continue;
     }
-    
-    // Light numbers (1-9) และ 0 สามารถรวมกันได้ แต่จำกัดไม่เกิน 3 หลัก
-    if (isLightNumber(token) || token === '0') {
-      // ตรวจสอบว่าไม่ได้อยู่ติดกับ heavy number
-      const prev = result[result.length - 1];
-      if (prev && isHeavyNumber(prev)) {
-        return []; // ไม่ถูกต้อง
-      }
-      
+
+    // เลขเบา (1-9) สามารถติดกับเลขเบาเท่านั้น
+    if (isLightNumber(token)) {
       let combinedNumber = token;
       let j = i + 1;
-      
-      // รวมเลขที่อยู่ติดกัน แต่จำกัดไม่เกิน 3 หลัก (เข้มงวดขึ้น)
-      while (j < tokens.length && (isLightNumber(tokens[j]) || tokens[j] === '0')) {
-        // **1. ตรวจสอบว่าไม่เกิน 3 หลัก (ก่อนรวม) - STRICT**
-        if (combinedNumber.length >= 3) {
-          break; // หยุดทันทีเมื่อถึง 3 หลักแล้ว
-        }
-        
-        // **2. ตรวจสอบว่าตัวต่อไปไม่ใช่ heavy number**
-        if (j + 1 < tokens.length && isHeavyNumber(tokens[j + 1])) {
-          break;
-        }
-        
-        // **3. ป้องกัน 0 นำหน้าเลขอื่น (เช่น 01, 02) - STRICT**
-        if (combinedNumber === '0' && tokens[j] !== '0') {
-          break; // ไม่อนุญาตให้ 0 นำหน้าเลขอื่น
-        }
-        
-        // **4. ป้องกัน 0 อยู่ตำแหน่งแรกของเลขหลายหลัก - STRICT**
-        if (combinedNumber.startsWith('0') && combinedNumber.length >= 1) {
-          break; // หยุดทันทีถ้าขึ้นต้นด้วย 0 แล้ว
-        }
-        
-        // **5. ตรวจสอบค่าตัวเลขที่จะได้ไม่เกิน 999**
-        const tempCombined = combinedNumber + tokens[j];
-        const numValue = parseInt(tempCombined);
-        if (numValue > 999) {
-          break; // หยุดถ้าจะเกิน 999
-        }
-        
-        // **6. ป้องกันการสร้างเลขที่มากกว่า 3 หลัก - STRICT**
-        if (tempCombined.length > 3) {
-          break;
-        }
-        
-        // **7. ป้องกันการสร้างเลขที่ขึ้นต้นด้วย 0 หลายหลัก - STRICT**
-        if (tempCombined.startsWith('0') && tempCombined.length > 1) {
-          break; // ห้าม 01, 02, 012, 0144 เป็นต้น
-        }
-        
+      // รวมเลขเบาที่ติดกันเท่านั้น (ห้ามรวมกับ 0 หรือเลขหนัก)
+      while (j < tokens.length && isLightNumber(tokens[j]) && combinedNumber.length < 3) {
         combinedNumber += tokens[j];
         j++;
       }
-      
-      // จัดการกรณี 0 พิเศษ
-      if (combinedNumber.startsWith('0') && combinedNumber.length > 1) {
-        result.push('0');
-        i++;
-      } else {
-        result.push(combinedNumber);
-        i = j;
-      }
-    } else {
-      // สัญลักษณ์อื่น ๆ (operators, =, Blank, choice)
-      result.push(token);
-      i++;
+      result.push(combinedNumber);
+      i = j;
+      continue;
     }
+
+    // สัญลักษณ์อื่น ๆ (operators, =, Blank, choice)
+    result.push(token);
+    i++;
   }
-  
-  // **การตรวจสอบเพิ่มเติมหลังจากรวมเลขแล้ว**
+
+  // ตรวจสอบ post-process: ไม่มีเลขที่เกิน 3 หลัก, ไม่มีเลขที่เกิน 999
   for (let i = 0; i < result.length; i++) {
     const current = result[i];
-    
-    // 1. ตรวจสอบว่าไม่มีเลขที่เกิน 3 หลัก
-    if (isNumber(current) && current.length > 3) {
-      return []; // ไม่ถูกต้อง
-    }
-    
-    // 2. ตรวจสอบว่าไม่มีเลขที่เกิน 999
-    if (isNumber(current) && parseInt(current) > 999) {
-      return []; // ไม่ถูกต้อง
-    }
-    
-    // 3. ตรวจสอบ 0 ไม่อยู่ติดกับ -
-    if (current === '0') {
-      const next = result[i + 1];
-      const prev = result[i - 1];
-      if (next === '-' || prev === '-') {
-        return [];
-      }
+    if (isNumber(current) && (current.length > 3 || parseInt(current) > 999)) {
+      return [];
     }
   }
-  
+
   return result;
 }
 
@@ -772,7 +704,7 @@ function isLightNumber(token: string): boolean {
  */
 function isHeavyNumber(token: string): boolean {
   const num = parseInt(token);
-  return num >= 10 && num <= 15;
+  return num >= 10 && num <= 20;
 }
 
 /**
