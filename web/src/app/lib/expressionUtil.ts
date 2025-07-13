@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // ฟังก์ชันเกี่ยวกับการประเมินผลนิพจน์
 import { Fraction, addFractions, subtractFractions, multiplyFractions, divideFractions } from './fractionUtil';
 import { isValidNumberToken } from './tokenUtil';

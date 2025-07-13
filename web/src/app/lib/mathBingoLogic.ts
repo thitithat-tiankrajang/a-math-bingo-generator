@@ -1,9 +1,9 @@
 // src/lib/mathBingoLogic.ts - Updated to fix blank/wildcard logic and ensure equations always have equals
 import type { MathBingoOptions, MathBingoResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/mathBingo';
-import { Fraction, addFractions, subtractFractions, multiplyFractions, divideFractions, simplifyFraction, findGCD, compareFractions, fractionToString } from './fractionUtil';
-import { isNumber, isLightNumber, isHeavyNumber, isOperator, getElementType, isValidNumberToken } from './tokenUtil';
-import { generateLimitedPermutations, factorial, shuffleArray } from './permutationUtil';
-import { evaluateExpressionAsFraction, containsInvalidZeroLeadingNumbers, evaluateLeftToRight, tokenizeExpression } from './expressionUtil';
+import { Fraction, compareFractions } from './fractionUtil';
+import { isNumber, isLightNumber, isHeavyNumber, isOperator, getElementType } from './tokenUtil';
+import { generateLimitedPermutations } from './permutationUtil';
+import { evaluateExpressionAsFraction } from './expressionUtil';
 
 export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
   '0': { token: '0', count: 4, type: 'lightNumber', point: 1 },

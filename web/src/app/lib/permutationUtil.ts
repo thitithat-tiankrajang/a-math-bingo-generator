@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // ฟังก์ชันเกี่ยวกับ permutation
 export function generateLimitedPermutations<T>(arr: T[], maxCount: number): T[][] {
   if (arr.length <= 1) return [arr];

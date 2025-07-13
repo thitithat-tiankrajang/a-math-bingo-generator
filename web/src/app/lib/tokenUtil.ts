@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // ฟังก์ชันเกี่ยวกับ token
 export function isNumber(token: string): boolean {
   return /^\d+$/.test(token);
