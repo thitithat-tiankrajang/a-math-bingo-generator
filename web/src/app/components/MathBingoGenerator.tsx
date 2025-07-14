@@ -353,7 +353,7 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
   const handlePrintSolutionPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text('Math Solutions', 10, 20);
+    doc.text('DS Math Bingo Solutions', 10, 20);
     doc.setFontSize(12);
     
     const lines = solutionText.split('\n');
