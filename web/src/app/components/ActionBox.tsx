@@ -47,7 +47,7 @@ export default function ActionBox({ onGenerate, isGenerating, numQuestions, onNu
             id="numQuestions"
             type="number"
             min={1}
-            max={20}
+            max={100}
             value={numQuestions}
             onChange={onNumQuestionsChange}
             className="w-16 px-2 py-1 border border-green-300 rounded-md text-center text-green-900 focus:outline-none focus:ring-2 focus:ring-green-300"
