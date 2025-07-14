@@ -297,7 +297,7 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
   
     drawHeader(doc, pageNum);
   
-    lines.forEach((line, idx) => {
+    lines.forEach((line, ) => {
       if (problemCount > 0 && problemCount % problemsPerPage === 0) {
         doc.addPage();
         pageNum += 1;
