@@ -264,90 +264,90 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
 
   const handlePrintProblemPDF = () => {
     const doc = new jsPDF();
-    
-    // ตั้งค่าฟอนต์หัวเรื่อง (สีอ่อนลง)
-    const title = 'DS Math Bingo Problems';
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(80, 80, 80); // สีเทาอ่อน
-    doc.text(title, 20, 20);
-    
-    // วัดความกว้างของข้อความหัวเรื่อง
-    const titleWidth = doc.getTextWidth(title);
-    // เพิ่มเส้นใต้หัวเรื่อง (dynamic)
-    doc.setDrawColor(120, 120, 120); // สีเทาอ่อน
-    doc.setLineWidth(0.3);
-    doc.line(20, 22, 20 + titleWidth, 22);
-    
-    // ตั้งค่าสำหรับเนื้อหา
-    doc.setFontSize(14); // ขนาดตัวอักษรใหญ่ขึ้น
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(60, 60, 60); // สีเทาอ่อน
-    
+    const problemsPerPage = 10;
+    const cellSize = 10;
+    const xOffset = 5;
+    const yStart = 37;
+    const yStep = 26;
+  
+    // ฟังก์ชันวาด Header
+    const drawHeader = (doc: jsPDF, pageNum: number) => {
+      const title = 'DS Math Bingo Problems';
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(80, 80, 80);
+      doc.text(title, 20, 20);
+  
+      const titleWidth = doc.getTextWidth(title);
+      doc.setDrawColor(120, 120, 120);
+      doc.setLineWidth(0.3);
+      doc.line(20, 22, 20 + titleWidth, 22);
+  
+      // หมายเลขหน้า
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Page ${pageNum}`, 180, 20, { align: "right" });
+    };
+  
     const lines = problemText.split('\n');
-    let y = 38;
-    const cellSize = 10; // ขนาดช่องใหญ่ขึ้น
-    // ปรับ offset ขวา
-    const xOffset = 5; // เพิ่มระยะขวา
-    
-    lines.forEach((line, ) => {
-        // ตรวจสอบว่าต้องเปลี่ยนหน้าหรือไม่
-        if (y > 240) {
-            doc.addPage();
-            y = 20;
-        }
-        
-        const problemMatch = line.match(/^(\d+)\)\s*(.+)$/);
-        if (problemMatch) {
-            const problemNumber = problemMatch[1];
-            const problemContent = problemMatch[2];
-            
-            // แสดงหมายเลขข้อ
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(60, 60, 60); // สีเทาอ่อน
-            doc.text(`${problemNumber})`, 13 + xOffset, y);
-            doc.setFont("helvetica", "normal");
-            
-            // แยกตัวเลขและเครื่องหมาย
-            const elements = problemContent.split(',').map(item => item.trim());
-            
-            // วาดตารางสำหรับแต่ละ element
-            const startX = 25 + xOffset;
-            elements.forEach((element, elemIndex) => {
-                const x = startX + (elemIndex * cellSize);
-                
-                // วาดกรอบสี่เหลี่ยมด้วยเส้นอ่อน
-                doc.setDrawColor(100, 100, 100); // สีเทาอ่อน
-                doc.setLineWidth(0.3);
-                doc.rect(x, y - cellSize + 3, cellSize, cellSize);
-                
-                // เพิ่มข้อความในช่อง (จัดกึ่งกลาง) - ตัวใหญ่ขึ้น
-                const textWidth = doc.getTextWidth(element);
-                const textX = x + (cellSize - textWidth) / 2;
-                const textY = y - cellSize/2 + 5; // ปรับตำแหน่งให้เหมาะกับขนาดตัวอักษรใหญ่
-                
-                doc.text(element, textX, textY);
-            });
-            
-            // วาดเส้นใต้สำหรับคำตอบ (ลงมาให้มีช่องไฟมากขึ้น)
-            const underlineY = y + 18; // ลงมาให้มีช่องไฟมากขึ้น
-            const underlineStartX = 25 + xOffset;
-            const underlineLength = 160;
-            
-            doc.setDrawColor(120, 120, 120); // สีเทาอ่อน
-            doc.setLineWidth(0.4); // เส้นบางลงเล็กน้อย
-            doc.line(underlineStartX, underlineY, underlineStartX + underlineLength, underlineY);
-            
-            y += 32; // เพิ่มระยะห่างระหว่างข้อให้มากขึ้น
-        } else {
-            // สำหรับบรรทัดที่ไม่ใช่โจทย์
-            doc.text(line, 10 + xOffset, y);
-            y += 15;
-        }
+    let y = yStart;
+    let problemCount = 0;
+    let pageNum = 1;
+  
+    drawHeader(doc, pageNum);
+  
+    lines.forEach((line, idx) => {
+      if (problemCount > 0 && problemCount % problemsPerPage === 0) {
+        doc.addPage();
+        pageNum += 1;
+        drawHeader(doc, pageNum);
+        y = yStart;
+      }
+  
+      const problemMatch = line.match(/^(\d+)\)\s*(.+)$/);
+      if (problemMatch) {
+        const problemNumber = problemMatch[1];
+        const problemContent = problemMatch[2];
+  
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(60, 60, 60);
+        doc.text(`${problemNumber})`, 13 + xOffset, y);
+        doc.setFont("helvetica", "normal");
+  
+        const elements = problemContent.split(',').map(item => item.trim());
+        const startX = 25 + xOffset;
+        elements.forEach((element, elemIndex) => {
+          const x = startX + (elemIndex * cellSize);
+          doc.setDrawColor(100, 100, 100);
+          doc.setLineWidth(0.3);
+          doc.rect(x, y - cellSize + 3, cellSize, cellSize);
+  
+          const textWidth = doc.getTextWidth(element);
+          const textX = x + (cellSize - textWidth) / 2;
+          const textY = y - cellSize / 2 + 5;
+          doc.text(element, textX, textY);
+        });
+  
+        // เส้นใต้สำหรับคำตอบ
+        const underlineY = y + 15;
+        const underlineStartX = 25 + xOffset;
+        const underlineLength = 160;
+        doc.setDrawColor(120, 120, 120);
+        doc.setLineWidth(0.4);
+        doc.line(underlineStartX, underlineY, underlineStartX + underlineLength, underlineY);
+  
+        y += yStep;
+        problemCount++;
+      } else {
+        doc.text(line, 10 + xOffset, y);
+        y += 15;
+      }
     });
-    
+  
     doc.save('DSMathBingoProblems.pdf');
-};
+  };
 
 
   const handlePrintSolutionPDF = () => {
