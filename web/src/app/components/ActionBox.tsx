@@ -11,7 +11,7 @@ export interface ActionBoxProps {
   onPrintText: () => void;
 }
 
-export default function ActionBox({ onGenerate, isGenerating, options, numQuestions, onNumQuestionsChange, onShowOptionModal, onPrintText }: ActionBoxProps) {
+export default function ActionBox({ onGenerate, isGenerating, numQuestions, onNumQuestionsChange, onShowOptionModal, onPrintText }: ActionBoxProps) {
   return (
     <div className="bg-green-100 rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4 text-green-900">
