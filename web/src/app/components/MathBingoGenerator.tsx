@@ -40,7 +40,7 @@ export default function MathBingoGenerator() {
   };
 
   const handleNumQuestionsBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    let val = parseInt(e.target.value, 10);
+    const val = parseInt(e.target.value, 10);
     let newValue = e.target.value;
     if (e.target.value === "") {
       newValue = "";
