@@ -7,7 +7,6 @@ import OptionBox from './OptionBox';
 import ActionBox from './ActionBox';
 import { generateMathBingo } from '@/app/lib/mathBingoLogic';
 import type { MathBingoOptions, MathBingoResult } from '@/app/types/mathBingo';
-import jsPDF from 'jspdf';
 
 export default function MathBingoGenerator() {
   const [options, setOptions] = useState<MathBingoOptions>({
@@ -24,7 +23,6 @@ export default function MathBingoGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [numQuestions, setNumQuestions] = useState(3);
   const [showOptionModal, setShowOptionModal] = useState(false);
-  const [printText, setPrintText] = useState('');
   const [showSolution, setShowSolution] = useState(true); // for text generation only
   const [showExampleSolution, setShowExampleSolution] = useState(true); // for DisplayBox only
   const [questionText, setQuestionText] = useState('');
@@ -76,7 +74,6 @@ export default function MathBingoGenerator() {
   };
 
   const handleShowOptionModal = () => {
-    setPrintText('');
     setShowOptionModal(true);
   };
 
