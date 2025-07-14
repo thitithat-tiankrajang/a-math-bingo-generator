@@ -272,7 +272,7 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
     // ปรับ offset ขวา
     const xOffset = 5; // เพิ่มระยะขวา
     
-    lines.forEach((line, index) => {
+    lines.forEach((line, ) => {
         // ตรวจสอบว่าต้องเปลี่ยนหน้าหรือไม่
         if (y > 240) {
             doc.addPage();
@@ -294,7 +294,7 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
             const elements = problemContent.split(',').map(item => item.trim());
             
             // วาดตารางสำหรับแต่ละ element
-            let startX = 25 + xOffset;
+            const startX = 25 + xOffset;
             elements.forEach((element, elemIndex) => {
                 const x = startX + (elemIndex * cellSize);
                 
