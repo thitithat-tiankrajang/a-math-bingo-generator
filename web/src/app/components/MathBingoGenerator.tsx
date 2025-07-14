@@ -22,7 +22,7 @@ export default function MathBingoGenerator() {
 
   const [result, setResult] = useState<MathBingoResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [numQuestions, setNumQuestions] = useState(3);
+  const [numQuestions, setNumQuestions] = useState("3");
   const [showOptionModal, setShowOptionModal] = useState(false);
   const [printText, setPrintText] = useState('');
   const [solutionText, setSolutionText] = useState('');
@@ -36,7 +36,24 @@ export default function MathBingoGenerator() {
   };
 
   const handleNumQuestionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNumQuestions(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)));
+    setNumQuestions(e.target.value);
+  };
+
+  const handleNumQuestionsBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    let val = parseInt(e.target.value, 10);
+    let newValue = e.target.value;
+    if (e.target.value === "") {
+      newValue = "";
+    } else if (isNaN(val) || val < 1) {
+      newValue = "1";
+    } else if (val > 100) {
+      newValue = "100";
+    } else {
+      newValue = val.toString();
+    }
+    if (newValue !== e.target.value) {
+      setNumQuestions(newValue);
+    }
   };
 
   const handleGenerate = async () => {
@@ -58,7 +75,7 @@ export default function MathBingoGenerator() {
       const problemLines: string[] = [];
       const solutionLines: string[] = [];
       
-      for (let i = 0; i < numQuestions; i++) {
+      for (let i = 0; i < parseInt(numQuestions || "1", 10); i++) {
         const generated = await generateMathBingo(options);
         problemLines.push(`${i + 1}) ${generated.elements.join(', ')}`);
         solutionLines.push(showSolution ? `${i + 1}) ${generated.sampleEquation || '-'}` : `${i + 1}) -`);
@@ -134,6 +151,7 @@ export default function MathBingoGenerator() {
                   options={options}
                   numQuestions={numQuestions}
                   onNumQuestionsChange={handleNumQuestionsChange}
+                  onNumQuestionsBlur={handleNumQuestionsBlur}
                   onShowOptionModal={handleShowOptionModal}
                   onPrintText={handlePrintText}
                   showSolution={showSolution}

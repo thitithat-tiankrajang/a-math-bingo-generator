@@ -6,8 +6,9 @@ export interface ActionBoxProps {
   onGenerate: () => void;
   isGenerating: boolean;
   options: MathBingoOptions;
-  numQuestions: number;
+  numQuestions: string;
   onNumQuestionsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onNumQuestionsBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
   onShowOptionModal: () => void;
   onPrintText: () => void;
   showSolution: boolean; // for text only
@@ -21,6 +22,7 @@ export default function ActionBox({
   isGenerating, 
   numQuestions, 
   onNumQuestionsChange, 
+  onNumQuestionsBlur,
   onShowOptionModal, 
   onPrintText, 
   showSolution, 
@@ -66,12 +68,13 @@ export default function ActionBox({
         <div className="flex items-center space-x-3">
           <input
             id="numQuestions"
-            type="number"
-            min={1}
-            max={100}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={numQuestions}
             onChange={onNumQuestionsChange}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            onBlur={onNumQuestionsBlur}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
           />
           <span className="text-sm text-gray-500 font-medium">questions</span>
         </div>
