@@ -50,7 +50,7 @@ export default function ActionBox({ onGenerate, isGenerating, numQuestions, onNu
             max={20}
             value={numQuestions}
             onChange={onNumQuestionsChange}
-            className="w-16 px-2 py-1 border border-green-300 rounded-md text-center focus:outline-none focus:ring-2 focus:ring-yellow-200"
+            className="w-16 px-2 py-1 border border-green-300 rounded-md text-center text-green-900 focus:outline-none focus:ring-2 focus:ring-green-300"
           />
         </div>
         {/* ปุ่ม Print Text */}
