@@ -351,21 +351,57 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
 
 
   const handlePrintSolutionPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('DS Math Bingo Solutions', 10, 20);
-    doc.setFontSize(12);
-    
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const marginX = 12;
+    const marginY = 15;
+    const regionWidth = (pageWidth - marginX * 2) / 2;
+    const regionHeight = (pageHeight - marginY * 2 - 10) / 2; // -10 for header
     const lines = solutionText.split('\n');
-    let y = 35;
-    lines.forEach(line => {
-      doc.text(line, 10, y);
-      y += 10;
-      if (y > 280) {
-        doc.addPage();
-        y = 20;
+    const solutionsPerRegion = 10;
+    const regionsPerPage = 4;
+    const solutionsPerPage = solutionsPerRegion * regionsPerPage;
+    const fontSize = 12; // ขยายขนาด font
+    const lineSpacing = 12; // ปรับระยะห่างให้เหมาะกับ font ที่ใหญ่ขึ้น
+    const headerY = marginY;
+    const regionStartY = headerY + 10;
+    let pageNum = 1;
+
+    for (let i = 0; i < lines.length; i += solutionsPerPage) {
+      // Header
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DS Math Bingo Solutions', marginX, headerY);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Page ${pageNum}`, pageWidth - marginX, headerY, { align: 'right' });
+
+      // วาดแต่ละ region
+      for (let region = 0; region < regionsPerPage; region++) {
+        const regionRow = region % 2;                // 0=top, 1=bottom
+        const regionCol = Math.floor(region / 2);    // 0=left, 1=right
+        const regionX = marginX + regionCol * regionWidth;
+        const regionY = regionStartY + regionRow * regionHeight;
+        // วาดเลข region (optional)
+        // doc.setFontSize(9);
+        // doc.text(`Region ${region + 1}`, regionX + 2, regionY + 2);
+        doc.setFontSize(fontSize);
+        doc.setFont('helvetica', 'normal');
+        // วาด 10 ข้อในแต่ละ region
+        for (let j = 0; j < solutionsPerRegion; j++) {
+          const idx = i + region * solutionsPerRegion + j;
+          if (idx >= lines.length) break;
+          const y = regionY + 8 + j * lineSpacing; // 8: padding top
+          const x = regionX + 2; // 2: padding left
+          doc.text(lines[idx], x, y);
+        }
       }
-    });
+      if (i + solutionsPerPage < lines.length) {
+        doc.addPage();
+        pageNum++;
+      }
+    }
     doc.save('math-solutions.pdf');
   };
 
