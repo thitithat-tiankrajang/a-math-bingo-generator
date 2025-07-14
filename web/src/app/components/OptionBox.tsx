@@ -117,14 +117,14 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
           <label className="block text-sm font-medium text-green-900 mb-2">
             Total number of tiles
             <span className="block text-xs text-yellow-900 mt-1 font-normal">
-              (Min 8, Max 20)
+              (Min 8, Max 15)
             </span>
           </label>
           <div className="flex items-center justify-center gap-2">
             <button
               type="button"
               className="w-9 h-9 rounded-full bg-yellow-200 hover:bg-yellow-300 text-yellow-900 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-              onClick={() => handleStep('totalCount', -1, 8, 20)}
+              onClick={() => handleStep('totalCount', -1, 8, 15)}
               disabled={options.totalCount <= 8}
             >
               −
@@ -132,17 +132,17 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
             <input
               type="number"
               min="8"
-              max="20"
+              max="15"
               value={options.totalCount}
-              onChange={(e) => handleChange('totalCount', Math.max(8, Math.min(20, parseInt(e.target.value) || 8)))}
+              onChange={(e) => handleChange('totalCount', Math.max(8, Math.min(15, parseInt(e.target.value) || 8)))}
               className="w-16 h-10 text-center px-2 py-2 border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-200 text-lg font-bold bg-white text-green-900 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               readOnly
             />
             <button
               type="button"
               className="w-9 h-9 rounded-full bg-yellow-200 hover:bg-yellow-300 text-yellow-900 font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-              onClick={() => handleStep('totalCount', 1, 8, 20)}
-              disabled={options.totalCount >= 20}
+              onClick={() => handleStep('totalCount', 1, 8, 15)}
+              disabled={options.totalCount >= 15}
             >
               +
             </button>
