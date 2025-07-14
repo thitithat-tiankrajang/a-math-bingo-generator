@@ -2,6 +2,7 @@
 import type { MathBingoResult } from "@/app/types/mathBingo";
 import { useState, useEffect } from "react";
 import { AMATH_TOKENS } from "@/app/lib/mathBingoLogic";
+import Button from "../ui/Button";
 
 interface DisplayBoxProps {
   result: MathBingoResult | null;
@@ -145,19 +146,17 @@ export default function DisplayBox({
             {/* ปุ่มสร้างโจทย์ตรงกลางใต้ tile rack */}
             {onGenerate && (
               <div className="flex justify-center mt-2">
-                <button
-                  onClick={onGenerate}
-                  disabled={isGenerating}
-                  className={`
-                    px-6 py-3 rounded-lg font-medium text-white text-sm
-                    transition-all duration-200 shadow-md hover:shadow-lg
-                    flex items-center gap-2 min-w-[140px] justify-center
-                    ${
-                      isGenerating
-                        ? "bg-yellow-300 cursor-not-allowed"
-                        : "bg-green-500 hover:bg-green-600 active:bg-green-700 hover:scale-105"
+                <Button
+                    onClick={onGenerate}
+                    disabled={isGenerating}
+                    color="green"
+                    loading={isGenerating}
+                    loadingText="Generating problem..."
+                    icon={
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
                     }
-                  `}
                 >
                   {isGenerating ? (
                     <>
@@ -166,11 +165,10 @@ export default function DisplayBox({
                     </>
                   ) : (
                     <>
-                      <span>🎲</span>
                       <span>Generate Problem</span>
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             )}
 

@@ -61,7 +61,7 @@ export default function MathBingoGenerator() {
       for (let i = 0; i < numQuestions; i++) {
         const generated = await generateMathBingo(options);
         problemLines.push(`${i + 1}) ${generated.elements.join(', ')}`);
-        solutionLines.push(`${i + 1}) ${generated.sampleEquation || '-'}`);
+        solutionLines.push(showSolution ? `${i + 1}) ${generated.sampleEquation || '-'}` : `${i + 1}) -`);
       }
       
       setPrintText(problemLines.join('\n'));
@@ -246,22 +246,91 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
 
   const handlePrintProblemPDF = () => {
     const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text('Math Problems', 10, 20);
-    doc.setFontSize(12);
+    
+    // ตั้งค่าฟอนต์หัวเรื่อง (สีอ่อนลง)
+    const title = 'DS Math Bingo Problems';
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(80, 80, 80); // สีเทาอ่อน
+    doc.text(title, 20, 20);
+    
+    // วัดความกว้างของข้อความหัวเรื่อง
+    const titleWidth = doc.getTextWidth(title);
+    // เพิ่มเส้นใต้หัวเรื่อง (dynamic)
+    doc.setDrawColor(120, 120, 120); // สีเทาอ่อน
+    doc.setLineWidth(0.3);
+    doc.line(20, 22, 20 + titleWidth, 22);
+    
+    // ตั้งค่าสำหรับเนื้อหา
+    doc.setFontSize(14); // ขนาดตัวอักษรใหญ่ขึ้น
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60); // สีเทาอ่อน
     
     const lines = problemText.split('\n');
-    let y = 35;
-    lines.forEach(line => {
-      doc.text(line, 10, y);
-      y += 10;
-      if (y > 280) {
-        doc.addPage();
-        y = 20;
-      }
+    let y = 38;
+    const cellSize = 10; // ขนาดช่องใหญ่ขึ้น
+    // ปรับ offset ขวา
+    const xOffset = 5; // เพิ่มระยะขวา
+    
+    lines.forEach((line, index) => {
+        // ตรวจสอบว่าต้องเปลี่ยนหน้าหรือไม่
+        if (y > 240) {
+            doc.addPage();
+            y = 20;
+        }
+        
+        const problemMatch = line.match(/^(\d+)\)\s*(.+)$/);
+        if (problemMatch) {
+            const problemNumber = problemMatch[1];
+            const problemContent = problemMatch[2];
+            
+            // แสดงหมายเลขข้อ
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(60, 60, 60); // สีเทาอ่อน
+            doc.text(`${problemNumber})`, 13 + xOffset, y);
+            doc.setFont("helvetica", "normal");
+            
+            // แยกตัวเลขและเครื่องหมาย
+            const elements = problemContent.split(',').map(item => item.trim());
+            
+            // วาดตารางสำหรับแต่ละ element
+            let startX = 25 + xOffset;
+            elements.forEach((element, elemIndex) => {
+                const x = startX + (elemIndex * cellSize);
+                
+                // วาดกรอบสี่เหลี่ยมด้วยเส้นอ่อน
+                doc.setDrawColor(100, 100, 100); // สีเทาอ่อน
+                doc.setLineWidth(0.3);
+                doc.rect(x, y - cellSize + 3, cellSize, cellSize);
+                
+                // เพิ่มข้อความในช่อง (จัดกึ่งกลาง) - ตัวใหญ่ขึ้น
+                const textWidth = doc.getTextWidth(element);
+                const textX = x + (cellSize - textWidth) / 2;
+                const textY = y - cellSize/2 + 5; // ปรับตำแหน่งให้เหมาะกับขนาดตัวอักษรใหญ่
+                
+                doc.text(element, textX, textY);
+            });
+            
+            // วาดเส้นใต้สำหรับคำตอบ (ลงมาให้มีช่องไฟมากขึ้น)
+            const underlineY = y + 18; // ลงมาให้มีช่องไฟมากขึ้น
+            const underlineStartX = 25 + xOffset;
+            const underlineLength = 160;
+            
+            doc.setDrawColor(120, 120, 120); // สีเทาอ่อน
+            doc.setLineWidth(0.4); // เส้นบางลงเล็กน้อย
+            doc.line(underlineStartX, underlineY, underlineStartX + underlineLength, underlineY);
+            
+            y += 32; // เพิ่มระยะห่างระหว่างข้อให้มากขึ้น
+        } else {
+            // สำหรับบรรทัดที่ไม่ใช่โจทย์
+            doc.text(line, 10 + xOffset, y);
+            y += 15;
+        }
     });
-    doc.save('math-problems.pdf');
-  };
+    
+    doc.save('DSMathBingoProblems.pdf');
+};
+
 
   const handlePrintSolutionPDF = () => {
     const doc = new jsPDF();
