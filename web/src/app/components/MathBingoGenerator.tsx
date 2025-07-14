@@ -31,7 +31,7 @@ export default function MathBingoGenerator() {
   };
 
   const handleNumQuestionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNumQuestions(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)));
+    setNumQuestions(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)));
   };
 
   const handleGenerate = async () => {
