@@ -9,9 +9,13 @@ export interface ActionBoxProps {
   onNumQuestionsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onShowOptionModal: () => void;
   onPrintText: () => void;
+  showSolution: boolean; // for text only
+  onShowSolutionChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  showExampleSolution: boolean; // for UI only
+  onShowExampleSolutionChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export default function ActionBox({ onGenerate, isGenerating, numQuestions, onNumQuestionsChange, onShowOptionModal, onPrintText }: ActionBoxProps) {
+export default function ActionBox({ onGenerate, isGenerating, numQuestions, onNumQuestionsChange, onShowOptionModal, onPrintText, showSolution, onShowSolutionChange }: ActionBoxProps) {
   return (
     <div className="bg-green-100 rounded-lg shadow-md p-6">
       <h2 className="text-xl font-semibold mb-4 text-green-900">
@@ -52,6 +56,17 @@ export default function ActionBox({ onGenerate, isGenerating, numQuestions, onNu
             onChange={onNumQuestionsChange}
             className="w-16 px-2 py-1 border border-green-300 rounded-md text-center text-green-900 focus:outline-none focus:ring-2 focus:ring-green-300"
           />
+        </div>
+        {/* Toggle Solution for Text */}
+        <div className="flex items-center gap-2">
+          <input
+            id="showSolution"
+            type="checkbox"
+            checked={showSolution}
+            onChange={onShowSolutionChange}
+            className="form-checkbox h-5 w-5 text-green-600"
+          />
+          <label htmlFor="showSolution" className="text-green-900 font-medium select-none">แสดง Solution ใน Text</label>
         </div>
         {/* ปุ่ม Print Text */}
         <button

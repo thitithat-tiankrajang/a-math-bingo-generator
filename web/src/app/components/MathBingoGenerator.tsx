@@ -25,6 +25,10 @@ export default function MathBingoGenerator() {
   const [numQuestions, setNumQuestions] = useState(3);
   const [showOptionModal, setShowOptionModal] = useState(false);
   const [printText, setPrintText] = useState('');
+  const [showSolution, setShowSolution] = useState(true); // for text generation only
+  const [showExampleSolution, setShowExampleSolution] = useState(true); // for DisplayBox only
+  const [questionText, setQuestionText] = useState('');
+  const [solutionText, setSolutionText] = useState('');
 
   const handleOptionsChange = (newOptions: MathBingoOptions) => {
     setOptions(newOptions);
@@ -50,12 +54,19 @@ export default function MathBingoGenerator() {
   const handlePrintText = async () => {
     setIsGenerating(true);
     try {
-      const lines: string[] = [];
+      const questions: string[] = [];
+      const solutions: string[] = [];
       for (let i = 0; i < numQuestions; i++) {
         const generated = await generateMathBingo(options);
-        lines.push(`${i + 1}) ${generated.elements.join(', ')}`);
+        questions.push(`${i + 1}) ${generated.elements.join(', ')}`);
+        if (showSolution && generated.sampleEquation) {
+          solutions.push(`${i + 1}) ${generated.sampleEquation}`);
+        } else {
+          solutions.push(`${i + 1}) -`);
+        }
       }
-      setPrintText(lines.join('\n'));
+      setQuestionText(questions.join('\n'));
+      setSolutionText(solutions.join('\n'));
       setShowOptionModal(true);
     } catch (error) {
       alert('Error: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -71,6 +82,14 @@ export default function MathBingoGenerator() {
 
   const handleCloseOptionModal = () => {
     setShowOptionModal(false);
+  };
+
+  const handleShowSolutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowSolution(e.target.checked);
+  };
+
+  const handleShowExampleSolutionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setShowExampleSolution(e.target.checked);
   };
 
   return (
@@ -125,6 +144,10 @@ export default function MathBingoGenerator() {
                   onNumQuestionsChange={handleNumQuestionsChange}
                   onShowOptionModal={handleShowOptionModal}
                   onPrintText={handlePrintText}
+                  showSolution={showSolution}
+                  onShowSolutionChange={handleShowSolutionChange}
+                  showExampleSolution={showExampleSolution}
+                  onShowExampleSolutionChange={handleShowExampleSolutionChange}
                 />
               </div>
             </div>
@@ -142,11 +165,11 @@ export default function MathBingoGenerator() {
           ></div>
           
           {/* Modal Content */}
-          <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-2xl max-h-[80vh] overflow-hidden">
+          <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-4xl max-h-[80vh] overflow-hidden">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
               <h3 className="text-xl font-semibold text-gray-900">
-                {printText ? 'Generated Problems' : 'Current Configuration'}
+                Generated Problems
               </h3>
               <button 
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-800"
@@ -158,24 +181,10 @@ export default function MathBingoGenerator() {
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
-              {printText ? (
-                <CopyTextArea printText={printText} />
-              ) : (
-                <div>
-                  <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                    <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
-                      {JSON.stringify(options, null, 2)}
-                    </pre>
-                  </div>
-                  <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <p className="text-sm text-blue-800">
-                      <strong>Tip:</strong> These are your current settings. You can modify them in the Configuration panel.
-                    </p>
-                  </div>
-                </div>
-              )}
+            {/* Modal Body: side-by-side */}
+            <div className="p-6 flex flex-col md:flex-row gap-6 overflow-y-auto max-h-[calc(80vh-140px)]">
+              <CopyBox label="โจทย์" text={questionText} />
+              <CopyBox label="เฉลย" text={solutionText} />
             </div>
           </div>
         </div>
@@ -184,18 +193,16 @@ export default function MathBingoGenerator() {
   );
 }
 
-// Enhanced CopyTextArea component
-function CopyTextArea({ printText }: { printText: string }) {
+// New CopyBox component
+function CopyBox({ label, text }: { label: string; text: string }) {
   const [copied, setCopied] = useState(false);
-
   const handleCopy = async () => {
     try {
       if (navigator.clipboard) {
-        await navigator.clipboard.writeText(printText);
+        await navigator.clipboard.writeText(text);
       } else {
-        // fallback
         const textarea = document.createElement('textarea');
-        textarea.value = printText;
+        textarea.value = text;
         document.body.appendChild(textarea);
         textarea.select();
         document.execCommand('copy');
@@ -207,81 +214,40 @@ function CopyTextArea({ printText }: { printText: string }) {
       setCopied(false);
     }
   };
-
   return (
-    <div className="space-y-4">
-      {/* Text Area */}
-      <div className="relative">
-        <textarea 
-          className="w-full h-64 p-4 border border-gray-300 rounded-xl bg-gray-50 font-mono text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
-          value={printText} 
-          readOnly 
-          placeholder="Generated problems will appear here..."
-        />
-        <div className="absolute top-3 right-3 text-xs text-gray-700 bg-white px-2 py-1 rounded-md border border-gray-300">
-          {printText.split('\n').length} problems
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button 
-          className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-            copied 
-              ? 'bg-green-500 text-white shadow-lg shadow-green-500/25' 
-              : 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transform hover:scale-105'
-          }`}
+    <div className="flex-1 flex flex-col bg-gray-50 rounded-xl border border-gray-200 p-4 relative min-w-[220px] max-w-full">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-semibold text-gray-800">{label}</span>
+        <button
+          className={`px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 border shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 flex items-center gap-1 ${copied ? 'bg-green-500 text-white border-green-600' : 'bg-white text-blue-700 border-blue-300 hover:bg-blue-50'}`}
           onClick={handleCopy}
           disabled={copied}
         >
           {copied ? (
-            <span className="flex items-center justify-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              Copied!
-            </span>
+              คัดลอกแล้ว
+            </>
           ) : (
-            <span className="flex items-center justify-center">
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-              Copy to Clipboard
-            </span>
+              คัดลอก
+            </>
           )}
         </button>
-        
-        <button 
-          className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-medium transition-all duration-200 border border-gray-300 hover:border-gray-400"
-          onClick={() => {
-            const doc = new jsPDF();
-            const lines = printText.split('\n');
-            let y = 10;
-            lines.forEach(line => {
-              doc.text(line, 10, y);
-              y += 10;
-              if (y > 280) {
-                doc.addPage();
-                y = 10;
-              }
-            });
-            doc.save('math-problems.pdf');
-          }}
-        >
-          <span className="flex items-center justify-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Download PDF
-          </span>
-        </button>
       </div>
-
-      {/* Info */}
-      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-        <p className="text-sm text-amber-800">
-          <strong>Note:</strong> You can copy these problems to your clipboard or download them as a text file for later use.
-        </p>
+      <textarea
+        className="w-full h-64 p-2 border border-gray-200 rounded-lg bg-gray-100 font-mono text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-transparent transition-all"
+        value={text}
+        readOnly
+        placeholder={label}
+      />
+      <div className="absolute bottom-2 right-4 text-xs text-gray-500">
+        {text.split('\n').length} ข้อ
       </div>
     </div>
   );

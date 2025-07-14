@@ -64,17 +64,22 @@ export default function DisplayBox({
   const [showMoreEquations, setShowMoreEquations] = useState(false);
   // Summary/operator details toggle with localStorage persistence
   const [showSummary, setShowSummary] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('bingo_show_summary');
-      return stored === 'true' ? true : false;
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem("bingo_show_summary");
+      return stored === "true" ? true : false;
     }
     return false;
   });
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('bingo_show_summary', showSummary ? 'true' : 'false');
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(
+        "bingo_show_summary",
+        showSummary ? "true" : "false"
+      );
     }
   }, [showSummary]);
+  // Local state for Example Solution toggle
+  const [showExampleSolution, setShowExampleSolution] = useState(false);
 
   return (
     <div className="bg-green-100 rounded-lg shadow-lg p-6 border border-green-200">
@@ -103,47 +108,50 @@ export default function DisplayBox({
               <div
                 className={
                   result.elements.length >= 15
-                    ? 'hidden lg:grid grid-cols-15 gap-3 justify-center p-3 bg-amber-50 rounded-lg shadow-sm border-2 border-amber-200 relative'
-                    : 'flex flex-wrap gap-2 sm:gap-3 justify-center p-3 bg-amber-50 rounded-lg shadow-sm border-2 border-amber-200 relative'
+                    ? "hidden lg:grid grid-cols-15 gap-3 justify-center p-3 bg-amber-50 rounded-lg shadow-sm border-2 border-amber-200 relative"
+                    : "flex flex-wrap gap-2 sm:gap-3 justify-center p-3 bg-amber-50 rounded-lg shadow-sm border-2 border-amber-200 relative"
                 }
-                style={result.elements.length >= 15 ? { gridTemplateColumns: 'repeat(15, minmax(0, 1fr))' } : {}}
+                style={
+                  result.elements.length >= 15
+                    ? { gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }
+                    : {}
+                }
               >
                 {result.elements.map((element, index) => (
                   <div
                     key={index}
                     className={
                       result.elements.length >= 15
-                        ? 'relative aspect-square min-w-[32px] w-10 lg:w-12 xl:w-14 flex items-center justify-center rounded text-xs lg:text-sm xl:text-base font-bold transform transition-all duration-200 hover:scale-105 hover:shadow-md ' + getElementStyle(element)
-                        : 'relative aspect-square min-w-[48px] w-16 sm:w-14 md:w-16 flex items-center justify-center rounded text-lg sm:text-xl md:text-2xl font-bold transform transition-all duration-200 hover:scale-105 hover:shadow-md ' + getElementStyle(element)
+                        ? "relative aspect-square min-w-[32px] w-10 lg:w-12 xl:w-14 flex items-center justify-center rounded text-xs lg:text-sm xl:text-base font-bold transform transition-all duration-200 hover:scale-105 hover:shadow-md " +
+                          getElementStyle(element)
+                        : "relative aspect-square min-w-[48px] w-16 sm:w-14 md:w-16 flex items-center justify-center rounded text-lg sm:text-xl md:text-2xl font-bold transform transition-all duration-200 hover:scale-105 hover:shadow-md " +
+                          getElementStyle(element)
                     }
                     title={getElementTypeLabel(element)}
                   >
                     <div className="text-center w-full relative z-10">
                       {element}
                     </div>
-                    {/* แสดงลำดับที่ของเบี้ยที่มุมขวาบน (Tile index at top-right corner) */}
-                    {/* <div className="absolute -top-2 -right-2 bg-white text-xs text-green-700 px-1 rounded-full border text-center min-w-[20px]">
-                      {index + 1}
-                    </div> */}
                     {/* แสดง point ที่มุมขวาล่าง */}
                     <div className="absolute bottom-0.5 right-1 text-xs text-black font-bold opacity-70 select-none pointer-events-none">
-                      {AMATH_TOKENS[element as keyof typeof AMATH_TOKENS]?.point ?? ""}
+                      {AMATH_TOKENS[element as keyof typeof AMATH_TOKENS]
+                        ?.point ?? ""}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* ปุ่มสร้างโจทย์ที่มุมขวาบน --> ปุ่มสร้างโจทย์ตรงกลางใต้ tile rack */}
+            {/* ปุ่มสร้างโจทย์ตรงกลางใต้ tile rack */}
             {onGenerate && (
               <div className="flex justify-center mt-2">
                 <button
                   onClick={onGenerate}
                   disabled={isGenerating}
                   className={`
-                    px-4 py-2 rounded-lg font-medium text-white text-sm
+                    px-6 py-3 rounded-lg font-medium text-white text-sm
                     transition-all duration-200 shadow-md hover:shadow-lg
-                    flex items-center gap-2 min-w-[120px] justify-center
+                    flex items-center gap-2 min-w-[140px] justify-center
                     ${
                       isGenerating
                         ? "bg-yellow-300 cursor-not-allowed"
@@ -166,25 +174,71 @@ export default function DisplayBox({
               </div>
             )}
 
-            {/* แสดงตัวอย่างสมการ */}
+            {/* Example Solution Section - only show when result exists */}
             {result.sampleEquation && (
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-green-900 border-b pb-2">
-                  Example Solution
-                </h3>
-                <div className="text-center bg-gradient-to-r from-green-50 to-yellow-50 p-4 rounded-lg border border-green-200">
-                  <p className="text-2xl font-mono font-bold text-green-900">
-                    {result.sampleEquation}
-                  </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-6 bg-gradient-to-b from-green-500 to-emerald-500 rounded-full"></div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Example Solution
+                    </h3>
+                    <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium">
+                      Primary
+                    </div>
+                  </div>
+                  {/* Toggle for Example Solution */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-yellow-900 text-sm">
+                      Show solutions
+                    </span>
+                    <label className="flex items-center cursor-pointer select-none group ml-2">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={showExampleSolution}
+                          onChange={(e) =>
+                            setShowExampleSolution(e.target.checked)
+                          }
+                          className="sr-only"
+                          aria-label="Toggle solution visibility"
+                        />
+                        <div
+                          className={`block w-10 h-6 rounded-full transition-colors duration-200 border-2 ${
+                            showExampleSolution
+                              ? "bg-yellow-400 border-yellow-500"
+                              : "bg-gray-300 border-gray-400"
+                          }`}
+                        ></div>
+                        <div
+                          className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow transition-transform duration-200 ${
+                            showExampleSolution ? "translate-x-4" : ""
+                          }`}
+                        ></div>
+                      </div>
+                      <span className="ml-2 text-xs font-semibold text-yellow-900 whitespace-nowrap">
+                        {showExampleSolution ? "ON" : "OFF"}
+                      </span>
+                    </label>
+                  </div>
                 </div>
+                {showExampleSolution && (
+                  <div className="bg-gradient-to-r from-green-50 via-emerald-50 to-green-50 p-6 rounded-xl border-2 border-green-200 shadow-sm transition-all duration-300">
+                    <div className="text-center">
+                      <p className="text-3xl font-mono font-bold text-gray-900 tracking-wider">
+                        {result.sampleEquation}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {/* แสดงสถิติ */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* จำนวนสมการที่พบ */}
+              {/* จำนวนสมการที่พอ */}
               {result.possibleEquations && (
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center hover:bg-green-100 transition-colors duration-200">
                   <div className="text-2xl font-bold text-green-900">
                     {result.possibleEquations.length}
                   </div>
@@ -195,7 +249,7 @@ export default function DisplayBox({
               )}
 
               {/* จำนวน tokens */}
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-center">
+              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-center hover:bg-yellow-100 transition-colors duration-200">
                 <div className="text-2xl font-bold text-yellow-900">
                   {result.elements.length}
                 </div>
@@ -205,7 +259,7 @@ export default function DisplayBox({
               </div>
 
               {/* ระดับความยาก */}
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center">
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200 text-center hover:bg-green-100 transition-colors duration-200">
                 <div className="text-2xl font-bold text-green-900">
                   {result.elements.length <= 8
                     ? "Easy"
@@ -234,15 +288,23 @@ export default function DisplayBox({
                 divide: 0,
               };
               result.elements.forEach((el) => {
-                if (el === '0') counts.zero++;
+                if (el === "0") counts.zero++;
                 else if (/^[1-9]$/.test(el)) counts.light++;
                 else if (/^(1[0-9]|20)$/.test(el)) counts.heavy++;
-                else if (el === '+') { counts.operator++; counts.plus++; }
-                else if (el === '-') { counts.operator++; counts.minus++; }
-                else if (el === '×') { counts.operator++; counts.multiply++; }
-                else if (el === '÷') { counts.operator++; counts.divide++; }
-                else if (el === '=') counts.equals++;
-                else if (el === '?') counts.blank++;
+                else if (el === "+") {
+                  counts.operator++;
+                  counts.plus++;
+                } else if (el === "-") {
+                  counts.operator++;
+                  counts.minus++;
+                } else if (el === "×") {
+                  counts.operator++;
+                  counts.multiply++;
+                } else if (el === "÷") {
+                  counts.operator++;
+                  counts.divide++;
+                } else if (el === "=") counts.equals++;
+                else if (el === "?") counts.blank++;
                 // ignore choice tokens for now
               });
               const lightNumberCount = counts.light;
@@ -250,65 +312,130 @@ export default function DisplayBox({
                 <>
                   <div className="flex justify-end mt-4">
                     <button
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border shadow-sm focus:outline-none focus:ring-2 focus:ring-green-300 ${showSummary ? 'bg-green-200 text-green-900 hover:bg-green-300' : 'bg-white text-green-700 hover:bg-green-100'}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border shadow-sm focus:outline-none focus:ring-2 focus:ring-green-300 ${
+                        showSummary
+                          ? "bg-green-200 text-green-900 hover:bg-green-300"
+                          : "bg-white text-green-700 hover:bg-green-100"
+                      }`}
                       onClick={() => setShowSummary((v) => !v)}
                     >
-                      {showSummary ? 'Hide Details' : 'Show Details'}
+                      {showSummary ? "Hide Details" : "Show Details"}
                     </button>
                   </div>
                   {showSummary && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 animate-fade-in">
-                      <h3 className="text-lg font-semibold text-green-900 mb-2 text-center">Summary</h3>
+                    <div className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200 animate-fade-in">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full"></div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Summary Details
+                        </h3>
+                      </div>
                       <div className="grid grid-cols-3 gap-4 text-base md:text-lg">
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="font-extrabold text-2xl md:text-3xl text-black">{counts.total}</div>
-                          <div className="text-gray-700 font-medium mt-1">Total tiles</div>
+                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                          <div className="font-extrabold text-2xl md:text-3xl text-gray-900">
+                            {counts.total}
+                          </div>
+                          <div className="text-gray-700 font-medium mt-1">
+                            Total tiles
+                          </div>
                         </div>
-                        <div className={`text-center p-3 rounded-lg ${lightNumberCount >= 0 ? 'bg-white' : 'bg-red-50'}`}> 
-                          <div className={`font-extrabold text-2xl md:text-3xl ${lightNumberCount >= 0 ? 'text-black' : 'text-red-600'}`}>{lightNumberCount}</div>
-                          <div className="text-gray-700 font-medium mt-1">Light numbers (1-9)</div>
+                        <div
+                          className={`text-center p-3 rounded-lg shadow-sm ${
+                            lightNumberCount >= 0 ? "bg-white" : "bg-red-50"
+                          }`}
+                        >
+                          <div
+                            className={`font-extrabold text-2xl md:text-3xl ${
+                              lightNumberCount >= 0
+                                ? "text-gray-900"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {lightNumberCount}
+                          </div>
+                          <div className="text-gray-700 font-medium mt-1">
+                            Light numbers (1-9)
+                          </div>
                         </div>
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="font-extrabold text-2xl md:text-3xl text-black">{counts.heavy}</div>
-                          <div className="text-gray-700 font-medium mt-1">Heavy numbers (10-20)</div>
+                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                          <div className="font-extrabold text-2xl md:text-3xl text-gray-900">
+                            {counts.heavy}
+                          </div>
+                          <div className="text-gray-700 font-medium mt-1">
+                            Heavy numbers (10-20)
+                          </div>
                         </div>
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="font-extrabold text-2xl md:text-3xl text-black">{counts.zero}</div>
-                          <div className="text-gray-700 font-medium mt-1">Zeros</div>
+                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                          <div className="font-extrabold text-2xl md:text-3xl text-gray-900">
+                            {counts.zero}
+                          </div>
+                          <div className="text-gray-700 font-medium mt-1">
+                            Zeros
+                          </div>
                         </div>
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="font-extrabold text-2xl md:text-3xl text-black">{counts.operator}</div>
-                          <div className="text-gray-700 font-medium mt-1">Operators</div>
+                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                          <div className="font-extrabold text-2xl md:text-3xl text-gray-900">
+                            {counts.operator}
+                          </div>
+                          <div className="text-gray-700 font-medium mt-1">
+                            Operators
+                          </div>
                         </div>
-                        <div className="text-center p-3 bg-white rounded-lg">
-                          <div className="font-extrabold text-2xl md:text-3xl text-black">{counts.equals}</div>
-                          <div className="text-gray-700 font-medium mt-1">Equals (=)</div>
+                        <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                          <div className="font-extrabold text-2xl md:text-3xl text-gray-900">
+                            {counts.equals}
+                          </div>
+                          <div className="text-gray-700 font-medium mt-1">
+                            Equals (=)
+                          </div>
                         </div>
-                        <div className="text-center p-3 bg-white rounded-lg col-span-3">
-                          <div className="font-extrabold text-2xl md:text-3xl text-black">{counts.blank}</div>
-                          <div className="text-gray-700 font-medium mt-1">Blank (?)</div>
+                        <div className="text-center p-3 bg-white rounded-lg shadow-sm col-span-3">
+                          <div className="font-extrabold text-2xl md:text-3xl text-gray-900">
+                            {counts.blank}
+                          </div>
+                          <div className="text-gray-700 font-medium mt-1">
+                            Blank (?)
+                          </div>
                         </div>
                       </div>
                       {/* Operator Details if any operator present */}
                       {counts.operator > 0 && (
                         <div className="mt-6 pt-4 border-t border-gray-200">
-                          <h4 className="text-lg font-semibold text-green-900 mb-2 text-center">Operator Details</h4>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-3 text-center">
+                            Operator Details
+                          </h4>
                           <div className="grid grid-cols-4 gap-3 text-base md:text-lg">
-                            <div className="text-center p-2 bg-green-50 rounded-lg">
-                              <div className="font-extrabold text-xl md:text-2xl text-green-700">{counts.plus}</div>
-                              <div className="text-green-700 font-bold text-lg md:text-xl">+</div>
+                            <div className="text-center p-3 bg-green-50 rounded-lg shadow-sm border border-green-200">
+                              <div className="font-extrabold text-xl md:text-2xl text-green-700">
+                                {counts.plus}
+                              </div>
+                              <div className="text-green-700 font-bold text-lg md:text-xl">
+                                +
+                              </div>
                             </div>
-                            <div className="text-center p-2 bg-red-50 rounded-lg">
-                              <div className="font-extrabold text-xl md:text-2xl text-red-700">{counts.minus}</div>
-                              <div className="text-red-700 font-bold text-lg md:text-xl">−</div>
+                            <div className="text-center p-3 bg-red-50 rounded-lg shadow-sm border border-red-200">
+                              <div className="font-extrabold text-xl md:text-2xl text-red-700">
+                                {counts.minus}
+                              </div>
+                              <div className="text-red-700 font-bold text-lg md:text-xl">
+                                −
+                              </div>
                             </div>
-                            <div className="text-center p-2 bg-blue-50 rounded-lg">
-                              <div className="font-extrabold text-xl md:text-2xl text-blue-700">{counts.multiply}</div>
-                              <div className="text-blue-700 font-bold text-lg md:text-xl">×</div>
+                            <div className="text-center p-3 bg-blue-50 rounded-lg shadow-sm border border-blue-200">
+                              <div className="font-extrabold text-xl md:text-2xl text-blue-700">
+                                {counts.multiply}
+                              </div>
+                              <div className="text-blue-700 font-bold text-lg md:text-xl">
+                                ×
+                              </div>
                             </div>
-                            <div className="text-center p-2 bg-orange-50 rounded-lg">
-                              <div className="font-extrabold text-xl md:text-2xl text-orange-700">{counts.divide}</div>
-                              <div className="text-orange-700 font-bold text-lg md:text-xl">÷</div>
+                            <div className="text-center p-3 bg-orange-50 rounded-lg shadow-sm border border-orange-200">
+                              <div className="font-extrabold text-xl md:text-2xl text-orange-700">
+                                {counts.divide}
+                              </div>
+                              <div className="text-orange-700 font-bold text-lg md:text-xl">
+                                ÷
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -319,24 +446,49 @@ export default function DisplayBox({
               );
             })()}
 
-            {/* แสดงสมการเพิ่มเติม (ถ้ามี) - ใช้ state แทน details */}
-            {result.possibleEquations &&
+            {/* Other Solutions Section */}
+            {showExampleSolution &&
+              result.possibleEquations &&
               result.possibleEquations.length > 1 && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <h3 className="text-lg font-semibold text-green-900">
-                      Other solutions ({result.possibleEquations.length - 1}{" "}
-                      equations)
-                    </h3>
+                  <div className="flex items-center justify-between border-b pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-6 bg-gradient-to-b from-amber-500 to-orange-500 rounded-full"></div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Other Solutions
+                      </h3>
+                      <div className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-medium">
+                        {result.possibleEquations.length - 1} equations
+                      </div>
+                    </div>
                     <button
                       onClick={() => setShowMoreEquations(!showMoreEquations)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border shadow-sm focus:outline-none focus:ring-2 focus:ring-green-300 ${showSummary ? 'bg-green-200 text-green-900 hover:bg-green-300' : 'bg-white text-green-700 hover:bg-green-100'}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-300 flex items-center gap-2 ${
+                        showMoreEquations
+                          ? "bg-amber-200 text-amber-900 hover:bg-amber-300"
+                          : "bg-white text-amber-700 hover:bg-amber-100"
+                      }`}
                     >
-                      {showMoreEquations ? "Hide" : "Show"}
+                      <span>{showMoreEquations ? "Hide" : "Show"}</span>
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          showMoreEquations ? "rotate-180" : ""
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
                     </button>
                   </div>
 
-                  {/* แสดงสมการเพิ่มเติมด้วย smooth transition */}
+                  {/* Show additional equations with smooth transition */}
                   <div
                     className={`
                   overflow-hidden transition-all duration-300 ease-in-out
@@ -347,19 +499,21 @@ export default function DisplayBox({
                   }
                 `}
                   >
-                    <div className="grid gap-2 pt-2">
+                    <div className="grid gap-3 pt-2">
                       {result.possibleEquations
                         .slice(1, 6)
                         .map((equation, index) => (
-                          <div 
-                            key={index} 
-                            className="bg-amber-100 p-3 rounded border border-amber-400 font-mono text-center text-black shadow-sm hover:bg-amber-200 transition-colors duration-150"
+                          <div
+                            key={index}
+                            className="bg-amber-50 p-4 rounded-lg border border-amber-200 font-mono text-center text-gray-900 shadow-sm hover:bg-amber-100 transition-all duration-200 hover:shadow-md"
                           >
-                            {equation}
+                            <span className="text-lg font-semibold">
+                              {equation}
+                            </span>
                           </div>
                         ))}
                       {result.possibleEquations.length > 6 && (
-                        <div className="text-center text-green-700 text-sm py-2">
+                        <div className="text-center text-amber-700 text-sm py-3 bg-amber-50 rounded-lg border border-amber-200">
                           and {result.possibleEquations.length - 6} more
                           equations...
                         </div>
@@ -372,15 +526,17 @@ export default function DisplayBox({
         ) : (
           <div className="text-green-500 text-center py-12">
             <div className="text-6xl mb-4">🎲</div>
-            <h3 className="text-xl font-semibold mb-2">
+            <h3 className="text-xl font-semibold mb-2 text-gray-900">
               Start generating DS Bingo problems
             </h3>
-            <p className="mb-4">Press &quot;Generate Problem&quot; to start</p>
+            <p className="mb-4 text-gray-700">
+              Press &quot;Generate Problem&quot; to begin
+            </p>
             <div className="bg-green-50 p-4 rounded-lg border border-green-200 max-w-md mx-auto">
               <p className="text-sm text-green-800 font-medium">DS Bingo</p>
               <p className="text-xs text-green-600 mt-1">
                 Is a set of numbers and operators that can be arranged into at
-                least one valid equation according to Math rules.
+                least one valid equation according to mathematical rules.
               </p>
             </div>
           </div>
