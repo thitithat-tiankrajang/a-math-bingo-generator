@@ -222,6 +222,12 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
   const [problemCopied, setProblemCopied] = useState(false);
   const [solutionCopied, setSolutionCopied] = useState(false);
 
+  // เพิ่ม state สำหรับ title และ filename
+  const [problemTitle, setProblemTitle] = useState('DS Math Bingo Problems');
+  const [solutionTitle, setSolutionTitle] = useState('DS Math Bingo Solutions');
+  const [problemFilename, setProblemFilename] = useState('DSMathBingoProblems.pdf');
+  const [solutionFilename, setSolutionFilename] = useState('DSMathBingoSolutions.pdf');
+
   const handleCopyProblem = async () => {
     try {
       if (navigator.clipboard) {
@@ -272,7 +278,7 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
   
     // ฟังก์ชันวาด Header
     const drawHeader = (doc: jsPDF, pageNum: number) => {
-      const title = 'DS Math Bingo Problems';
+      const title = problemTitle || 'DS Math Bingo Problems';
       doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(80, 80, 80);
@@ -346,7 +352,7 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
       }
     });
   
-    doc.save('DSMathBingoProblems.pdf');
+    doc.save(problemFilename || 'DSMathBingoProblems.pdf');
   };
 
 
@@ -372,10 +378,13 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
       // Header
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('DS Math Bingo Solutions', marginX, headerY);
+      const title = solutionTitle || 'DS Math Bingo Solutions';
+      doc.text(title, marginX, headerY);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120, 120, 120);
       doc.text(`Page ${pageNum}`, pageWidth - marginX, headerY, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
 
       // วาดแต่ละ region
       for (let region = 0; region < regionsPerPage; region++) {
@@ -402,7 +411,7 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
         pageNum++;
       }
     }
-    doc.save('math-solutions.pdf');
+    doc.save(solutionFilename || 'DSMathBingoSolutions.pdf');
   };
 
   return (
@@ -411,6 +420,17 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Problems Section */}
         <div className="space-y-4">
+          {/* Title input */}
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Problems Title (optional)</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+              value={problemTitle}
+              onChange={e => setProblemTitle(e.target.value)}
+              placeholder="DS Math Bingo Problems"
+            />
+          </div>
           <div className="flex items-center justify-between">
             <h4 className="text-lg font-semibold text-gray-900 flex items-center">
               <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-blue-600 rounded-full mr-2"></div>
@@ -442,7 +462,6 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
               )}
             </button>
           </div>
-          
           <div className="relative">
             <textarea 
               className="w-full h-64 p-4 border border-gray-300 rounded-xl bg-gray-50 font-mono text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" 
@@ -454,7 +473,17 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
               {problemText.split('\n').length} problems
             </div>
           </div>
-
+          {/* Filename input */}
+          <div className="mt-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Problems PDF Filename (optional)</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+              value={problemFilename}
+              onChange={e => setProblemFilename(e.target.value)}
+              placeholder="DSMathBingoProblems.pdf"
+            />
+          </div>
           <button 
             className="w-full px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40"
             onClick={handlePrintProblemPDF}
@@ -470,6 +499,17 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
 
         {/* Solutions Section */}
         <div className="space-y-4">
+          {/* Title input */}
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Solutions Title (optional)</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-black placeholder-gray-400"
+              value={solutionTitle}
+              onChange={e => setSolutionTitle(e.target.value)}
+              placeholder="DS Math Bingo Solutions"
+            />
+          </div>
           <div className="flex items-center justify-between">
             <h4 className="text-lg font-semibold text-gray-900 flex items-center">
               <div className="w-2 h-6 bg-gradient-to-b from-green-500 to-green-600 rounded-full mr-2"></div>
@@ -501,7 +541,6 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
               )}
             </button>
           </div>
-          
           <div className="relative">
             <textarea 
               className="w-full h-64 p-4 border border-gray-300 rounded-xl bg-gray-50 font-mono text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all" 
@@ -513,7 +552,17 @@ function SplitTextAreas({ problemText, solutionText }: { problemText: string; so
               {solutionText.split('\n').length} solutions
             </div>
           </div>
-
+          {/* Filename input */}
+          <div className="mt-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Solutions PDF Filename (optional)</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-black placeholder-gray-400"
+              value={solutionFilename}
+              onChange={e => setSolutionFilename(e.target.value)}
+              placeholder="DSMathBingoSolutions.pdf"
+            />
+          </div>
           <button 
             className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg shadow-green-500/25 hover:shadow-green-500/40"
             onClick={handlePrintSolutionPDF}
