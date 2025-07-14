@@ -1,9 +1,10 @@
 import React from 'react';
+import type { MathBingoOptions } from '@/app/types/mathBingo';
 
 export interface ActionBoxProps {
   onGenerate: () => void;
   isGenerating: boolean;
-  options: any;
+  options: MathBingoOptions;
   numQuestions: number;
   onNumQuestionsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onShowOptionModal: () => void;
