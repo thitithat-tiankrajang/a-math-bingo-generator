@@ -1,7 +1,7 @@
 // src/components/DisplayBox.tsx
 import type { EquationAnagramResult } from "@/app/types/EquationAnagram";
 import { useState, useEffect } from "react";
-import { AMATH_TOKENS } from "@/app/lib/EquationAnagramLogic";
+import { AMATH_TOKENS } from "@/app/lib/equationAnagramLogic";
 import Button from "../ui/Button";
 
 interface DisplayBoxProps {

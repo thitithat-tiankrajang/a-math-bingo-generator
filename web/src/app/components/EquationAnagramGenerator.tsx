@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { generateEquationAnagram } from '@/app/lib/EquationAnagramLogic';
+import { generateEquationAnagram } from '@/app/lib/equationAnagramLogic';
 import type { EquationAnagramOptions, EquationAnagramResult } from '@/app/types/EquationAnagram';
 import { jsPDF } from 'jspdf';
 import HeaderSection from './HeaderSection';
