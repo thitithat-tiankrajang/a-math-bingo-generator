@@ -9,7 +9,7 @@ interface OptionSetConfigProps {
   onNumQuestionsChange: (n: number) => void;
   onRemove?: () => void;
   setLabel?: string;
-  setIndex?: number; // for localStorage key
+  setIndex?: number; // for sessionStorage key
 }
 
 function OptionSummary({ options, numQuestions }: { options: EquationAnagramOptions, numQuestions: number }) {
@@ -40,14 +40,14 @@ export default function OptionSetConfig({ options, onOptionsChange, numQuestions
   const storageKey = setIndex !== undefined ? `bingo_option_set_show_${setIndex}` : undefined;
   const [showOptions, setShowOptions] = useState(() => {
     if (typeof window !== 'undefined' && storageKey) {
-      const stored = window.localStorage.getItem(storageKey);
+      const stored = window.sessionStorage.getItem(storageKey);
       if (stored === 'false') return false;
     }
     return true;
   });
   useEffect(() => {
     if (typeof window !== 'undefined' && storageKey) {
-      window.localStorage.setItem(storageKey, showOptions ? 'true' : 'false');
+      window.sessionStorage.setItem(storageKey, showOptions ? 'true' : 'false');
     }
   }, [showOptions, storageKey]);
   return (

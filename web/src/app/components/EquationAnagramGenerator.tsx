@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { generateEquationAnagram } from '@/app/lib/equationAnagramLogic';
+import { generateEquationAnagram } from '@/app/lib/EquationAnagramLogic';
 import type { EquationAnagramOptions, EquationAnagramResult } from '@/app/types/EquationAnagram';
 import { jsPDF } from 'jspdf';
 import HeaderSection from './HeaderSection';
@@ -75,19 +75,19 @@ export default function EquationAnagramGenerator() {
     loadThaiFont();
   }, []);
 
-  // Restore from localStorage (client only)
+  // Restore from sessionStorage (client only)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const storedOptions = window.localStorage.getItem('bingo_options');
+      const storedOptions = window.sessionStorage.getItem('bingo_options');
       if (storedOptions) {
         try { setOptions(JSON.parse(storedOptions)); } catch {}
       }
-      const storedNumQuestions = window.localStorage.getItem('bingo_num_questions');
+      const storedNumQuestions = window.sessionStorage.getItem('bingo_num_questions');
       if (storedNumQuestions) {
         const n = parseInt(storedNumQuestions, 10);
         if (!isNaN(n) && n > 0 && n <= 100) setNumQuestions(n);
       }
-      const storedOptionSets = window.localStorage.getItem('bingo_option_sets');
+      const storedOptionSets = window.sessionStorage.getItem('bingo_option_sets');
       if (storedOptionSets) {
         try { setOptionSets(JSON.parse(storedOptionSets)); } catch {}
       }
@@ -95,20 +95,20 @@ export default function EquationAnagramGenerator() {
     }
   }, []);
 
-  // --- LocalStorage Save ---
+  // --- sessionStorage Save ---
   useEffect(() => {
     if (typeof window !== 'undefined' && hydrated) {
-      window.localStorage.setItem('bingo_options', JSON.stringify(options));
+      window.sessionStorage.setItem('bingo_options', JSON.stringify(options));
     }
   }, [options, hydrated]);
   useEffect(() => {
     if (typeof window !== 'undefined' && hydrated) {
-      window.localStorage.setItem('bingo_num_questions', numQuestions.toString());
+      window.sessionStorage.setItem('bingo_num_questions', numQuestions.toString());
     }
   }, [numQuestions, hydrated]);
   useEffect(() => {
     if (typeof window !== 'undefined' && hydrated) {
-      window.localStorage.setItem('bingo_option_sets', JSON.stringify(optionSets));
+      window.sessionStorage.setItem('bingo_option_sets', JSON.stringify(optionSets));
     }
   }, [optionSets, hydrated]);
 
@@ -329,14 +329,14 @@ export default function EquationAnagramGenerator() {
                 color="white"
                 className="mt-4 border border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
                 onClick={() => {
-                  // Clear all relevant localStorage keys
-                  window.localStorage.removeItem('bingo_options');
-                  window.localStorage.removeItem('bingo_num_questions');
-                  window.localStorage.removeItem('bingo_option_sets');
+                  // Clear all relevant sessionStorage keys
+                  window.sessionStorage.removeItem('bingo_options');
+                  window.sessionStorage.removeItem('bingo_num_questions');
+                  window.sessionStorage.removeItem('bingo_option_sets');
                   // Remove all bingo_option_set_show_X keys
-                  Object.keys(window.localStorage).forEach(key => {
+                  Object.keys(window.sessionStorage).forEach(key => {
                     if (key.startsWith('bingo_option_set_show_')) {
-                      window.localStorage.removeItem(key);
+                      window.sessionStorage.removeItem(key);
                     }
                   });
                   window.location.reload();

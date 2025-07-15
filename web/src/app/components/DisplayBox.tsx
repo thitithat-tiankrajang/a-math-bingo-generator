@@ -1,7 +1,7 @@
 // src/components/DisplayBox.tsx
 import type { EquationAnagramResult } from "@/app/types/EquationAnagram";
 import { useState, useEffect } from "react";
-import { AMATH_TOKENS } from "@/app/lib/equationAnagramLogic";
+import { AMATH_TOKENS } from "@/app/lib/EquationAnagramLogic";
 import Button from "../ui/Button";
 
 interface DisplayBoxProps {
@@ -69,7 +69,7 @@ export default function DisplayBox({
   setCurrentIndex,
 }: DisplayBoxProps) {
   const [showMoreEquations, setShowMoreEquations] = useState(false);
-  // Summary/operator details toggle with localStorage persistence
+  // Summary/operator details toggle with sessionStorage persistence
   const [showSummary, setShowSummary] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const stored = window.sessionStorage.getItem("bingo_show_summary");
