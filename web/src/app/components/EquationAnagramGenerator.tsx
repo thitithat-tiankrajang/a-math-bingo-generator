@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { generateEquationAnagram } from '@/app/lib/EquationAnagramLogic';
+import { generateEquationAnagram } from '@/app/lib/equationAnagramLogic';
 import type { EquationAnagramOptions, EquationAnagramResult } from '@/app/types/EquationAnagram';
 import { jsPDF } from 'jspdf';
 import HeaderSection from './HeaderSection';
@@ -12,7 +12,7 @@ import ActionSection from './ActionSection';
 import OptionSetConfig from './OptionSetConfig';
 import PrintTextAreaSection from './PrintTextAreaSection';
 import Button from '../ui/Button';
-import type { OptionSet } from '../types/EquationAnagram'; // สมมติว่าย้ายไปไว้ที่ types/EquationAnagram.ts
+import type { OptionSet } from '../types/EquationAnagram';
 import OptionSetsSummary from './OptionSetsSummary';
 
 // Add OptionSet type for popup
