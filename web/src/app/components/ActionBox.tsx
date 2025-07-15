@@ -1,11 +1,11 @@
 import React from 'react';
-import type { MathBingoOptions } from '@/app/types/mathBingo';
+import type { EquationAnagramOptions } from '@/app/types/EquationAnagram';
 import Button from '../ui/Button';
 
 export interface ActionBoxProps {
   onGenerate: () => void;
   isGenerating: boolean;
-  options: MathBingoOptions;
+  options: EquationAnagramOptions;
   numQuestions: string;
   onNumQuestionsChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onNumQuestionsBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
@@ -20,13 +20,7 @@ export interface ActionBoxProps {
 export default function ActionBox({ 
   onGenerate, 
   isGenerating, 
-  numQuestions, 
-  onNumQuestionsChange, 
-  onNumQuestionsBlur,
   onShowOptionModal, 
-  onPrintText, 
-  showSolution, 
-  onShowSolutionChange 
 }: ActionBoxProps) {
   return (
     <div className="space-y-6">
@@ -46,7 +40,7 @@ export default function ActionBox({
         Generate Problem
       </Button>
 
-      {/* View/Edit Options Button */}
+      {/* Settings for Print Button */}
       <Button
         onClick={onShowOptionModal}
         color="white"
@@ -57,74 +51,7 @@ export default function ActionBox({
           </svg>
         }
       >
-        View/Edit Options
-      </Button>
-
-      {/* Number of Questions */}
-      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-        <label htmlFor="numQuestions" className="block text-sm font-medium text-gray-700 mb-2">
-          Number of Questions
-        </label>
-        <div className="flex items-center space-x-3">
-          <input
-            id="numQuestions"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={numQuestions}
-            onChange={onNumQuestionsChange}
-            onBlur={onNumQuestionsBlur}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-center font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
-          />
-          <span className="text-sm text-gray-500 font-medium">questions</span>
-        </div>
-      </div>
-
-      {/* Show Solution Toggle */}
-      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <input
-              id="showSolution"
-              type="checkbox"
-              checked={showSolution}
-              onChange={onShowSolutionChange}
-              className="sr-only"
-            />
-            <label 
-              htmlFor="showSolution" 
-              className={`flex items-center justify-center w-12 h-6 rounded-full cursor-pointer transition-all duration-200 ${
-                showSolution ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-            >
-              <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
-                showSolution ? 'translate-x-3' : '-translate-x-3'
-              }`}></div>
-            </label>
-          </div>
-          <div className="flex-1">
-            <label htmlFor="showSolution" className="text-sm font-medium text-blue-900 cursor-pointer select-none">
-              Include Solutions in Text Output
-            </label>
-            <p className="text-xs text-blue-700 mt-1">
-              When enabled, solutions will be generated alongside problems
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Print Text Button */}
-      <Button
-        onClick={onPrintText}
-        disabled={isGenerating}
-        color="orange"
-        icon={
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-        }
-      >
-        Generate Text Output
+        Settings for Print
       </Button>
 
       {/* Description */}

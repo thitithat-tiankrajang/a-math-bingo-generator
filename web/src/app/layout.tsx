@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DS Math Bingo",
-  description: "Math Bingo Generator",
+  title: "DS Equation Anagram Service",
+  description: "Service for Equation Anagram generator by Thitithat Tiankrajang",
 };
 
 export default function RootLayout({

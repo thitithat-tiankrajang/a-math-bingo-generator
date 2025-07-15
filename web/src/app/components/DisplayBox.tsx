@@ -1,13 +1,16 @@
 // src/components/DisplayBox.tsx
-import type { MathBingoResult } from "@/app/types/mathBingo";
+import type { EquationAnagramResult } from "@/app/types/EquationAnagram";
 import { useState, useEffect } from "react";
-import { AMATH_TOKENS } from "@/app/lib/mathBingoLogic";
+import { AMATH_TOKENS } from "@/app/lib/equationAnagramLogic";
 import Button from "../ui/Button";
 
 interface DisplayBoxProps {
-  result: MathBingoResult | null;
+  result: EquationAnagramResult | null;
   onGenerate?: () => void;
   isGenerating?: boolean;
+  currentIndex?: number;
+  total?: number;
+  setCurrentIndex?: (idx: number) => void;
 }
 
 // ฟังก์ชันกำหนดสีของ element ตามประเภท
@@ -61,6 +64,9 @@ export default function DisplayBox({
   result,
   onGenerate,
   isGenerating,
+  currentIndex = 0,
+  total = 1,
+  setCurrentIndex,
 }: DisplayBoxProps) {
   const [showMoreEquations, setShowMoreEquations] = useState(false);
   // Summary/operator details toggle with localStorage persistence
@@ -95,6 +101,28 @@ export default function DisplayBox({
             </div>
           )}
         </div>
+        {/* Navigation for multiple problems */}
+        {total > 1 && setCurrentIndex && (
+          <div className="flex items-center gap-2">
+            <button
+              className="px-3 py-1 rounded bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50"
+              onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+              disabled={currentIndex === 0}
+            >
+              Prev
+            </button>
+            <span className="text-green-900 font-medium">
+              {currentIndex + 1} / {total}
+            </span>
+            <button
+              className="px-3 py-1 rounded bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50"
+              onClick={() => setCurrentIndex(Math.min(total - 1, currentIndex + 1))}
+              disabled={currentIndex === total - 1}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="min-h-32">

@@ -1,5 +1,5 @@
-// src/lib/mathBingoLogic.ts - Updated to fix blank/wildcard logic and ensure equations always have equals
-import type { MathBingoOptions, MathBingoResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/mathBingo';
+// src/lib/EquationAnagramLogic.ts - Updated to fix blank/wildcard logic and ensure equations always have equals
+import type { EquationAnagramOptions, EquationAnagramResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/EquationAnagram';
 import { Fraction, compareFractions } from './fractionUtil';
 import { isNumber, isLightNumber, isHeavyNumber, isOperator, getElementType } from './tokenUtil';
 import { generateLimitedPermutations } from './permutationUtil';
@@ -38,10 +38,10 @@ export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
 };
 
 /**
- * Generate AMath bingo problem based on options
+ * Generate DS Equation Anagram problem based on options
  */
-export async function generateMathBingo(options: MathBingoOptions): Promise<MathBingoResult> {
-  const validation = validateMathBingoOptions(options);
+export async function generateEquationAnagram(options: EquationAnagramOptions): Promise<EquationAnagramResult> {
+  const validation = validateEquationAnagramOptions(options);
   if (validation) {
     throw new Error(validation);
   }
@@ -63,7 +63,7 @@ export async function generateMathBingo(options: MathBingoOptions): Promise<Math
         };
       }
     } catch (error) {
-      console.log(`Attempt ${attempts + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(error);
     }
     attempts++;
   }
@@ -361,9 +361,9 @@ function isValidEquationByRules(equation: string, equalsCount: number): boolean 
 }
 
 /**
- * Validate MathBingo options - FIXED: Always require at least 1 equals
+ * Validate EquationAnagram options - FIXED: Always require at least 1 equals
  */
-function validateMathBingoOptions(options: MathBingoOptions): string | null {
+function validateEquationAnagramOptions(options: EquationAnagramOptions): string | null {
   const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators } = options;
   
   if (totalCount < 8) {
@@ -457,7 +457,7 @@ function validateMathBingoOptions(options: MathBingoOptions): string | null {
 /**
  * Generate tokens based on selected options - Updated for specific operators
  */
-function generateTokensBasedOnOptions(options: MathBingoOptions): EquationElement[] {
+function generateTokensBasedOnOptions(options: EquationAnagramOptions): EquationElement[] {
   const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators } = options;
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
   

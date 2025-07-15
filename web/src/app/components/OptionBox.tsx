@@ -1,14 +1,16 @@
 // src/components/OptionBox.tsx
-import type { MathBingoOptions } from '@/app/types/mathBingo';
+import type { EquationAnagramOptions } from '@/app/types/EquationAnagram';
 import { useId, useCallback, useEffect, useState } from 'react';
 import { FaDice, FaBullseye } from 'react-icons/fa';
 
 interface OptionBoxProps {
-  options: MathBingoOptions;
-  onOptionsChange: (options: MathBingoOptions) => void;
+  options: EquationAnagramOptions;
+  onOptionsChange: (options: EquationAnagramOptions) => void;
+  numQuestions?: number;
+  onNumQuestionsChange?: (n: number) => void;
 }
 
-export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) {
+export default function OptionBox({ options, onOptionsChange, numQuestions, onNumQuestionsChange }: OptionBoxProps) {
   // Update operatorCount when specific operators change
   useEffect(() => {
     if (options.operatorMode === 'specific' && options.specificOperators) {
@@ -25,7 +27,7 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
     }
   }, [options, onOptionsChange]);
 
-  const handleChange = (field: keyof MathBingoOptions, value: number | string) => {
+  const handleChange = (field: keyof EquationAnagramOptions, value: number | string) => {
     onOptionsChange({
       ...options,
       [field]: value
@@ -57,7 +59,7 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
   };
 
   const handleSpecificOperatorChange = useCallback(
-    (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, value: number) => {
+    (operator: keyof NonNullable<EquationAnagramOptions['specificOperators']>, value: number) => {
       const newSpecificOperators = {
         ...options.specificOperators,
         [operator]: value
@@ -70,7 +72,7 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
     [options, onOptionsChange]
   );
 
-  const handleStep = useCallback((field: keyof MathBingoOptions, step: number, min: number, max: number) => {
+  const handleStep = useCallback((field: keyof EquationAnagramOptions, step: number, min: number, max: number) => {
     const current = options[field];
     if (typeof current === 'number') {
       const next = Math.max(min, Math.min(max, current + step));
@@ -81,7 +83,7 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
     }
   }, [options, onOptionsChange]);
 
-  const handleSpecificStep = useCallback((operator: keyof NonNullable<MathBingoOptions['specificOperators']>, step: number) => {
+  const handleSpecificStep = useCallback((operator: keyof NonNullable<EquationAnagramOptions['specificOperators']>, step: number) => {
     if (!options.specificOperators) return;
     const current = options.specificOperators[operator] || 0;
     const otherOperators = Object.entries(options.specificOperators)
@@ -105,11 +107,31 @@ export default function OptionBox({ options, onOptionsChange }: OptionBoxProps) 
   const switchId = useId();
 
   return (
-    <div className="bg-green-100 rounded-lg shadow-md border border-green-200 p-6 transition-all duration-300 max-w-full">
-      <h2 className="text-lg font-semibold mb-4 text-green-900 flex items-center gap-2">
-        <span className="text-yellow-500">⚙️</span>
-        Options
-      </h2>
+    <div className="bg-green-100 rounded-lg shadow-md border border-green-200 p-6 transition-all duration-300 max-w-full relative">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-green-900 flex items-center gap-2">
+          <span className="text-yellow-500">⚙️</span>
+          Options
+        </h2>
+        {typeof numQuestions === 'number' && onNumQuestionsChange && (
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-green-900 mr-1">Number of Questions</label>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              className="w-16 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 text-green-900 text-sm text-center bg-white"
+              value={numQuestions}
+              onChange={e => {
+                let num = parseInt(e.target.value, 10);
+                if (isNaN(num) || num < 1) num = 1;
+                if (num > 100) num = 100;
+                onNumQuestionsChange(num);
+              }}
+            />
+          </div>
+        )}
+      </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Total number of tiles */}
@@ -347,12 +369,12 @@ import React from 'react';
 type AnimatedCardContentProps = {
   mode: 'random' | 'specific';
   operatorCount: number;
-  handleStep: (field: keyof MathBingoOptions, step: number, min: number, max: number) => void;
-  handleChange: (field: keyof MathBingoOptions, value: number | string) => void;
+  handleStep: (field: keyof EquationAnagramOptions, step: number, min: number, max: number) => void;
+  handleChange: (field: keyof EquationAnagramOptions, value: number | string) => void;
   maxOperators: number;
-  options: MathBingoOptions;
-  handleSpecificOperatorChange: (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, value: number) => void;
-  handleSpecificStep: (operator: keyof NonNullable<MathBingoOptions['specificOperators']>, step: number) => void;
+  options: EquationAnagramOptions;
+  handleSpecificOperatorChange: (operator: keyof NonNullable<EquationAnagramOptions['specificOperators']>, value: number) => void;
+  handleSpecificStep: (operator: keyof NonNullable<EquationAnagramOptions['specificOperators']>, step: number) => void;
 };
 
 function AnimatedCardContent({ mode, operatorCount, handleStep, handleChange, maxOperators, options, handleSpecificOperatorChange, handleSpecificStep }: AnimatedCardContentProps) {

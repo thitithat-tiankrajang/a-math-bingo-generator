@@ -16,8 +16,8 @@ export function isOperator(token: string): boolean {
   return ['+', '-', '×', '÷'].includes(token);
 }
 
-import { AMATH_TOKENS } from './mathBingoLogic';
-import type { EquationElement } from '@/app/types/mathBingo';
+import { AMATH_TOKENS } from './equationAnagramLogic';
+import type { EquationElement } from '@/app/types/EquationAnagram';
 
 export function getElementType(token: string): EquationElement['type'] {
   const tokenInfo = AMATH_TOKENS[token as keyof typeof AMATH_TOKENS];
