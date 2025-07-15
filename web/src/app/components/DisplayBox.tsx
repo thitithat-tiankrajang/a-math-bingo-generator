@@ -72,14 +72,14 @@ export default function DisplayBox({
   // Summary/operator details toggle with localStorage persistence
   const [showSummary, setShowSummary] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem("bingo_show_summary");
+      const stored = window.sessionStorage.getItem("bingo_show_summary");
       return stored === "true" ? true : false;
     }
     return false;
   });
   useEffect(() => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(
+      window.sessionStorage.setItem(
         "bingo_show_summary",
         showSummary ? "true" : "false"
       );
