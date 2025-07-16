@@ -311,7 +311,7 @@ export default function OptionPanel({
                     <span className="text-sm font-medium text-black">
                       {options.operatorMode === 'random' ? 'Number of operators (Random)' : 'Specify operators'}
                     </span>
-                    <div className="flex items-center gap-2 justify-end sm:justify-start flex-wrap min-w-0 overflow-x-auto w-full">
+                    <div className="flex items-center gap-2 justify-end flex-wrap min-w-0 overflow-x-auto">
                       {/* Total badge (specific mode only) */}
                       <span className={`text-sm font-medium text-yellow-900 bg-white px-2 py-1 rounded transition-all duration-300 ${options.operatorMode === 'specific' ? 'opacity-100 scale-100 ml-0' : 'opacity-0 scale-90 ml-[-8px] pointer-events-none select-none'} min-w-0 truncate`}
                         style={{ minWidth: options.operatorMode === 'specific' ? 'auto' : 0 }}>
