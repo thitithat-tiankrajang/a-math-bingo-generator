@@ -14,6 +14,18 @@ export interface EquationAnagramOptions {
   heavyNumberCount: number;
   BlankCount: number;
   zeroCount: number;
+  operatorCounts?: {
+    '+': number;
+    '-': number;
+    '×': number;
+    '÷': number;
+  };
+  operatorFixed?: {
+    '+': number|null;
+    '-': number|null;
+    '×': number|null;
+    '÷': number|null;
+  };
 }
 
 export type OperatorSymbol = '+' | '-' | '×' | '÷';
@@ -21,6 +33,12 @@ export interface PopupEquationAnagramOptions extends EquationAnagramOptions {
   operatorMode: 'random' | 'specific';
   operatorList?: OperatorSymbol[];
   operatorCounts?: { [op in OperatorSymbol]: number };
+  operatorFixed?: {
+    '+': number|null;
+    '-': number|null;
+    '×': number|null;
+    '÷': number|null;
+  };
 }
 export interface OptionSet {
   options: PopupEquationAnagramOptions;

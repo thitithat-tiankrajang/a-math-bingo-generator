@@ -1,5 +1,5 @@
 import React from 'react';
-import type { OptionSet } from '../types/EquationAnagram';
+import type { OptionSet, OperatorSymbol } from '../types/EquationAnagram';
 
 interface OptionSetsSummaryProps {
   optionSets: OptionSet[];
@@ -35,103 +35,125 @@ export default function OptionSetsSummary({ optionSets }: OptionSetsSummaryProps
       </div>
 
       {/* Table Section */}
-      <div className="p-6 overflow-x-auto">
+      <div className="p-6 overflow-x-auto w-full">
         <div className="min-w-full bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <table className="min-w-full">
-            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Set
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Questions
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Mode
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Operators
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Equals
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Heavy
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Blank
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Zero
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200">
-                  Operator Counts
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {optionSets.map((set, idx) => (
-                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {idx + 1}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {set.numQuestions}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 capitalize">
-                      {set.options.operatorMode}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                      {set.options.operatorCount}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                      {set.options.equalsCount}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      {set.options.heavyNumberCount}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                      {set.options.BlankCount}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      {set.options.zeroCount}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {set.options.operatorMode === 'specific' && set.options.operatorCounts ? (
-                      <div className="flex items-center space-x-1">
-                        {Object.entries(set.options.operatorCounts).map(([op, count]) => (
-                          <span key={op} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
-                            {op}{count}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400 italic text-sm">Auto</span>
-                    )}
-                  </td>
+          <div className="overflow-x-auto w-full">
+            <table className="min-w-max w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Set
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Tiles
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Questions
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Mode
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Operators
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Equals
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Heavy
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Blank
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Zero
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200 text-center align-middle">
+                    Operator Counts
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {optionSets.map((set, idx) => (
+                  <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <div className="flex items-center justify-center">
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                          {idx + 1}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                        {set.options.totalCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {set.numQuestions}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 capitalize">
+                        {set.options.operatorMode}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        {set.options.operatorCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                        {set.options.equalsCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        {set.options.heavyNumberCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {set.options.BlankCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        {set.options.zeroCount}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
+                      {set.options.operatorMode === 'specific' && set.options.operatorFixed ? (
+                        <div className="flex items-center justify-center space-x-1 flex-nowrap overflow-x-auto">
+                          {(['+', '-', '×', '÷'] as OperatorSymbol[]).map(op => {
+                            const val = set.options.operatorFixed && typeof set.options.operatorFixed[op] === 'number' ? set.options.operatorFixed[op] : 'random';
+                            return (
+                              <span key={op} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                                {op}{val}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      ) : set.options.operatorMode === 'specific' && set.options.operatorCounts ? (
+                        <div className="flex items-center justify-center space-x-1 flex-nowrap overflow-x-auto">
+                          {Object.entries(set.options.operatorCounts).map(([op, count]) => (
+                            <span key={op} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                              {op}{count}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic text-sm">Auto</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+      </div>
         
         {/* Footer Info */}
         <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
@@ -144,7 +166,6 @@ export default function OptionSetsSummary({ optionSets }: OptionSetsSummaryProps
             </span>
           </div>
         </div>
-      </div>
     </div>
   );
 }

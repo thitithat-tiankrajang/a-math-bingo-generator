@@ -364,7 +364,7 @@ function isValidEquationByRules(equation: string, equalsCount: number): boolean 
  * Validate EquationAnagram options - FIXED: Always require at least 1 equals
  */
 function validateEquationAnagramOptions(options: EquationAnagramOptions): string | null {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators } = options;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed } = options;
   
   if (totalCount < 8) {
     return 'Total count must be at least 8.';
@@ -400,7 +400,20 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
       return `Requested number of ÷ operators (${specificOperators.divide}) exceeds available tokens (${AMATH_TOKENS['÷'].count}).`;
     }
   }
-  
+
+  // Validate operatorFixed logic
+  if (operatorMode === 'specific' && operatorFixed) {
+    const fixedSum = Object.values(operatorFixed).reduce<number>((sum, v) => sum + (typeof v === 'number' && v > 0 ? v : 0), 0);
+    if (fixedSum > operatorCount) {
+      return `Sum of fixed operators (${fixedSum}) exceeds total operator count (${operatorCount}).`;
+    }
+  }
+
+  // เพิ่ม logic ใน generateTokensBasedOnOptions:
+  // - ถ้า options.operatorFixed มีค่า ให้ fix จำนวน operator ตามนั้น (number)
+  // - ที่เหลือ (null) ให้ random จาก operator ที่เหลือ
+  // - validate ให้จำนวนรวมตรงกับ operatorCount
+  // - อัปเดต type EquationAnagramOptions ด้วย operatorFixed: { '+': number|null, ... }
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
   
   if (lightNumberCount < 1) {
@@ -458,7 +471,7 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
  * Generate tokens based on selected options - Updated for specific operators
  */
 function generateTokensBasedOnOptions(options: EquationAnagramOptions): EquationElement[] {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators } = options;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed } = options;
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
   
   if (lightNumberCount < 0) {
@@ -514,7 +527,44 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
   }
   
   // Pick operator tokens based on mode
-  if (operatorMode === 'specific' && specificOperators) {
+  if (operatorMode === 'specific' && operatorFixed) {
+    // Flexible specific mode: fix บางตัว, random บางตัว
+    const fixedOps: Array<{type: '+' | '-' | '×' | '÷', count: number}> = [];
+    const randomOps: Array<'+' | '-' | '×' | '÷'> = [];
+    let fixedSum = 0;
+    (['+', '-', '×', '÷'] as const).forEach(type => {
+      const v = operatorFixed[type];
+      if (typeof v === 'number' && v > 0) {
+        fixedOps.push({ type, count: v });
+        fixedSum += v;
+      } else {
+        randomOps.push(type);
+      }
+    });
+    // ใส่ operator ที่ fix ก่อน
+    for (const { type, count } of fixedOps) {
+      if (typeof count === 'number' && count > 0) {
+        for (let i = 0; i < count; i++) {
+          const token = pickTokenFromPool('operator', type);
+          if (!token) {
+            throw new Error(`Not enough ${type} tokens in pool.`);
+          }
+          selectedTokens.push(createElementFromToken(token));
+        }
+      }
+    }
+    // ที่เหลือ random
+    const remain = operatorCount - fixedSum;
+    for (let i = 0; i < remain; i++) {
+      // random จาก operator ที่ยังไม่ fix
+      const type = randomOps[Math.floor(Math.random() * randomOps.length)];
+      const token = pickTokenFromPool('operator', type);
+      if (!token) {
+        throw new Error(`Not enough ${type} tokens in pool.`);
+      }
+      selectedTokens.push(createElementFromToken(token));
+    }
+  } else if (operatorMode === 'specific' && specificOperators) {
     // Specific mode - pick exact operators
     const operatorTypes: Array<{type: '+' | '-' | '×' | '÷', count: number}> = [
       { type: '+', count: specificOperators.plus || 0 },
