@@ -265,12 +265,14 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
       }
     }
     
-    // 🔥 REMOVED: Check for 0 adjacent to - (now allowing negative numbers)
-    // if (current === '0') {
-    //   if (next === '-' || prev === '-') {
-    //     return false;
-    //   }
-    // }
+    // Check for 0 adjacent to - (prevent negative zero)
+    if (current === '0') {
+      // Only block if 0 is directly preceded by - (negative zero)
+      // Allow 0 followed by - as part of expression (like 6-0x555)
+      if (prev === '-') {
+        return false;
+      }
+    }
     
     if (isOperator(current)) {
       // Operators should not be adjacent, except for specific cases
@@ -324,17 +326,18 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
 /**
  * Check if equation is valid according to rules - FIXED: Always require at least 1 equals
  */
-function isValidEquationByRules(equation: string, equalsCount: number): boolean {
+export function isValidEquationByRules(equation: string, equalsCount?: number): boolean {
   try {
-    // 🔥 FIX: Always require at least 1 equals
     const parts = equation.split('=');
     if (parts.length < 2) {
       return false; // No equals found
     }
     
     const actualEquals = parts.length - 1;
+    // If equalsCount is not provided, use actualEquals
+    const requiredEquals = equalsCount === undefined ? actualEquals : equalsCount;
     
-    if (equalsCount > 0 && actualEquals !== equalsCount) {
+    if (requiredEquals > 0 && actualEquals !== requiredEquals) {
       return false; // If specific count requested, must match exactly
     }
     
@@ -714,16 +717,5 @@ export function findAllPossibleEquations(elements: string[]): string[] {
     return findValidEquations(tokens, 1);
   } catch {
     return [];
-  }
-}
-
-/**
- * ฟังก์ชันเพิ่มเติมสำหรับทดสอบระบบเศษส่วน
- */
-export function testFractionEquation(equation: string): boolean {
-  try {
-    return isValidEquationByRules(equation, 1);
-  } catch {
-    return false;
   }
 }
