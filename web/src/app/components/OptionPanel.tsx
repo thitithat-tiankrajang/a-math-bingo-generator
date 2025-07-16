@@ -106,22 +106,22 @@ export default function OptionPanel({
 
   // Color palette for set accent
   const accentColors = [
-    'border-blue-500 bg-blue-500', // สีแรกเป็นฟ้า ไม่ใช่ gray
-    'border-green-400 bg-green-400',
-    'border-yellow-400 bg-yellow-400',
-    'border-purple-400 bg-purple-400',
-    'border-pink-400 bg-pink-400',
-    'border-orange-400 bg-orange-400',
-    'border-teal-400 bg-teal-400',
-    'border-indigo-400 bg-indigo-400',
-    'border-red-400 bg-red-400',
+    'border-blue-500',
+    'border-green-400',
+    'border-purple-400',
+    'border-pink-400',
+    'border-orange-400',
+    'border-teal-400',
+    'border-indigo-400',
+    'border-red-400',
+    'border-yellow-400',
   ];
   const accent = setIndex !== undefined ? accentColors[setIndex % accentColors.length] : 'border-blue-500 bg-blue-500';
 
   // Style variants
   const panelClass =
     variant === 'pdftext'
-      ? `bg-white border-l-8 ${accent.split(' ').join(' ')} border border-gray-200 rounded-xl p-4 transition-all duration-300 w-full relative mb-6${!showOptions ? ' mb-6' : ''}`
+      ? `bg-white border-l-8 ${accent} border border-gray-200 rounded-xl p-4 transition-all duration-300 w-full relative mb-6${!showOptions ? ' mb-6' : ''}`
       : '';
 
   return (
@@ -132,7 +132,7 @@ export default function OptionPanel({
           <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
             {setLabel && (
               <div className="flex items-center min-w-[80px] max-w-xs truncate">
-                <div className={`w-8 h-8 ${accent.split(' ').join(' ')} rounded-lg flex items-center justify-center mr-3`}>
+                <div className={`w-8 h-8 ${accent} rounded-lg flex items-center justify-center mr-3`}>
                   <span className="text-white font-bold text-xs md:text-sm">{setLabel.replace('Set ', '')}</span>
                 </div>
                 <span className="font-semibold text-blue-700 text-base md:text-lg truncate">{setLabel}</span>
