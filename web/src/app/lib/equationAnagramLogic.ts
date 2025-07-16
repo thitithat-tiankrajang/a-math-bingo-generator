@@ -371,9 +371,9 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
   }
   
   // 🔥 FIX: Always require at least 1 equals (can't have equalsCount = 0)
-  if (equalsCount < 1) {
-    return 'Number of equals must be at least 1. Valid equations require equals sign.';
-  }
+  // if (equalsCount < 1) {
+  //   return 'Number of equals must be at least 1. Valid equations require equals sign.';
+  // }
   
   // Validate operator count when in specific mode
   if (operatorMode === 'specific' && specificOperators) {

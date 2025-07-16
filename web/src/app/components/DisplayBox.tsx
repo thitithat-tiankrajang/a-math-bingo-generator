@@ -85,28 +85,6 @@ export default function DisplayBox({
             </div>
           )}
         </div>
-        {/* Navigation for multiple problems */}
-        {total > 1 && setCurrentIndex && (
-          <div className="flex items-center gap-2">
-            <button
-              className="px-3 py-1 rounded bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50"
-              onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-              disabled={currentIndex === 0}
-            >
-              Prev
-            </button>
-            <span className="text-green-900 font-medium">
-              {currentIndex + 1} / {total}
-            </span>
-            <button
-              className="px-3 py-1 rounded bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50"
-              onClick={() => setCurrentIndex(Math.min(total - 1, currentIndex + 1))}
-              disabled={currentIndex === total - 1}
-            >
-              Next
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="min-h-32">
@@ -154,6 +132,29 @@ export default function DisplayBox({
                 ))}
               </div>
             </div>
+
+            {/* Navigation for multiple problems - moved below tile rack */}
+            {total > 1 && setCurrentIndex && (
+              <div className="flex justify-center items-center gap-4 mb-4">
+                <button
+                  className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50 hover:bg-gray-50 transition-colors duration-200 shadow-sm"
+                  onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+                  disabled={currentIndex === 0}
+                >
+                  ← Prev
+                </button>
+                <span className="text-green-900 font-medium bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                  {currentIndex + 1} / {total}
+                </span>
+                <button
+                  className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50 hover:bg-gray-50 transition-colors duration-200 shadow-sm"
+                  onClick={() => setCurrentIndex(Math.min(total - 1, currentIndex + 1))}
+                  disabled={currentIndex === total - 1}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
 
             {/* ปุ่มสร้างโจทย์ตรงกลางใต้ tile rack */}
             {onGenerate && (
