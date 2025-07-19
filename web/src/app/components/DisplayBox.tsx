@@ -3,6 +3,8 @@ import type { EquationAnagramResult } from "@/app/types/EquationAnagram";
 import { useState } from "react";
 import { AMATH_TOKENS } from "@/app/lib/equationAnagramLogic";
 import Button from "../ui/Button";
+import ChildButton from "../ui/ChildButton";
+import React from "react"; // Added missing import
 
 interface DisplayBoxProps {
   result: EquationAnagramResult | null;
@@ -71,6 +73,53 @@ export default function DisplayBox({
   const [showMoreEquations, setShowMoreEquations] = useState(false);
   // Local state for Example Solution toggle
   const [showExampleSolution, setShowExampleSolution] = useState(false);
+  
+  // Tile reordering state
+  const [reorderedElements, setReorderedElements] = useState<string[]>([]);
+  const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(null);
+
+  // Initialize reordered elements when result changes
+  React.useEffect(() => {
+    if (result) {
+      setReorderedElements([...result.elements]);
+      setSelectedTileIndex(null);
+    }
+  }, [result]);
+
+  // Handle tile click for reordering
+  const handleTileClick = (clickedIndex: number) => {
+    if (selectedTileIndex === null) {
+      // First click - select tile
+      setSelectedTileIndex(clickedIndex);
+    } else if (selectedTileIndex === clickedIndex) {
+      // Click same tile - deselect
+      setSelectedTileIndex(null);
+    } else {
+      // Second click - move tile
+      const newElements = [...reorderedElements];
+      const selectedElement = newElements[selectedTileIndex];
+      
+      // Remove selected element
+      newElements.splice(selectedTileIndex, 1);
+      
+      // Insert at new position
+      const insertIndex = clickedIndex;
+      newElements.splice(insertIndex, 0, selectedElement);
+      
+      setReorderedElements(newElements);
+      setSelectedTileIndex(null);
+    }
+  };
+
+  // Reset to original order
+  const resetOrder = () => {
+    if (result) {
+      setReorderedElements([...result.elements]);
+      setSelectedTileIndex(null);
+    }
+  };
+
+  const displayElements = result ? reorderedElements : [];
 
   return (
     <div className="bg-green-100 rounded-lg shadow-lg p-6 border border-green-200">
@@ -92,69 +141,93 @@ export default function DisplayBox({
           <div className="space-y-6">
             {/* แสดงชุดตัวเลขและเครื่องหมาย */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-green-900 border-b pb-2">
-                Problem Set
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-green-900 border-b pb-2">
+                  Problem Set
+                </h3>
+              </div>
+              
               {/* Tile rack: responsive layout */}
               <div
                 className={
-                  result.elements.length >= 15
+                  displayElements.length >= 15
                     ? "hidden lg:grid grid-cols-15 gap-3 justify-center p-3 bg-amber-50 rounded-lg shadow-sm border-2 border-amber-200 relative"
                     : "flex flex-wrap gap-2 sm:gap-3 justify-center p-3 bg-amber-50 rounded-lg shadow-sm border-2 border-amber-200 relative"
                 }
                 style={
-                  result.elements.length >= 15
+                  displayElements.length >= 15
                     ? { gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }
                     : {}
                 }
               >
-                {result.elements.map((element, index) => (
-                  <div
-                    key={index}
-                    className={
-                      result.elements.length >= 15
-                        ? "relative aspect-square min-w-[32px] w-10 lg:w-12 xl:w-14 flex items-center justify-center rounded text-xs lg:text-sm xl:text-base font-bold transform transition-all duration-200 hover:scale-105 hover:shadow-md " +
-                          getElementStyle(element)
-                        : "relative aspect-square min-w-[48px] w-16 sm:w-14 md:w-16 flex items-center justify-center rounded text-lg sm:text-xl md:text-2xl font-bold transform transition-all duration-200 hover:scale-105 hover:shadow-md " +
-                          getElementStyle(element)
-                    }
-                    title={getElementTypeLabel(element)}
-                  >
-                    <div className="text-center w-full relative z-10">
-                      {element}
+                {displayElements.map((element, index) => {
+                  const isSelected = selectedTileIndex === index;
+                  
+                  return (
+                    <div
+                      key={`${element}-${index}`}
+                      className={`
+                        relative aspect-square 
+                        ${displayElements.length >= 15
+                          ? "min-w-[32px] w-10 lg:w-12 xl:w-14 text-xs lg:text-sm xl:text-base"
+                          : "min-w-[48px] w-16 sm:w-14 md:w-16 text-lg sm:text-xl md:text-2xl"
+                        }
+                        flex items-center justify-center rounded font-bold 
+                        transition-all duration-300 ease-in-out
+                        ${getElementStyle(element)}
+                        ${isSelected 
+                          ? "ring-4 ring-blue-400 ring-opacity-75 scale-110 z-10 shadow-lg bg-blue-100 border-blue-400" 
+                          : ""
+                        }
+                        cursor-pointer hover:scale-105 hover:shadow-md hover:ring-2 hover:ring-blue-300 hover:ring-opacity-50
+                        ${isSelected ? "animate-pulse" : ""}
+                      `}
+                      title={`${getElementTypeLabel(element)} - Click to select/move`}
+                      onClick={() => handleTileClick(index)}
+                    >
+                      <div className="text-center w-full relative z-10">
+                        {element}
+                      </div>
+                      
+                      {/* แสดง point ที่มุมขวาล่าง */}
+                      <div className="absolute bottom-0.5 right-1 text-xs text-black font-bold opacity-70 select-none pointer-events-none">
+                        {AMATH_TOKENS[element as keyof typeof AMATH_TOKENS]
+                          ?.point ?? ""}
+                      </div>
                     </div>
-                    {/* แสดง point ที่มุมขวาล่าง */}
-                    <div className="absolute bottom-0.5 right-1 text-xs text-black font-bold opacity-70 select-none pointer-events-none">
-                      {AMATH_TOKENS[element as keyof typeof AMATH_TOKENS]
-                        ?.point ?? ""}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* Navigation for multiple problems - moved below tile rack */}
-            {total > 1 && setCurrentIndex && (
-              <div className="flex justify-center items-center gap-4 mb-4">
-                <button
-                  className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50 hover:bg-gray-50 transition-colors duration-200 shadow-sm"
-                  onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
+            {/* Navigation for multiple problems - always show */}
+            <div className="flex justify-center items-center mb-4 relative">
+              <div className="flex items-center gap-4">
+                <ChildButton
+                  onClick={() => setCurrentIndex?.(Math.max(0, currentIndex - 1))}
                   disabled={currentIndex === 0}
                 >
                   ← Prev
-                </button>
+                </ChildButton>
                 <span className="text-green-900 font-medium bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
                   {currentIndex + 1} / {total}
                 </span>
-                <button
-                  className="px-4 py-2 rounded-lg bg-white border border-gray-300 text-green-900 font-semibold disabled:opacity-50 hover:bg-gray-50 transition-colors duration-200 shadow-sm"
-                  onClick={() => setCurrentIndex(Math.min(total - 1, currentIndex + 1))}
+                <ChildButton
+                  onClick={() => setCurrentIndex?.(Math.min(total - 1, currentIndex + 1))}
                   disabled={currentIndex === total - 1}
                 >
                   Next →
-                </button>
+                </ChildButton>
               </div>
-            )}
+              
+              {/* Reset button */}
+              <ChildButton
+                onClick={resetOrder}
+                className="absolute right-0"
+              >
+                Reset
+              </ChildButton>
+            </div>
 
             {/* ปุ่มสร้างโจทย์ตรงกลางใต้ tile rack */}
             {onGenerate && (
