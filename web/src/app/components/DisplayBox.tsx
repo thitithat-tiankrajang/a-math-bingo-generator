@@ -32,7 +32,7 @@ function getElementStyle(element: string): string {
 
   // เครื่องหมายทางเลือก
   if (["+/-", "×/÷"].includes(element)) {
-    return "bg-yellow-150 text-yellow-900 border-2 border-yellow-300 shadow-sm";
+    return "bg-yellow-100 text-yellow-900 border-2 border-yellow-300 shadow-sm";
   }
 
   // เครื่องหมาย =

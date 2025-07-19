@@ -62,7 +62,7 @@ export async function generateEquationAnagram(options: EquationAnagramOptions): 
   }
 
   let attempts = 0;
-  const maxAttempts = options.randomSettings ? 100000 : 300000;
+  const maxAttempts = 10000;
 
   while (attempts < maxAttempts) {
     try {
@@ -153,10 +153,17 @@ function generateTokensDeterministic(options: EquationAnagramOptions): EquationE
   
   // Pick equals tokens
   for (let i = 0; i < equalsCount; i++) {
-    const token = pickTokenFromPool('equals', availablePool);
+    // พยายามเลือก equals token ก่อน
+    let token = pickTokenFromPool('equals', availablePool);
+    
+    // ถ้าไม่มี equals tokens เหลือ ให้ใช้ blank token แทน (เพราะ ? สามารถแทน = ได้)
     if (!token) {
-      throw new Error('Not enough equals (=) tokens in pool.');
+      token = pickTokenFromPool('Blank', availablePool);
+      if (!token) {
+        throw new Error('Not enough equals (=) or blank (?) tokens in pool.');
+      }
     }
+    
     selectedTokens.push(createElementFromToken(token));
   }
   
@@ -360,20 +367,24 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
   const validEquations: string[] = [];
   const tokenValues = tokens.map(t => t.originalToken);
 
-  // Quick validation checks
+  // Quick validation checks - คำนึงว่า ? สามารถแทน = ได้
   const hasEquals = tokenValues.some(t => t === '=');
+  const hasBlanks = tokenValues.some(t => t === '?');
   const hasOperators = tokenValues.some(t => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(t));
   const hasNumbers = tokenValues.some(t => /^\d+$/.test(t));
   
-  if (!hasEquals || !hasOperators || !hasNumbers) {
+  // ถ้าไม่มี = และไม่มี ? เลย ให้ return empty
+  if ((!hasEquals && !hasBlanks) || !hasOperators || !hasNumbers) {
     return [];
   }
 
   const expandedTokenSets = expandBlanks(tokenValues);
   
-  // Filter token sets before permutation
+  // Filter token sets before permutation - คำนึงว่า ? สามารถแทน = ได้
   const filteredTokenSets = expandedTokenSets.filter(tokens => {
-    if (!tokens.some(t => t === '=')) return false;
+    const hasEqualsOrBlanks = tokens.some(t => t === '=' || t === '?');
+    if (!hasEqualsOrBlanks) return false;
+    
     if (!tokens.some(t => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(t))) return false;
     
     const numberCount = tokens.filter(t => /^\d+$/.test(t)).length;
@@ -492,13 +503,16 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
 function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
   if (tokens.length < 3) return false;
 
+  // คำนึงว่า ? สามารถแทน = ได้
   const equalsInTokens = tokens.filter(t => t === '=').length;
+  const blanksInTokens = tokens.filter(t => t === '?').length;
+  const totalEqualsOrBlanks = equalsInTokens + blanksInTokens;
   
-  if (equalsInTokens < 1) {
+  if (totalEqualsOrBlanks < 1) {
     return false;
   }
   
-  if (equalsCount > 0 && equalsInTokens !== equalsCount) {
+  if (equalsCount > 0 && totalEqualsOrBlanks < equalsCount) {
     return false;
   }
 
@@ -522,10 +536,10 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
     }
     
     if (isHeavyNumber(current)) {
-      if (prev && !isOperator(prev) && prev !== '=') {
+      if (prev && !isOperator(prev) && prev !== '=' && prev !== '?') {
         return false;
       }
-      if (next && !isOperator(next) && next !== '=') {
+      if (next && !isOperator(next) && next !== '=' && next !== '?') {
         return false;
       }
     }
@@ -554,7 +568,7 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
       }
     }
     
-    if (current === '=') {
+    if (current === '=' || current === '?') {
       if (i === 0 || i === tokens.length - 1) {
         return false;
       }
@@ -686,8 +700,16 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
   
   // Check equals
   const availableEquals = AMATH_TOKENS['='].count;
-  if (equalsCount > availableEquals) {
-    return `Requested number of equals (${equalsCount}) exceeds available tokens (${availableEquals}).`;
+  const availableBlanks = AMATH_TOKENS['?'].count;
+  
+  // ถ้าใช้ random settings และ blank เป็น random หรือ equals เป็น random
+  // ให้รวม blank เข้าไปใน available equals เพราะ ? สามารถแทน = ได้
+  const effectiveAvailableEquals = (randomSettings && (randomSettings.equals || randomSettings.blank)) 
+    ? availableEquals + availableBlanks 
+    : availableEquals;
+  
+  if (equalsCount > effectiveAvailableEquals) {
+    return `Requested number of equals (${equalsCount}) exceeds available tokens (${effectiveAvailableEquals} = ${availableEquals} equals + ${availableBlanks} blanks).`;
   }
   
   // Check operators (only when in random mode)
