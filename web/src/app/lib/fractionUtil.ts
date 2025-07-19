@@ -1,4 +1,4 @@
-// ฟังก์ชันเกี่ยวกับเศษส่วน
+// src/lib/fractionUtil.ts - ฟังก์ชันเกี่ยวกับเศษส่วน
 export interface Fraction {
   numerator: number;
   denominator: number;
@@ -57,4 +57,4 @@ export function fractionToString(fraction: Fraction): string {
     return fraction.numerator.toString();
   }
   return `${fraction.numerator}/${fraction.denominator}`;
-} 
+}

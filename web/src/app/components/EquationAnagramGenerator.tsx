@@ -18,20 +18,6 @@ import Button from "../ui/Button";
 import type { OptionSet } from "../types/EquationAnagram";
 import OptionSetsSummary from "./OptionSetsSummary";
 
-// Add OptionSet type for popup
-type OperatorSymbol = "+" | "-" | "×" | "÷";
-
-// Helper to ensure all operatorCounts keys are present
-function completeOperatorCounts(counts?: { [op in OperatorSymbol]?: number }): {
-  [op in OperatorSymbol]: number;
-} {
-  return {
-    "+": counts?.["+"] ?? 0,
-    "-": counts?.["-"] ?? 0,
-    "×": counts?.["×"] ?? 0,
-    "÷": counts?.["÷"] ?? 0,
-  };
-}
 
 export default function EquationAnagramGenerator() {
   // Main page state (for DisplayBox only)
@@ -43,6 +29,14 @@ export default function EquationAnagramGenerator() {
     heavyNumberCount: 0,
     BlankCount: 0,
     zeroCount: 0,
+    operatorFixed: {
+      '+': null,
+      '-': null,
+      '×': null,
+      '÷': null,
+      '+/-': null,
+      '×/÷': null
+    }
   };
 
   // Hydration guard
@@ -229,15 +223,8 @@ export default function EquationAnagramGenerator() {
       let globalIndex = 1;
       for (let setIdx = 0; setIdx < optionSets.length; setIdx++) {
         const set = optionSets[setIdx];
-        let genOptions = { ...set.options };
-        if (genOptions.operatorMode === "specific") {
-          genOptions = {
-            ...genOptions,
-            operatorCounts: completeOperatorCounts(genOptions.operatorCounts),
-          };
-        } else {
-          delete genOptions.operatorCounts;
-        }
+        const genOptions = { ...set.options };
+        // ไม่ต้องใช้ completeOperatorCounts เพราะเราใช้ operatorFixed แล้ว
         for (let i = 0; i < set.numQuestions; i++) {
           const generated = await generateEquationAnagram(genOptions);
           problemLines.push(`${globalIndex}) ${generated.elements.join(", ")}`);

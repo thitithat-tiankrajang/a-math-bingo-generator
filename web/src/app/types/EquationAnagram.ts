@@ -25,19 +25,45 @@ export interface EquationAnagramOptions {
     '-': number|null;
     '×': number|null;
     '÷': number|null;
+    '+/-': number|null;
+    '×/÷': number|null;
+  };
+  // เพิ่มโหมด random/specific สำหรับแต่ละ section
+  equalsMode?: 'random' | 'specific';
+  equalsMin?: number;
+  equalsMax?: number;
+  heavyNumberMode?: 'random' | 'specific';
+  heavyNumberMin?: number;
+  heavyNumberMax?: number;
+  blankMode?: 'random' | 'specific';
+  blankMin?: number;
+  blankMax?: number;
+  zeroMode?: 'random' | 'specific';
+  zeroMin?: number;
+  zeroMax?: number;
+  // เพิ่ม min/max สำหรับ operator random
+  operatorMin?: number;
+  operatorMax?: number;
+  // เพิ่ม randomSettings สำหรับ toggle random ของแต่ละ field
+  randomSettings?: {
+    operators: boolean;
+    equals: boolean;
+    heavy: boolean;
+    blank: boolean;
+    zero: boolean;
   };
 }
 
-export type OperatorSymbol = '+' | '-' | '×' | '÷';
+export type OperatorSymbol = '+' | '-' | '×' | '÷' | '+/-' | '×/÷';
 export interface PopupEquationAnagramOptions extends EquationAnagramOptions {
   operatorMode: 'random' | 'specific';
-  operatorList?: OperatorSymbol[];
-  operatorCounts?: { [op in OperatorSymbol]: number };
   operatorFixed?: {
     '+': number|null;
     '-': number|null;
     '×': number|null;
     '÷': number|null;
+    '+/-': number|null;
+    '×/÷': number|null;
   };
 }
 export interface OptionSet {

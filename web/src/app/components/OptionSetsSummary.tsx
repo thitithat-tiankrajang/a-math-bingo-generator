@@ -126,7 +126,7 @@ export default function OptionSetsSummary({ optionSets }: OptionSetsSummaryProps
                     <td className="px-4 py-3 whitespace-nowrap text-center align-middle">
                       {set.options.operatorMode === 'specific' && set.options.operatorFixed ? (
                         <div className="flex items-center justify-center space-x-1 flex-nowrap overflow-x-auto">
-                          {(['+', '-', '×', '÷'] as OperatorSymbol[]).map(op => {
+                          {(['+', '-', '×', '÷', '+/-', '×/÷'] as OperatorSymbol[]).map(op => {
                             const val = set.options.operatorFixed && typeof set.options.operatorFixed[op] === 'number' ? set.options.operatorFixed[op] : 'random';
                             return (
                               <span key={op} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-indigo-100 text-indigo-800">

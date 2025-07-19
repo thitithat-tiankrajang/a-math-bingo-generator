@@ -1,4 +1,4 @@
-// src/lib/EquationAnagramLogic.ts - Updated to fix blank/wildcard logic and ensure equations always have equals
+// src/lib/EquationAnagramLogic.ts - Optimized with True Pool Sampling
 import type { EquationAnagramOptions, EquationAnagramResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/EquationAnagram';
 import { Fraction, compareFractions } from './fractionUtil';
 import { isNumber, isLightNumber, isHeavyNumber, isOperator, getElementType } from './tokenUtil';
@@ -37,6 +37,21 @@ export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
   '?': { token: '?', count: 4, type: 'Blank', point: 0 }
 };
 
+
+
+/**
+ * สร้าง pool ของ tokens ทั้งหมดตามจำนวนจริง
+ */
+function createTokenPool(): AmathToken[] {
+  const pool: AmathToken[] = [];
+  Object.entries(AMATH_TOKENS).forEach(([token, info]) => {
+    for (let i = 0; i < info.count; i++) {
+      pool.push(token as AmathToken);
+    }
+  });
+  return pool;
+}
+
 /**
  * Generate DS Equation Anagram problem based on options
  */
@@ -47,23 +62,22 @@ export async function generateEquationAnagram(options: EquationAnagramOptions): 
   }
 
   let attempts = 0;
-  const maxAttempts = 300;
+  const maxAttempts = options.randomSettings ? 100000 : 300000;
 
   while (attempts < maxAttempts) {
     try {
-      // Reset and generate tokens for each attempt (reset pool)
       const tokens = generateTokensBasedOnOptions(options);
-      const equations = findValidEquations(tokens, options.equalsCount);
+      const equations = findValidEquations(tokens, Math.max(options.equalsCount, 1));
       
       if (equations.length > 0) {
         return {
           elements: tokens.map(t => t.originalToken),
           sampleEquation: equations[0],
-          possibleEquations: equations.slice(0, 10) // Show up to 10 equations
+          possibleEquations: equations.slice(0, 10)
         };
       }
     } catch (error) {
-      alert(error);
+      console.warn(`Attempt ${attempts + 1} failed:`, error);
     }
     attempts++;
   }
@@ -72,32 +86,261 @@ export async function generateEquationAnagram(options: EquationAnagramOptions): 
 }
 
 /**
- * Expand all ? in tokens to all possible values - FIXED: Include both numbers and operators
+ * Generate tokens based on selected options - Random individual counts only
+ */
+function generateTokensBasedOnOptions(options: EquationAnagramOptions): EquationElement[] {
+  // สร้าง options ใหม่โดยสุ่มเฉพาะจำนวนของ options ที่เป็น random
+  const processedOptions = { ...options };
+  
+  if (options.randomSettings) {
+    const { totalCount, randomSettings } = options;
+    let remainingTiles = totalCount;
+    
+    // คำนวณจำนวนที่ fixed ก่อน
+    if (!randomSettings.operators) remainingTiles -= options.operatorCount;
+    if (!randomSettings.equals) remainingTiles -= options.equalsCount;
+    if (!randomSettings.heavy) remainingTiles -= options.heavyNumberCount;
+    if (!randomSettings.blank) remainingTiles -= options.BlankCount;
+    if (!randomSettings.zero) remainingTiles -= options.zeroCount;
+    
+    // สุ่มจำนวนสำหรับ options ที่เป็น random
+    if (randomSettings.operators) {
+      processedOptions.operatorCount = Math.max(1, Math.min(remainingTiles - 1, Math.floor(Math.random() * (remainingTiles / 2)) + 1));
+      remainingTiles -= processedOptions.operatorCount;
+    }
+    
+    if (randomSettings.equals) {
+      processedOptions.equalsCount = Math.max(1, Math.min(remainingTiles - 1, Math.floor(Math.random() * 3) + 1));
+      remainingTiles -= processedOptions.equalsCount;
+    }
+    
+    if (randomSettings.heavy) {
+      processedOptions.heavyNumberCount = Math.max(0, Math.min(remainingTiles, Math.floor(Math.random() * (remainingTiles / 3))));
+      remainingTiles -= processedOptions.heavyNumberCount;
+    }
+    
+    if (randomSettings.blank) {
+      processedOptions.BlankCount = Math.max(0, Math.min(remainingTiles, Math.floor(Math.random() * (remainingTiles / 4))));
+      remainingTiles -= processedOptions.BlankCount;
+    }
+    
+    if (randomSettings.zero) {
+      processedOptions.zeroCount = Math.max(0, Math.min(remainingTiles, Math.floor(Math.random() * (remainingTiles / 4))));
+      remainingTiles -= processedOptions.zeroCount;
+    }
+  }
+  
+  // ใช้ deterministic generation กับ options ที่ประมวลผลแล้ว
+  return generateTokensDeterministic(processedOptions);
+}
+
+
+
+/**
+ * Generate tokens แบบเดิม (deterministic) สำหรับกรณีที่ไม่ได้ใช้ random
+ */
+function generateTokensDeterministic(options: EquationAnagramOptions): EquationElement[] {
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed } = options;
+  
+  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
+  
+  if (lightNumberCount < 0) {
+    throw new Error('Not enough light numbers. Please adjust your options.');
+  }
+  
+  const availablePool = createTokenPool();
+  const selectedTokens: EquationElement[] = [];
+  
+  // Pick equals tokens
+  for (let i = 0; i < equalsCount; i++) {
+    const token = pickTokenFromPool('equals', availablePool);
+    if (!token) {
+      throw new Error('Not enough equals (=) tokens in pool.');
+    }
+    selectedTokens.push(createElementFromToken(token));
+  }
+  
+  // Pick operator tokens based on mode
+  if (operatorMode === 'specific' && operatorFixed) {
+    // Flexible specific mode with individual operator random/fixed
+    const operatorTypes: Array<'+' | '-' | '×' | '÷' | '+/-' | '×/÷'> = ['+', '-', '×', '÷', '+/-', '×/÷'];
+    let totalFixedOperators = 0;
+    const randomOperatorTypes: Array<'+' | '-' | '×' | '÷' | '+/-' | '×/÷'> = [];
+    
+    // ใส่ operator ที่ fixed ก่อน
+    for (const type of operatorTypes) {
+      const fixedValue = operatorFixed[type];
+      if (typeof fixedValue === 'number') {
+        // Fixed: ใช้จำนวนตรง ๆ (รวมถึง 0)
+        for (let i = 0; i < fixedValue; i++) {
+          const token = pickTokenFromPool('operator', availablePool, type);
+          if (!token) {
+            throw new Error(`Not enough ${type} tokens in pool.`);
+          }
+          selectedTokens.push(createElementFromToken(token));
+        }
+        totalFixedOperators += fixedValue;
+      } else if (fixedValue === null) {
+        // Random: เก็บไว้สุ่มทีหลัง
+        randomOperatorTypes.push(type);
+      }
+    }
+    
+    // สุ่ม operator ที่เหลือให้กับ types ที่เป็น random
+    const remainingOperators = operatorCount - totalFixedOperators;
+    for (let i = 0; i < remainingOperators; i++) {
+      if (randomOperatorTypes.length > 0) {
+        const type = randomOperatorTypes[Math.floor(Math.random() * randomOperatorTypes.length)];
+        const token = pickTokenFromPool('operator', availablePool, type);
+        if (!token) {
+          throw new Error(`Not enough ${type} tokens in pool.`);
+        }
+        selectedTokens.push(createElementFromToken(token));
+      } else {
+        // ถ้าไม่มี random types เหลือ ให้สุ่มจากทั้งหมด
+        const token = pickTokenFromPool('operator', availablePool);
+        if (!token) {
+          throw new Error('Not enough operator tokens in pool.');
+        }
+        selectedTokens.push(createElementFromToken(token));
+      }
+    }
+  } else if (operatorMode === 'specific' && specificOperators) {
+    // Specific mode with exact counts
+    const operatorTypes: Array<{type: '+' | '-' | '×' | '÷', count: number}> = [
+      { type: '+', count: specificOperators.plus || 0 },
+      { type: '-', count: specificOperators.minus || 0 },
+      { type: '×', count: specificOperators.multiply || 0 },
+      { type: '÷', count: specificOperators.divide || 0 }
+    ];
+    
+    for (const { type, count } of operatorTypes) {
+      for (let i = 0; i < count; i++) {
+        const token = pickTokenFromPool('operator', availablePool, type);
+        if (!token) {
+          throw new Error(`Not enough ${type} tokens in pool.`);
+        }
+        selectedTokens.push(createElementFromToken(token));
+      }
+    }
+  } else {
+    // Random mode
+    for (let i = 0; i < operatorCount; i++) {
+      const token = pickTokenFromPool('operator', availablePool);
+      if (!token) {
+        throw new Error('Not enough operator tokens in pool.');
+      }
+      selectedTokens.push(createElementFromToken(token));
+    }
+  }
+  
+  // Pick other token types
+  for (let i = 0; i < heavyNumberCount; i++) {
+    const token = pickTokenFromPool('heavy', availablePool);
+    if (!token) throw new Error('Not enough heavy number tokens in pool.');
+    selectedTokens.push(createElementFromToken(token));
+  }
+  
+  for (let i = 0; i < BlankCount; i++) {
+    const token = pickTokenFromPool('Blank', availablePool);
+    if (!token) throw new Error('Not enough Blank tokens in pool.');
+    selectedTokens.push(createElementFromToken(token));
+  }
+  
+  for (let i = 0; i < zeroCount; i++) {
+    const token = pickTokenFromPool('zero', availablePool);
+    if (!token) throw new Error('Not enough zero tokens in pool.');
+    selectedTokens.push(createElementFromToken(token));
+  }
+  
+  for (let i = 0; i < lightNumberCount; i++) {
+    const token = pickTokenFromPool('light', availablePool);
+    if (!token) throw new Error('Not enough light number tokens in pool.');
+    selectedTokens.push(createElementFromToken(token));
+  }
+  
+  return sortTokensByPriority(selectedTokens);
+}
+
+/**
+ * Enhanced blank expansion with smart optimization
  */
 function expandBlanks(tokens: string[]): string[][] {
-  // 🔥 FIX: Include ALL possible AMath tokens as replacement options for blank/wildcard
-  const BLANK_REPLACEMENTS = [
-    // Numbers (light)
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    // Numbers (heavy) 
-    '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
-    // Operators
-    '+', '-', '×', '÷',
-    // Equals
-    '='
+  const SMART_REPLACEMENTS = [
+    // High priority (essential for equations)
+    '=', '+', '-', '×', '÷', '+/-', '×/÷',
+    // Medium priority (common numbers)
+    '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    // Lower priority (special cases)
+    '10', '12', '0'
   ];
+  
   const results: string[][] = [];
-
-  function helper(current: string[], idx: number) {
+  const blankCount = tokens.filter(t => t === '?').length;
+  
+  // Limit expansion for performance
+  if (blankCount > 3) {
+    return expandBlanksLimited(tokens, SMART_REPLACEMENTS.slice(0, 5));
+  }
+  
+  function smartExpansion(current: string[], idx: number, equalsFound: boolean) {
     if (idx === tokens.length) {
-      results.push([...current]);
+      if (equalsFound) {
+        results.push([...current]);
+      }
       return;
     }
+    
     if (tokens[idx] === '?') {
-      for (const rep of BLANK_REPLACEMENTS) {
+      let replacements = [...SMART_REPLACEMENTS];
+      
+      // Prioritize equals if none found
+      if (!equalsFound) {
+        replacements = ['=', ...replacements.filter(r => r !== '=')];
+      }
+      
+      // Limit for performance
+      replacements = replacements.slice(0, Math.min(3, replacements.length));
+      
+      for (const rep of replacements) {
+        current.push(rep);
+        smartExpansion(current, idx + 1, equalsFound || rep === '=');
+        current.pop();
+        
+        if (results.length >= 50) return;
+      }
+    } else {
+      current.push(tokens[idx]);
+      smartExpansion(current, idx + 1, equalsFound || tokens[idx] === '=');
+      current.pop();
+    }
+  }
+  
+  smartExpansion([], 0, false);
+  return results;
+}
+
+/**
+ * Limited expansion for cases with too many blanks
+ */
+function expandBlanksLimited(tokens: string[], limitedReplacements: string[]): string[][] {
+  const results: string[][] = [];
+  
+  function helper(current: string[], idx: number) {
+    if (idx === tokens.length) {
+      if (current.some(t => t === '=')) {
+        results.push([...current]);
+      }
+      return;
+    }
+    
+    if (tokens[idx] === '?') {
+      for (const rep of limitedReplacements) {
         current.push(rep);
         helper(current, idx + 1);
         current.pop();
+        
+        if (results.length >= 20) return;
       }
     } else {
       current.push(tokens[idx]);
@@ -105,63 +348,92 @@ function expandBlanks(tokens: string[]): string[][] {
       current.pop();
     }
   }
+  
   helper([], 0);
   return results;
 }
 
 /**
- * Find valid equations from given tokens - FIXED: Ensure equations always have equals
+ * Optimized equation finding with early termination
  */
 function findValidEquations(tokens: EquationElement[], equalsCount: number): string[] {
   const validEquations: string[] = [];
   const tokenValues = tokens.map(t => t.originalToken);
 
-  // Expand all ? to all possible operator and equals values
-  const expandedTokenSets = expandBlanks(tokenValues);
+  // Quick validation checks
+  const hasEquals = tokenValues.some(t => t === '=');
+  const hasOperators = tokenValues.some(t => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(t));
+  const hasNumbers = tokenValues.some(t => /^\d+$/.test(t));
+  
+  if (!hasEquals || !hasOperators || !hasNumbers) {
+    return [];
+  }
 
-  // Generate possible permutations for each expanded set
-  for (const expandedTokens of expandedTokenSets) {
-    // 🔥 FIX: Skip any token sets that don't have at least one equals sign
-    const equalsInSet = expandedTokens.filter(t => t === '=').length;
-    if (equalsInSet === 0) {
-      continue; // Skip this expansion as it has no equals
-    }
+  const expandedTokenSets = expandBlanks(tokenValues);
+  
+  // Filter token sets before permutation
+  const filteredTokenSets = expandedTokenSets.filter(tokens => {
+    if (!tokens.some(t => t === '=')) return false;
+    if (!tokens.some(t => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(t))) return false;
     
-    const permutations = generateLimitedPermutations(expandedTokens, 10000);
+    const numberCount = tokens.filter(t => /^\d+$/.test(t)).length;
+    if (numberCount < 2) return false;
+    
+    return true;
+  });
+
+  for (const expandedTokens of filteredTokenSets) {
+    const maxPermutations = expandedTokens.length > 8 ? 500 : 1000;
+    const permutations = generateLimitedPermutations(expandedTokens, maxPermutations);
+    
     for (const perm of permutations) {
       try {
         const equation = createEquationFromPermutation(perm as AmathToken[], Math.max(equalsCount, 1));
         if (equation && isValidEquationByRules(equation, Math.max(equalsCount, 1))) {
           validEquations.push(equation);
-          if (validEquations.length >= 15) break;
+          
+          if (validEquations.length >= 10) {
+            return validEquations;
+          }
         }
       } catch {
         continue;
       }
     }
-    if (validEquations.length >= 15) break;
+    
+    if (validEquations.length >= 10) {
+      break;
+    }
   }
 
   return validEquations;
 }
 
+// ฟังก์ชันอื่นๆ ที่เหลือยังคงเหมือนเดิม (ไม่เปลี่ยนแปลง)
+
 /**
- * Create equation from permutation - FIXED: Ensure minimum equals count
+ * Create equation from permutation
  */
 function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number): string | null {
-  const processed = combineAdjacentNumbers(tokens);
+  // Handle choice tokens FIRST before any processing
+  const processedTokens = tokens.map(token => {
+    if (token === '+/-') {
+      return Math.random() < 0.5 ? '+' : '-';
+    }
+    if (token === '×/÷') {
+      return Math.random() < 0.5 ? '×' : '÷';
+    }
+    return token;
+  });
+  
+  const processed = combineAdjacentNumbers(processedTokens as AmathToken[]);
   if (processed.length === 0) return null;
   
-  // 🔥 FIX: Use at least 1 equals, even if equalsCount is 0
   const minEqualsCount = Math.max(equalsCount, 1);
   
   if (!isValidTokenStructure(processed, minEqualsCount)) return null;
   
-  let equation = processed.join('');
-  
-  // Handle choice tokens
-  equation = equation.replace(/\+\/-/g, () => Math.random() < 0.5 ? '+' : '-');
-  equation = equation.replace(/×\/÷/g, () => Math.random() < 0.5 ? '×' : '÷');
+  const equation = processed.join('');
   
   return equation;
 }
@@ -176,9 +448,7 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
   while (i < tokens.length) {
     const token = tokens[i];
 
-    // เลขหนัก (10-20) และ 0 ต้องอยู่เดี่ยวเสมอ
     if (isHeavyNumber(token) || token === '0') {
-      // ตรวจสอบว่าข้างๆ เป็นเลขเบาหรือเลขหนักหรือ 0 หรือไม่ (ห้ามติดกับเลขใดๆ)
       const prev = result[result.length - 1];
       const next = tokens[i + 1];
       if ((prev && (isLightNumber(prev) || isHeavyNumber(prev) || prev === '0')) ||
@@ -190,11 +460,9 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
       continue;
     }
 
-    // เลขเบา (1-9) สามารถติดกับเลขเบาเท่านั้น
     if (isLightNumber(token)) {
       let combinedNumber = token;
       let j = i + 1;
-      // รวมเลขเบาที่ติดกันเท่านั้น (ห้ามรวมกับ 0 หรือเลขหนัก)
       while (j < tokens.length && isLightNumber(tokens[j]) && combinedNumber.length < 3) {
         combinedNumber += tokens[j];
         j++;
@@ -204,12 +472,10 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
       continue;
     }
 
-    // สัญลักษณ์อื่น ๆ (operators, =, Blank, choice)
     result.push(token);
     i++;
   }
 
-  // ตรวจสอบ post-process: ไม่มีเลขที่เกิน 3 หลัก, ไม่มีเลขที่เกิน 999
   for (let i = 0; i < result.length; i++) {
     const current = result[i];
     if (isNumber(current) && (current.length > 3 || parseInt(current) > 999)) {
@@ -221,31 +487,27 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
 }
 
 /**
- * Check if token structure is valid - FIXED: Allow negative numbers
+ * Check if token structure is valid
  */
 function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
   if (tokens.length < 3) return false;
 
-  // 🔥 FIX: Must have at least 1 equals, regardless of equalsCount parameter
   const equalsInTokens = tokens.filter(t => t === '=').length;
   
   if (equalsInTokens < 1) {
-    return false; // Always require at least 1 equals
+    return false;
   }
   
   if (equalsCount > 0 && equalsInTokens !== equalsCount) {
-    return false; // If specific count requested, must match exactly
+    return false;
   }
 
-  // **แก้ไข: ตรวจสอบโครงสร้างสำหรับ = หลายตัว**
   if (equalsInTokens > 1) {
-    // สำหรับ = หลายตัว ต้องมีรูปแบบ: expression = expression = expression
     const parts = tokens.join('').split('=');
     if (parts.length !== equalsInTokens + 1) return false;
-    // แต่ละส่วนต้องไม่ว่าง และมีอย่างน้อย 1 ตัวเลข
     for (const part of parts) {
       if (part.length === 0) return false;
-      if (!/\d/.test(part)) return false; // ต้องมีเลขอย่างน้อย 1 ตัว
+      if (!/\d/.test(part)) return false;
     }
   }
   
@@ -254,9 +516,12 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
     const next = tokens[i + 1];
     const prev = tokens[i - 1];
     
-    // Check adjacency rules
+    // Choice tokens should have been converted already - if we see them, it's an error
+    if (current === '+/-' || current === '×/÷') {
+      return false;
+    }
+    
     if (isHeavyNumber(current)) {
-      // Heavy numbers must be adjacent to operators only
       if (prev && !isOperator(prev) && prev !== '=') {
         return false;
       }
@@ -265,55 +530,31 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
       }
     }
     
-    // Check for 0 adjacent to - (prevent negative zero)
     if (current === '0') {
-      // Only block if 0 is directly preceded by - (negative zero)
-      // Allow 0 followed by - as part of expression (like 6-0x555)
       if (prev === '-') {
         return false;
       }
     }
     
     if (isOperator(current)) {
-      // Operators should not be adjacent, except for specific cases
       if (isOperator(next)) {
-        // 🔥 NEW: Allow = followed by - for negative numbers (e.g., "=-3")
         if (current === '=' && next === '-') {
-          // This is allowed: equals followed by minus for negative number
+          // Allow =-3
         } else {
-          return false; // Other operator adjacencies not allowed
+          return false;
         }
       }
       
       if (isOperator(prev)) {
-        // 🔥 NEW: Allow - preceded by = for negative numbers (e.g., "=-3")  
         if (prev === '=' && current === '-') {
-          // This is allowed: minus after equals for negative number
+          // Allow =-3
         } else {
-          return false; // Other operator adjacencies not allowed
+          return false;
         }
       }
-      
-      // 🔥 MODIFIED: Allow + at the beginning for positive numbers (though uncommon)
-      // if (current === '+' && i === 0) {
-      //   return false;
-      // }
-      
-      // 🔥 MODIFIED: Allow + after = for positive numbers  
-      // if (current === '+' && prev === '=') {
-      //   return false;
-      // }
-      
-      // 🔥 MODIFIED: Allow - adjacent to any number (including 0) for negative numbers
-      // if (current === '-') {
-      //   if (next === '0' || prev === '0') {
-      //     return false;
-      //   }
-      // }
     }
     
     if (current === '=') {
-      // = should not be at the beginning or end of the equation
       if (i === 0 || i === tokens.length - 1) {
         return false;
       }
@@ -324,30 +565,28 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
 }
 
 /**
- * Check if equation is valid according to rules - FIXED: Always require at least 1 equals
+ * Check if equation is valid according to rules
  */
 export function isValidEquationByRules(equation: string, equalsCount?: number): boolean {
   try {
     const parts = equation.split('=');
     if (parts.length < 2) {
-      return false; // No equals found
+      return false;
     }
     
     const actualEquals = parts.length - 1;
-    // If equalsCount is not provided, use actualEquals
     const requiredEquals = equalsCount === undefined ? actualEquals : equalsCount;
     
     if (requiredEquals > 0 && actualEquals !== requiredEquals) {
-      return false; // If specific count requested, must match exactly
+      return false;
     }
     
     if (actualEquals < 1) {
-      return false; // Always require at least 1 equals
+      return false;
     }
     
     if (parts.some(part => part.length === 0)) return false;
     
-    // Calculate values for all parts using fractions
     const fractions: Fraction[] = [];
     for (const part of parts) {
       const fraction = evaluateExpressionAsFraction(part);
@@ -355,7 +594,6 @@ export function isValidEquationByRules(equation: string, equalsCount?: number): 
       fractions.push(fraction);
     }
     
-    // Check if all fractions are equal
     const firstFraction = fractions[0];
     return fractions.every(fraction => compareFractions(fraction, firstFraction));
   } catch {
@@ -364,19 +602,28 @@ export function isValidEquationByRules(equation: string, equalsCount?: number): 
 }
 
 /**
- * Validate EquationAnagram options - FIXED: Always require at least 1 equals
+ * Validate EquationAnagram options
  */
 function validateEquationAnagramOptions(options: EquationAnagramOptions): string | null {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed } = options;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed, randomSettings } = options;
   
   if (totalCount < 8) {
     return 'Total count must be at least 8.';
   }
   
-  // 🔥 FIX: Always require at least 1 equals (can't have equalsCount = 0)
-  // if (equalsCount < 1) {
-  //   return 'Number of equals must be at least 1. Valid equations require equals sign.';
-  // }
+  // Validate random settings if enabled
+  if (randomSettings) {
+    const availableBlanks = AMATH_TOKENS['?'].count;
+    const availableZeros = AMATH_TOKENS['0'].count;
+    
+    if (randomSettings.blank && BlankCount > availableBlanks) {
+      return `Random blank count (${BlankCount}) exceeds available tokens (${availableBlanks}).`;
+    }
+    
+    if (randomSettings.zero && zeroCount > availableZeros) {
+      return `Random zero count (${zeroCount}) exceeds available tokens (${availableZeros}).`;
+    }
+  }
   
   // Validate operator count when in specific mode
   if (operatorMode === 'specific' && specificOperators) {
@@ -410,17 +657,31 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
     if (fixedSum > operatorCount) {
       return `Sum of fixed operators (${fixedSum}) exceeds total operator count (${operatorCount}).`;
     }
+    
+    // Check choice operators availability
+    if ((operatorFixed['+/-'] || 0) > AMATH_TOKENS['+/-'].count) {
+      return `Requested number of +/- operators (${operatorFixed['+/-']}) exceeds available tokens (${AMATH_TOKENS['+/-'].count}).`;
+    }
+    if ((operatorFixed['×/÷'] || 0) > AMATH_TOKENS['×/÷'].count) {
+      return `Requested number of ×/÷ operators (${operatorFixed['×/÷']}) exceeds available tokens (${AMATH_TOKENS['×/÷'].count}).`;
+    }
   }
 
-  // เพิ่ม logic ใน generateTokensBasedOnOptions:
-  // - ถ้า options.operatorFixed มีค่า ให้ fix จำนวน operator ตามนั้น (number)
-  // - ที่เหลือ (null) ให้ random จาก operator ที่เหลือ
-  // - validate ให้จำนวนรวมตรงกับ operatorCount
-  // - อัปเดต type EquationAnagramOptions ด้วย operatorFixed: { '+': number|null, ... }
-  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
-  
-  if (lightNumberCount < 1) {
-    return 'There must be at least 1 light number.';
+  // ไม่ตรวจสอบ lightNumberCount เมื่อใช้ random settings
+  if (!randomSettings || !Object.values(randomSettings).some(val => val === true)) {
+    const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
+    
+    if (lightNumberCount < 1) {
+      return 'There must be at least 1 light number.';
+    }
+    
+    // Check light numbers (1-9) - only when not using random
+    const availableLightNumbers = Object.entries(AMATH_TOKENS)
+      .filter(([token, info]) => info.type === 'lightNumber' && token !== '0')
+      .reduce((sum, [, info]) => sum + info.count, 0);
+    if (lightNumberCount > availableLightNumbers) {
+      return `Requested number of light numbers (1-9) (${lightNumberCount}) exceeds available tokens (${availableLightNumbers}).`;
+    }
   }
   
   // Check equals
@@ -459,199 +720,85 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
     return `Requested number of zeros (${zeroCount}) exceeds available tokens (${availableZeros}).`;
   }
   
-  // Check light numbers (1-9)
-  const availableLightNumbers = Object.entries(AMATH_TOKENS)
-    .filter(([token, info]) => info.type === 'lightNumber' && token !== '0')
-    .reduce((sum, [, info]) => sum + info.count, 0);
-  if (lightNumberCount > availableLightNumbers) {
-    return `Requested number of light numbers (1-9) (${lightNumberCount}) exceeds available tokens (${availableLightNumbers}).`;
-  }
-  
   return null;
 }
 
 /**
- * Generate tokens based on selected options - Updated for specific operators
+ * Weighted random selection based on token availability in pool
  */
-function generateTokensBasedOnOptions(options: EquationAnagramOptions): EquationElement[] {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed } = options;
-  const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
+function weightedRandomFromPool(pool: AmathToken[], weights: number[]): AmathToken | null {
+  if (pool.length === 0) return null;
   
-  if (lightNumberCount < 0) {
-    throw new Error('Not enough light numbers. Please adjust your options.');
-  }
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  if (totalWeight === 0) return null;
   
-  // Create pool with actual AMath tile counts
-  const availablePool = createAvailableTokenPool();
-  const selectedTokens: EquationElement[] = [];
+  const random = Math.random() * totalWeight;
   
-  // Pick token from pool by type
-  const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', specificOperator?: '+' | '-' | '×' | '÷'): AmathToken | null => {
-    let candidates: AmathToken[] = [];
-    
-    if (tokenType === 'equals') {
-      candidates = availablePool.filter(token => token === '=');
-    } else if (tokenType === 'operator') {
-      if (specificOperator) {
-        candidates = availablePool.filter(token => token === specificOperator);
-      } else {
-        candidates = availablePool.filter(token => ['+', '-', '×', '÷'].includes(token));
-      }
-    } else if (tokenType === 'light') {
-      candidates = availablePool.filter(token => ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(token));
-    } else if (tokenType === 'heavy') {
-      candidates = availablePool.filter(token => ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'].includes(token));
-    } else if (tokenType === 'Blank') {
-      candidates = availablePool.filter(token => token === '?');
-    } else if (tokenType === 'zero') {
-      candidates = availablePool.filter(token => token === '0');
-    }
-    
-    if (candidates.length === 0) return null;
-    
-    // Remove from pool after pick
-    const randomIndex = Math.floor(Math.random() * candidates.length);
-    const selectedToken = candidates[randomIndex];
-    const poolIndex = availablePool.indexOf(selectedToken);
-    if (poolIndex !== -1) {
-      availablePool.splice(poolIndex, 1);
-    }
-    
-    return selectedToken;
-  };
-  
-  // Pick equals tokens
-  for (let i = 0; i < equalsCount; i++) {
-    const token = pickTokenFromPool('equals');
-    if (!token) {
-      throw new Error('Not enough equals (=) tokens in pool.');
-    }
-    selectedTokens.push(createElementFromToken(token));
-  }
-  
-  // Pick operator tokens based on mode
-  if (operatorMode === 'specific' && operatorFixed) {
-    // Flexible specific mode: fix บางตัว, random บางตัว
-    const fixedOps: Array<{type: '+' | '-' | '×' | '÷', count: number}> = [];
-    const randomOps: Array<'+' | '-' | '×' | '÷'> = [];
-    let fixedSum = 0;
-    (['+', '-', '×', '÷'] as const).forEach(type => {
-      const v = operatorFixed[type];
-      if (typeof v === 'number' && v > 0) {
-        fixedOps.push({ type, count: v });
-        fixedSum += v;
-      } else {
-        randomOps.push(type);
-      }
-    });
-    // ใส่ operator ที่ fix ก่อน
-    for (const { type, count } of fixedOps) {
-      if (typeof count === 'number' && count > 0) {
-        for (let i = 0; i < count; i++) {
-          const token = pickTokenFromPool('operator', type);
-          if (!token) {
-            throw new Error(`Not enough ${type} tokens in pool.`);
-          }
-          selectedTokens.push(createElementFromToken(token));
-        }
-      }
-    }
-    // ที่เหลือ random
-    const remain = operatorCount - fixedSum;
-    for (let i = 0; i < remain; i++) {
-      // random จาก operator ที่ยังไม่ fix
-      const type = randomOps[Math.floor(Math.random() * randomOps.length)];
-      const token = pickTokenFromPool('operator', type);
-      if (!token) {
-        throw new Error(`Not enough ${type} tokens in pool.`);
-      }
-      selectedTokens.push(createElementFromToken(token));
-    }
-  } else if (operatorMode === 'specific' && specificOperators) {
-    // Specific mode - pick exact operators
-    const operatorTypes: Array<{type: '+' | '-' | '×' | '÷', count: number}> = [
-      { type: '+', count: specificOperators.plus || 0 },
-      { type: '-', count: specificOperators.minus || 0 },
-      { type: '×', count: specificOperators.multiply || 0 },
-      { type: '÷', count: specificOperators.divide || 0 }
-    ];
-    
-    for (const { type, count } of operatorTypes) {
-      for (let i = 0; i < count; i++) {
-        const token = pickTokenFromPool('operator', type);
-        if (!token) {
-          throw new Error(`Not enough ${type} tokens in pool.`);
-        }
-        selectedTokens.push(createElementFromToken(token));
-      }
-    }
-  } else {
-    // Random mode - pick random operators
-    for (let i = 0; i < operatorCount; i++) {
-      const token = pickTokenFromPool('operator');
-      if (!token) {
-        throw new Error('Not enough operator tokens in pool.');
-      }
-      selectedTokens.push(createElementFromToken(token));
+  let currentWeight = 0;
+  for (let i = 0; i < pool.length; i++) {
+    currentWeight += weights[i];
+    if (random <= currentWeight) {
+      return pool[i];
     }
   }
   
-  // Pick heavy number tokens
-  for (let i = 0; i < heavyNumberCount; i++) {
-    const token = pickTokenFromPool('heavy');
-    if (!token) {
-      throw new Error('Not enough heavy number tokens in pool.');
-    }
-    selectedTokens.push(createElementFromToken(token));
-  }
-  
-  // Pick Blank tokens
-  for (let i = 0; i < BlankCount; i++) {
-    const token = pickTokenFromPool('Blank');
-    if (!token) {
-      throw new Error('Not enough Blank tokens in pool.');
-    }
-    selectedTokens.push(createElementFromToken(token));
-  }
-  
-  // Pick zero tokens
-  for (let i = 0; i < zeroCount; i++) {
-    const token = pickTokenFromPool('zero');
-    if (!token) {
-      throw new Error('Not enough zero tokens in pool.');
-    }
-    selectedTokens.push(createElementFromToken(token));
-  }
-  
-  // Pick light number tokens (1-9)
-  for (let i = 0; i < lightNumberCount; i++) {
-    const token = pickTokenFromPool('light');
-    if (!token) {
-      throw new Error('Not enough light number tokens in pool.');
-    }
-    selectedTokens.push(createElementFromToken(token));
-  }
-  
-  // Sort tokens for better readability
-  const sortedTokens = sortTokensByPriority(selectedTokens);
-  
-  return sortedTokens;
+  return pool[pool.length - 1];
 }
 
 /**
- * Create a pool of available tokens (based on actual AMath tile counts)
+ * Get weighted pool for specific token type
  */
-function createAvailableTokenPool(): AmathToken[] {
-  const pool: AmathToken[] = [];
+function getWeightedPool(tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', availablePool: AmathToken[], specificOperator?: '+' | '-' | '×' | '÷' | '+/-' | '×/÷'): { tokens: AmathToken[], weights: number[] } {
+  let candidates: AmathToken[] = [];
+  let weights: number[] = [];
   
-  Object.values(AMATH_TOKENS).forEach(tokenInfo => {
-    for (let i = 0; i < tokenInfo.count; i++) {
-      pool.push(tokenInfo.token);
+  if (tokenType === 'equals') {
+    candidates = availablePool.filter(token => token === '=');
+    weights = candidates.map(() => AMATH_TOKENS['='].count);
+  } else if (tokenType === 'operator') {
+    if (specificOperator) {
+      candidates = availablePool.filter(token => token === specificOperator);
+      weights = candidates.map(token => AMATH_TOKENS[token].count);
+    } else {
+      // รวม choice operators เป็นส่วนหนึ่งของ operator
+      candidates = availablePool.filter(token => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(token));
+      weights = candidates.map(token => AMATH_TOKENS[token].count);
     }
-  });
-
-  return pool;
+  } else if (tokenType === 'light') {
+    candidates = availablePool.filter(token => ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(token));
+    weights = candidates.map(token => AMATH_TOKENS[token].count);
+  } else if (tokenType === 'heavy') {
+    candidates = availablePool.filter(token => ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'].includes(token));
+    weights = candidates.map(token => AMATH_TOKENS[token].count);
+  } else if (tokenType === 'Blank') {
+    candidates = availablePool.filter(token => token === '?');
+    weights = candidates.map(() => AMATH_TOKENS['?'].count);
+  } else if (tokenType === 'zero') {
+    candidates = availablePool.filter(token => token === '0');
+    weights = candidates.map(() => AMATH_TOKENS['0'].count);
+  }
+  
+  return { tokens: candidates, weights };
 }
+
+/**
+ * Pick token from pool using weighted random
+ */
+const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', availablePool: AmathToken[], specificOperator?: '+' | '-' | '×' | '÷' | '+/-' | '×/÷'): AmathToken | null => {
+  const { tokens, weights } = getWeightedPool(tokenType, availablePool, specificOperator);
+  
+  if (tokens.length === 0) return null;
+  
+  const selectedToken = weightedRandomFromPool(tokens, weights);
+  if (!selectedToken) return null;
+  
+  const poolIndex = availablePool.indexOf(selectedToken);
+  if (poolIndex !== -1) {
+    availablePool.splice(poolIndex, 1);
+  }
+  
+  return selectedToken;
+};
 
 /**
  * Create EquationElement from token
@@ -665,23 +812,16 @@ function createElementFromToken(token: AmathToken): EquationElement {
 }
 
 /**
- * Sort tokens by priority for better readability
+ * Sort tokens by AMATH_TOKENS order for better readability
  */
 function sortTokensByPriority(tokens: EquationElement[]): EquationElement[] {
-  const amathOrder = Object.keys(AMATH_TOKENS);
+  // สร้าง order array ตามลำดับที่ประกาศใน AMATH_TOKENS
+  const amathOrder = Object.keys(AMATH_TOKENS) as AmathToken[];
+  
   return tokens.sort((a, b) => {
-    const getPriority = (token: EquationElement): number => {
-      if (token.type === 'number') return 1;
-      if (token.type === 'operator') return 2;
-      if (token.type === 'equals') return 3;
-      if (token.type === 'choice') return 4;
-      return 5;
-    };
-    const pa = getPriority(a);
-    const pb = getPriority(b);
-    if (pa !== pb) return pa - pb;
-    // secondary sort by value order in AMATH_TOKENS
-    return amathOrder.indexOf(a.value) - amathOrder.indexOf(b.value);
+    const indexA = amathOrder.indexOf(a.value as AmathToken);
+    const indexB = amathOrder.indexOf(b.value as AmathToken);
+    return indexA - indexB;
   });
 }
 
