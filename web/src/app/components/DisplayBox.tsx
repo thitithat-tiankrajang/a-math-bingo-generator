@@ -1,12 +1,13 @@
 // src/components/DisplayBox.tsx
 import type { EquationAnagramResult } from "@/app/types/EquationAnagram";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Button from "../ui/Button";
 import ChildButton from "../ui/ChildButton";
 import ChoiceSelectionPopup from "./ChoiceSelectionPopup";
 import Tile from "./Tile";
 import EmptySlot from "./EmptySlot";
 import React from "react"; // Added missing import
+import html2canvas from "html2canvas";
 
 interface DisplayBoxProps {
   result: EquationAnagramResult | null;
@@ -62,6 +63,9 @@ export default function DisplayBox({
   // Answer area drag and drop
   const [answerDraggedIndex, setAnswerDraggedIndex] = useState<number | null>(null);
   const [answerDropTarget, setAnswerDropTarget] = useState<number | null>(null);
+
+  // Ref for problem set container
+  const problemSetRef = useRef<HTMLDivElement>(null);
 
   // Helper function to clean up all drag states
   const cleanupDragStates = () => {
@@ -939,6 +943,170 @@ export default function DisplayBox({
 
   const displayElements = result ? rackTiles : [];
 
+  // Save problem set as image
+  const saveProblemImage = async () => {
+    if (!problemSetRef.current || !result) return;
+
+    try {
+      // Create a clean container from scratch
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.top = '0px';
+      tempContainer.style.background = '#dcfce7'; // light green background like in image
+      tempContainer.style.padding = '16px';
+      tempContainer.style.borderRadius = '8px';
+      tempContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+      tempContainer.style.width = 'auto';
+      tempContainer.style.minWidth = '800px';
+      
+      // Create title section
+       const titleSection = document.createElement('div');
+       titleSection.style.marginBottom = '16px';
+       titleSection.style.display = 'flex';
+       titleSection.style.alignItems = 'center';
+       titleSection.style.gap = '12px';
+       
+       const title = document.createElement('h3');
+       title.style.fontSize = '24px';
+       title.style.fontWeight = 'bold';
+       title.style.color = '#166534';
+       title.style.margin = '0';
+       title.style.borderBottom = '2px solid #166534';
+       title.style.paddingBottom = '8px';
+       title.textContent = 'DASC Bingo Problem';
+       
+       const tileCountBox = document.createElement('div');
+      //  tileCountBox.style.backgroundColor = '#fef3c7';
+tileCountBox.style.color = '#166534';
+tileCountBox.style.borderRadius = '16px';
+tileCountBox.style.fontSize = '14px';
+tileCountBox.style.fontWeight = '500';
+tileCountBox.style.display = 'flex';
+tileCountBox.style.alignItems = 'center';
+tileCountBox.style.justifyContent = 'center';
+tileCountBox.style.minWidth = '80px';
+tileCountBox.style.height = '32px'; // ✅ เพิ่มความสูงให้กล่อง
+tileCountBox.style.boxSizing = 'border-box'; // ✅ ป้องกัน padding overflow
+       tileCountBox.textContent = `${result.elements.length} tiles`;
+       
+       titleSection.appendChild(title);
+       titleSection.appendChild(tileCountBox);
+      
+      // Create tiles container
+      const tilesContainer = document.createElement('div');
+      tilesContainer.style.display = 'flex';
+      tilesContainer.style.gap = '8px';
+      tilesContainer.style.justifyContent = 'center';
+      tilesContainer.style.alignItems = 'center';
+      tilesContainer.style.padding = '12px';
+      tilesContainer.style.background = '#fef3c7'; // amber background
+      tilesContainer.style.borderRadius = '8px';
+      tilesContainer.style.border = '2px solid #f59e0b';
+      
+             // Create tiles based on elements
+       result.elements.forEach((element) => {
+         const tile = document.createElement('div');
+         tile.style.width = '80px';
+         tile.style.height = '80px';
+         tile.style.display = 'flex';
+         tile.style.flexDirection = 'column';
+         tile.style.alignItems = 'center';
+         tile.style.justifyContent = 'center';
+         tile.style.borderRadius = '12px';
+         tile.style.border = '3px solid';
+         tile.style.position = 'relative';
+         
+         // Determine tile color based on element type
+         const isNumber = !isNaN(Number(element)) || element === '0';
+         const isOperator = ['+', '-', '×', '÷', '+/-', '×/÷'].includes(element);
+         const isEquals = element === '=';
+         const isBlank = element === '?';
+         
+         if (isNumber) {
+           tile.style.backgroundColor = '#bbf7d0'; // green-200
+           tile.style.borderColor = '#16a34a'; // green-600
+           tile.style.color = '#166534'; // green-800
+         } else if (isOperator || isEquals || isBlank) {
+           tile.style.backgroundColor = '#fde68a'; // yellow-200
+           tile.style.borderColor = '#d97706'; // yellow-600
+           tile.style.color = '#92400e'; // yellow-800
+         }
+         
+         // Add main element (centered)
+         const mainText = document.createElement('div');
+         mainText.textContent = element;
+         mainText.style.position = 'absolute';
+mainText.style.top = '-10px';
+mainText.style.left = '0';
+mainText.style.width = '100%';
+mainText.style.height = '100%';
+mainText.style.display = 'flex';
+mainText.style.alignItems = 'center';
+mainText.style.justifyContent = 'center';
+
+mainText.style.fontSize = '26px';
+mainText.style.fontWeight = '500';
+mainText.style.textAlign = 'center';
+         tile.appendChild(mainText);
+         
+         // Get point value from AMATH_TOKENS
+         const getPointValue = (token: string): number => {
+           const tokenInfo = {
+             '0': 1, '1': 1, '2': 1, '3': 1, '4': 2, '5': 2, '6': 2, '7': 2, '8': 2, '9': 2,
+             '10': 3, '11': 4, '12': 3, '13': 6, '14': 4, '15': 4, '16': 4, '17': 6, '18': 4, '19': 7, '20': 5,
+             '+': 2, '-': 2, '×': 2, '÷': 2, '+/-': 1, '×/÷': 1, '=': 1, '?': 0
+           };
+           return tokenInfo[token as keyof typeof tokenInfo] || 0;
+         };
+         
+         const pointValue = getPointValue(element);
+         
+         // Add point value in bottom right
+         const pointNumber = document.createElement('div');
+         pointNumber.textContent = pointValue.toString();
+         pointNumber.style.position = 'absolute';
+         pointNumber.style.bottom = '6px';
+         pointNumber.style.right = '6px';
+         pointNumber.style.fontSize = '14px';
+         pointNumber.style.fontWeight = '500';
+         pointNumber.style.opacity = '0.8';
+         tile.appendChild(pointNumber);
+         
+         tilesContainer.appendChild(tile);
+       });
+      
+      // Assemble the image content
+      tempContainer.appendChild(titleSection);
+      tempContainer.appendChild(tilesContainer);
+      
+      document.body.appendChild(tempContainer);
+      
+      // Generate image with better quality
+      const canvas = await html2canvas(tempContainer, {
+        useCORS: true,
+        allowTaint: true
+      });
+      
+      // Remove temporary container
+      document.body.removeChild(tempContainer);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `dasc-bingo-problem-${currentIndex + 1}.png`;
+      link.href = canvas.toDataURL('image/png', 0.9);
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+    } catch (error) {
+      console.error('Error saving image:', error);
+      alert('เกิดข้อผิดพลาดในการบันทึกรูปภาพ กรุณาลองใหม่อีกครั้ง');
+    }
+  };
+
   return (
     <div className="bg-green-100 rounded-lg shadow-lg p-6 border border-green-200">
       <div className="flex items-center justify-between mb-6">
@@ -952,13 +1120,21 @@ export default function DisplayBox({
             </div>
           )}
         </div>
+        {/* Save Image Buttons */}
+        <div className="flex items-center gap-2">
+          {result && (
+            <ChildButton onClick={saveProblemImage} className="px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white">
+              💾 Save Image
+            </ChildButton>
+          )}
+        </div>
       </div>
 
       <div className="min-h-32">
         {result ? (
           <div className="space-y-6">
             {/* แสดงชุดตัวเลขและเครื่องหมาย */}
-            <div className="space-y-4">
+            <div className="space-y-4" ref={problemSetRef}>
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-green-900 border-b pb-2">
                   Problem Set
