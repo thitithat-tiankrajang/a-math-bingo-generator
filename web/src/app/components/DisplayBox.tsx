@@ -92,7 +92,7 @@ export default function DisplayBox({
   };
 
   // Debugging function to validate tile integrity
-  const validateTileIntegrity = () => {
+  const validateTileIntegrity = React.useCallback(() => {
     if (!result) return;
     
     // Count tiles in rack (non-null values)
@@ -106,18 +106,24 @@ export default function DisplayBox({
     const currentTotal = rackCount + answerCount;
     
     if (currentTotal !== originalCount) {
+      console.warn(`⚠️ Tile count mismatch: Original=${originalCount}, Current=${currentTotal} (Rack=${rackCount}, Answer=${answerCount})`);
       
-      // Auto-fix by resetting
-      setRackTiles([...result.elements]);
-      setAnswerTiles(new Array(result.elements.length).fill(null));
-      setUsedTileIndices(new Set());
-      setAnswerFeedback({ type: 'error', message: '🔧 Tiles were automatically reset due to counting error.' });
+      // Only auto-fix if the difference is significant (more than 1 tile missing/extra)
+      const difference = Math.abs(currentTotal - originalCount);
+      if (difference > 1) {
+        console.error('❌ Critical tile count error - auto-resetting');
+        setRackTiles([...result.elements]);
+        setAnswerTiles(new Array(result.elements.length).fill(null));
+        setUsedTileIndices(new Set());
+        setAnswerFeedback({ type: 'error', message: '🔧 Tiles were automatically reset due to counting error.' });
+      }
     }
-  };
+  }, [result, rackTiles, answerTiles]);
 
   // Initialize rack tiles when result changes
   React.useEffect(() => {
     if (result) {
+      setIsInitializing(true);
       setRackTiles([...result.elements]);
       setSelectedTileIndex(null);
       // Initialize answer boxes with same length as tiles
@@ -131,14 +137,27 @@ export default function DisplayBox({
         setAnswerDraggedIndex(null);
         setAnswerDropTarget(null);
         setAnswerDragOverIndex(null);
-      }, 0);
+        // Initialization is complete
+        setIsInitializing(false);
+      }, 200);
     }
   }, [result]);
 
-  // Add validation after each state change
+  // Track if we're in initialization phase
+  const [isInitializing, setIsInitializing] = React.useState(false);
+
+  // Add validation after each state change (but not during initialization)
   React.useEffect(() => {
-    validateTileIntegrity();
-  }, [rackTiles, answerTiles, result]);
+    // Only validate if we have a result, states are properly initialized, and not initializing
+    if (result && rackTiles.length > 0 && answerTiles.length > 0 && !isInitializing) {
+      // Delay validation to ensure all states are updated
+      const timeoutId = setTimeout(() => {
+        validateTileIntegrity();
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [rackTiles, answerTiles, result, isInitializing]);
 
   // Clean up CSS variables when popup is closed
   React.useEffect(() => {
