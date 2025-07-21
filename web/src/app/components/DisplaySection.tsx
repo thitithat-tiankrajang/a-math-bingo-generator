@@ -8,9 +8,13 @@ interface DisplaySectionProps {
   isGenerating: boolean;
   currentIndex: number;
   setCurrentIndex: (idx: number) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
-export default function DisplaySection({ results, onGenerate, isGenerating, currentIndex, setCurrentIndex }: DisplaySectionProps) {
+export default function DisplaySection({ results, onGenerate, isGenerating, currentIndex, setCurrentIndex, onUndo, onRedo, canUndo, canRedo }: DisplaySectionProps) {
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
       <DisplayBox 
@@ -20,6 +24,10 @@ export default function DisplaySection({ results, onGenerate, isGenerating, curr
         currentIndex={currentIndex}
         total={results.length}
         setCurrentIndex={setCurrentIndex}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
     </div>
   );

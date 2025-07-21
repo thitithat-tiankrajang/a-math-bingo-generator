@@ -51,6 +51,9 @@ export default function EquationAnagramGenerator() {
   const [results, setResults] = useState<EquationAnagramResult[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  // Undo/Redo stacks
+  const [history, setHistory] = useState<{results: EquationAnagramResult[], currentIndex: number}[]>([]);
+  const [future, setFuture] = useState<{results: EquationAnagramResult[], currentIndex: number}[]>([]);
   const [showOptionModal, setShowOptionModal] = useState(false);
   const [printText, setPrintText] = useState("");
   const [solutionText, setSolutionText] = useState("");
@@ -198,6 +201,11 @@ export default function EquationAnagramGenerator() {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
+      // Save current state to history before generating new
+      if (results.length > 0) {
+        setHistory(prev => [...prev, { results: [...results], currentIndex }]);
+        setFuture([]); // Clear redo stack on new generate
+      }
       const generatedResults: EquationAnagramResult[] = [];
       for (let i = 0; i < numQuestions; i++) {
         const generated = await generateEquationAnagram(options);
@@ -212,6 +220,26 @@ export default function EquationAnagramGenerator() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Undo: restore previous state from history
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setFuture(f => [{ results: [...results], currentIndex }, ...f]);
+    setResults(prev.results);
+    setCurrentIndex(prev.currentIndex);
+    setHistory(h => h.slice(0, h.length - 1));
+  };
+
+  // Redo: restore next state from future
+  const handleRedo = () => {
+    if (future.length === 0) return;
+    const next = future[0];
+    setHistory(h => [...h, { results: [...results], currentIndex }]);
+    setResults(next.results);
+    setCurrentIndex(next.currentIndex);
+    setFuture(f => f.slice(1));
   };
 
   // For print/textarea (all problems, use optionSets from popup)
@@ -271,6 +299,10 @@ export default function EquationAnagramGenerator() {
             isGenerating={isGenerating}
             currentIndex={currentIndex}
             setCurrentIndex={setCurrentIndex}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={history.length > 0}
+            canRedo={future.length > 0}
           />
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
             <div className="xl:col-span-3">

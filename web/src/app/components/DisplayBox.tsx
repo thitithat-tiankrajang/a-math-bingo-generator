@@ -15,6 +15,10 @@ interface DisplayBoxProps {
   currentIndex?: number;
   total?: number;
   setCurrentIndex?: (idx: number) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 
@@ -26,6 +30,10 @@ export default function DisplayBox({
   currentIndex = 0,
   total = 1,
   setCurrentIndex,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
 }: DisplayBoxProps) {
   const [showMoreEquations, setShowMoreEquations] = useState(false);
   // Local state for Example Solution toggle
@@ -1035,14 +1043,7 @@ export default function DisplayBox({
                   Next →
                 </ChildButton>
               </div>
-              
-              {/* Reset button */}
-              <ChildButton
-                onClick={resetOrder}
-                className="absolute right-0"
-              >
-                Reset
-              </ChildButton>
+            
             </div>
 
             {/* Answer Row */}
@@ -1052,11 +1053,31 @@ export default function DisplayBox({
                   Your Answer
                 </h3>
                 <div className="flex items-center gap-2">
+                  {/* Reset button */}
+                  <ChildButton
+                    onClick={resetOrder}
+                    className="text-xs px-3 py-1"
+                  >
+                    Reset
+                  </ChildButton>
                   <ChildButton
                     onClick={clearAllAnswers}
                     className="text-xs px-3 py-1"
                   >
                     Clear All
+                  </ChildButton>
+                  {/* Undo/Redo Buttons */}
+                  <ChildButton 
+                    onClick={onUndo} 
+                    disabled={!canUndo} 
+                    className="text-xs px-3 py-1">
+                    Undo
+                  </ChildButton>
+                  <ChildButton 
+                    onClick={onRedo} 
+                    disabled={!canRedo} 
+                    className="text-xs px-3 py-1">
+                    Redo
                   </ChildButton>
                 </div>
               </div>
