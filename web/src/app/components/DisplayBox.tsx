@@ -1120,14 +1120,6 @@ mainText.style.textAlign = 'center';
             </div>
           )}
         </div>
-        {/* Save Image Buttons */}
-        <div className="flex items-center gap-2">
-          {result && (
-            <ChildButton onClick={saveProblemImage} className="px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white">
-              💾 Save Image
-            </ChildButton>
-          )}
-        </div>
       </div>
 
       <div className="min-h-32">
@@ -1229,6 +1221,12 @@ mainText.style.textAlign = 'center';
                   Your Answer
                 </h3>
                 <div className="flex items-center gap-2">
+                  {/* Save Image Buttons */}
+          {result && (
+            <ChildButton onClick={saveProblemImage} className="px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600">
+              💾 Save Image
+            </ChildButton>
+          )}
                   {/* Reset button */}
                   <ChildButton
                     onClick={resetOrder}
