@@ -960,12 +960,12 @@ export default function DisplayBox({
       tempContainer.style.width = 'auto';
       tempContainer.style.minWidth = '800px';
       
-      // Create title section
+             // Create title section
        const titleSection = document.createElement('div');
        titleSection.style.marginBottom = '16px';
        titleSection.style.display = 'flex';
        titleSection.style.alignItems = 'center';
-       titleSection.style.gap = '12px';
+       titleSection.style.justifyContent = 'space-between';
        
        const title = document.createElement('h3');
        title.style.fontSize = '24px';
@@ -974,7 +974,7 @@ export default function DisplayBox({
        title.style.margin = '0';
        title.style.borderBottom = '2px solid #166534';
        title.style.paddingBottom = '8px';
-       title.textContent = 'DASC Bingo Problem';
+       title.textContent = '🎯 DASC Bingo Problem';
        
        const tileCountBox = document.createElement('div');
       //  tileCountBox.style.backgroundColor = '#fef3c7';
@@ -1093,8 +1093,8 @@ mainText.style.textAlign = 'center';
       
       // Create download link
       const link = document.createElement('a');
-      link.download = `dasc-bingo-problem-${currentIndex + 1}.png`;
-      link.href = canvas.toDataURL('image/png', 0.9);
+      link.download = `dasc-bingo-problem-${currentIndex + 1}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.9);
       
       // Trigger download
       document.body.appendChild(link);
