@@ -1,5 +1,5 @@
 // Authentication service for handling API calls
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dasc-anagram-generator-jet.vercel.app';
 
 export interface LoginCredentials {
   username: string;
