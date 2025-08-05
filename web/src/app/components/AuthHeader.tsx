@@ -4,10 +4,14 @@ import React, { useState } from 'react';
 import { useAuth } from '@/app/contexts/AuthContext';
 import LoginForm from './LoginForm';
 import UserProfile from './UserProfile';
+import StudentRegistration from './StudentRegistration';
+import AdminDashboard from './AdminDashboard';
 
 export default function AuthHeader() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading} = useAuth();
   const [showLoginForm, setShowLoginForm] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
   if (isLoading) {
     return (
@@ -26,6 +30,9 @@ export default function AuthHeader() {
     return (
       <div className="mb-6">
         <UserProfile />
+        {showAdminDashboard && (
+          <AdminDashboard onClose={() => setShowAdminDashboard(false)} />
+        )}
       </div>
     );
   }
@@ -33,35 +40,53 @@ export default function AuthHeader() {
   return (
     <div className="mb-6">
       {showLoginForm ? (
-        <div>
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={() => setShowLoginForm(false)}
-              className="text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <LoginForm onSuccess={() => setShowLoginForm(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowLoginForm(false)}
+          ></div>
+          <LoginForm 
+            onSuccess={() => setShowLoginForm(false)} 
+            onClose={() => setShowLoginForm(false)}
+          />
         </div>
       ) : (
         <div className="text-center">
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-2">Welcome to Equation Anagram Generator</h3>
             <p className="text-gray-600 mb-4">Sign in to access all features</p>
-            <button
-              onClick={() => setShowLoginForm(true)}
-              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Sign In
-            </button>
+            <div className="flex space-x-3 justify-center">
+              <button
+                onClick={() => setShowLoginForm(true)}
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign In
+              </button>
+              <button
+                onClick={() => setShowRegistration(true)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Register
+              </button>
+            </div>
           </div>
         </div>
+      )}
+      
+      {showRegistration && (
+        <StudentRegistration 
+          onClose={() => setShowRegistration(false)}
+          onSuccess={() => {
+            setShowRegistration(false);
+            setShowLoginForm(true);
+          }}
+        />
       )}
     </div>
   );

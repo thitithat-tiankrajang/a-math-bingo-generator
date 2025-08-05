@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import Button from '../ui/Button';
+import Input from '../ui/Input';
 import { jsPDF } from 'jspdf';
+import { useAuth } from '../contexts/AuthContext';
 
 // Subtle CopyTextButton component
 function CopyTextButton({ onClick, copied, disabled, label }: { onClick: () => void; copied: boolean; disabled: boolean; label: string }) {
@@ -36,12 +38,16 @@ interface PrintTextAreaSectionProps {
 }
 
 export default function PrintTextAreaSection({ problemText, solutionText, fontLoaded, addThaiFont, setSafeFont }: PrintTextAreaSectionProps) {
+  const { user } = useAuth();
   const [problemCopied, setProblemCopied] = useState(false);
   const [solutionCopied, setSolutionCopied] = useState(false);
   const [problemTitle, setProblemTitle] = useState('Equation Anagram Problems');
   const [solutionTitle, setSolutionTitle] = useState('Equation Anagram Solutions');
   const [problemFilename, setProblemFilename] = useState('EquationAnagramProblems.pdf');
   const [solutionFilename, setSolutionFilename] = useState('EquationAnagramSolutions.pdf');
+
+  // Check if user can access print features
+  const canPrint = user?.user?.role === 'admin' || (user?.user?.role === 'student' && user?.user?.status === 'approved');
 
   const handleCopyProblem = async () => {
     try {
@@ -405,9 +411,8 @@ export default function PrintTextAreaSection({ problemText, solutionText, fontLo
         <div className="space-y-4">
           <div className="mb-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Problems Title</label>
-            <input
+            <Input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
               value={problemTitle}
               onChange={e => setProblemTitle(e.target.value)}
               placeholder="Equation Anagram Problems"
@@ -438,9 +443,8 @@ export default function PrintTextAreaSection({ problemText, solutionText, fontLo
           </div>
           <div className="mt-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Problems PDF Filename</label>
-            <input
+            <Input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
               value={problemFilename}
               onChange={e => setProblemFilename(e.target.value)}
               placeholder="EquationAnagramProblems.pdf"
@@ -451,9 +455,8 @@ export default function PrintTextAreaSection({ problemText, solutionText, fontLo
         <div className="space-y-4">
           <div className="mb-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Solutions Title</label>
-            <input
+            <Input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
               value={solutionTitle}
               onChange={e => setSolutionTitle(e.target.value)}
               placeholder="Equation Anagram Solutions"
@@ -484,9 +487,8 @@ export default function PrintTextAreaSection({ problemText, solutionText, fontLo
           </div>
           <div className="mt-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Solutions PDF Filename</label>
-            <input
+            <Input
               type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-black placeholder-gray-400"
               value={solutionFilename}
               onChange={e => setSolutionFilename(e.target.value)}
               placeholder="EquationAnagramSolutions.pdf"
@@ -494,52 +496,70 @@ export default function PrintTextAreaSection({ problemText, solutionText, fontLo
           </div>
         </div>
       </div>
+      {/* Access Control Message */}
+      {!canPrint && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <p className="text-yellow-800 text-sm">
+              <strong>Access Restriction:</strong> You must be an Admin or an approved Student to print PDF files.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* PDF/Print Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-        <Button
-          color="green"
-          className="w-full"
-          onClick={handlePrintProblemPDF}
-          disabled={!fontLoaded}
-          icon={
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          }
-        >
-          Download Problems PDF
-        </Button>
-        <Button
-          color="orange"
-          className="w-full"
-          onClick={handlePrintSolutionPDF}
-          disabled={!fontLoaded}
-          icon={
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-          }
-        >
-          Download Solutions PDF
-        </Button>
-      </div>
-      {/* HTML Print Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <Button
-          color="green"
-          className="w-full"
-          onClick={() => printAsHTML(problemText, problemTitle, 'problems')}
-        >
-          Print Problems (HTML)
-        </Button>
-        <Button
-          color="orange"
-          className="w-full"
-          onClick={() => printAsHTML(solutionText, solutionTitle, 'solutions')}
-        >
-          Print Solutions (HTML)
-        </Button>
-      </div>
+      {canPrint && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <Button
+              color="green"
+              className="w-full"
+              onClick={handlePrintProblemPDF}
+              disabled={!fontLoaded}
+              icon={
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              }
+            >
+              Download Problems PDF
+            </Button>
+            <Button
+              color="orange"
+              className="w-full"
+              onClick={handlePrintSolutionPDF}
+              disabled={!fontLoaded}
+              icon={
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              }
+            >
+              Download Solutions PDF
+            </Button>
+          </div>
+          {/* HTML Print Buttons */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <Button
+              color="green"
+              className="w-full"
+              onClick={() => printAsHTML(problemText, problemTitle, 'problems')}
+            >
+              Print Problems (HTML)
+            </Button>
+            <Button
+              color="orange"
+              className="w-full"
+              onClick={() => printAsHTML(solutionText, solutionTitle, 'solutions')}
+            >
+              Print Solutions (HTML)
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 } 

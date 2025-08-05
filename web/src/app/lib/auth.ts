@@ -7,8 +7,19 @@ export interface LoginCredentials {
 }
 
 export interface User {
-  _id: string;
-  username: string;
+  user: {
+    _id: string;
+    username: string;
+    role: 'admin' | 'student';
+    status: 'pending' | 'approved' | 'rejected';
+    firstName?: string;
+    lastName?: string;
+    nickname?: string;
+    school?: string;
+    purpose?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
 }
 
 export interface AuthResponse {
@@ -25,6 +36,9 @@ class AuthService {
   }
 
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    console.log('🔍 AuthService - Login credentials:', credentials);
+    console.log('🔍 AuthService - Login API URL:', `${API_BASE_URL}/auth/login`);
+    
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
@@ -33,12 +47,17 @@ class AuthService {
       body: JSON.stringify(credentials),
     });
 
+    console.log('🔍 AuthService - Login response status:', response.status);
+
     if (!response.ok) {
       const error = await response.json();
+      console.error('🔍 AuthService - Login error:', error);
       throw new Error(error.message || 'Login failed');
     }
 
-    return response.json();
+    const loginData = await response.json();
+    console.log('🔍 AuthService - Login response data:', loginData);
+    return loginData;
   }
 
   async register(credentials: LoginCredentials): Promise<{ message: string }> {
@@ -59,16 +78,26 @@ class AuthService {
   }
 
   async getProfile(): Promise<User> {
+    console.log('🔍 AuthService - Getting profile...');
+    console.log('🔍 AuthService - API URL:', `${API_BASE_URL}/auth/profile`);
+    console.log('🔍 AuthService - Auth headers:', this.getAuthHeaders());
+    
     const response = await fetch(`${API_BASE_URL}/auth/profile`, {
       headers: this.getAuthHeaders(),
     });
 
+    console.log('🔍 AuthService - Profile response status:', response.status);
+
     if (!response.ok) {
       const error = await response.json();
+      console.error('🔍 AuthService - Profile error:', error);
       throw new Error(error.message || 'Failed to get profile');
     }
 
-    return response.json();
+    const userData = await response.json();
+    console.log('🔍 AuthService - Profile response data:', userData);
+    // Return the data as is since API returns {user: {...}}
+    return userData;
   }
 
   async logout(): Promise<void> {

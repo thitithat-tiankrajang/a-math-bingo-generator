@@ -7,6 +7,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  token: string | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   register: (credentials: LoginCredentials) => Promise<void>;
@@ -17,21 +18,30 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
 
   const isAuthenticated = !!user;
 
   // Check if user is already logged in on mount
   useEffect(() => {
     const checkAuthStatus = async () => {
-      const token = authService.getToken();
-      if (token) {
+      const storedToken = authService.getToken();
+      // console.log('🔍 AuthContext - Stored token:', storedToken);
+      
+      if (storedToken) {
+        setToken(storedToken);
         try {
           const userData = await authService.getProfile();
+          // console.log('🔍 AuthContext - User data from stored token:', userData);
+          // API returns {user: {...}}, so we set the entire object
           setUser(userData);
         } catch (error) {
-          console.error('Auth check failed:', error);
+          console.error('🔍 AuthContext - Auth check failed:', error);
           authService.removeToken();
+          setToken(null);
         }
+      } else {
+        console.log('🔍 AuthContext - No stored token found');
       }
       setIsLoading(false);
     };
@@ -41,13 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (credentials: LoginCredentials) => {
     try {
+      // console.log('🔍 AuthContext - Login credentials:', credentials);
+      
       const response = await authService.login(credentials);
+      // console.log('🔍 AuthContext - Login response:', response);
+      
       authService.setToken(response.token);
+      setToken(response.token);
       
       // Get user profile after successful login
       const userData = await authService.getProfile();
+      // console.log('🔍 AuthContext - User profile data:', userData);
+      // API returns {user: {...}}, so we set the entire object
       setUser(userData);
     } catch (error) {
+      console.error('🔍 AuthContext - Login error:', error);
       throw error;
     }
   };
@@ -59,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Logout error:', error);
     } finally {
       authService.removeToken();
+      setToken(null);
       setUser(null);
     }
   };
@@ -75,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     isLoading,
     isAuthenticated,
+    token,
     login,
     logout,
     register,
