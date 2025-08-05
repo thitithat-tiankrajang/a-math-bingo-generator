@@ -209,7 +209,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
             </div>
             <div>
               <h3 className="text-xl font-bold text-green-800">
-                🏫 Thepsirin Admin Dashboard
+                🏫 Debsirin Admin Dashboard
               </h3>
               <p className="text-sm text-green-600">Student Management System</p>
             </div>
@@ -276,7 +276,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 <p className="text-sm text-green-800 font-medium">
                   <strong>💡 Tip:</strong> Manage student approvals efficiently with this dashboard
                 </p>
-                <p className="text-xs text-green-600 mt-1">Thepsirin School Management System</p>
+                <p className="text-xs text-green-600 mt-1">Debsirin School Management System</p>
               </div>
             </div>
           </div>

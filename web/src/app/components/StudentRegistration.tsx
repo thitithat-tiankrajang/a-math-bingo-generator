@@ -159,7 +159,7 @@ export default function StudentRegistration({ onClose, onSuccess }: StudentRegis
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">📝 Student Registration</h2>
-              <p className="text-green-100 text-sm">Join Thepsirin School System</p>
+              <p className="text-green-100 text-sm">Join Debsirin School System</p>
             </div>
           </div>
         </div>
