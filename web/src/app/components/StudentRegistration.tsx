@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import Input from '@/app/ui/Input';
 
+// Get API base URL from environment or use default
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dasc-anagram-generator-jet.vercel.app';
+
 export interface RegistrationForm {
   username: string;
   password: string;
@@ -98,7 +101,7 @@ export default function StudentRegistration({ onClose, onSuccess }: StudentRegis
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3001/auth/register/student', {
+      const response = await fetch(`${API_BASE_URL}/auth/register/student`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

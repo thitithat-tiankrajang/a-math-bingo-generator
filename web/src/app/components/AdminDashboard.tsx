@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
+// Get API base URL from environment or use default
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dasc-anagram-generator-jet.vercel.app';
+
 interface Student {
   id?: string;
   _id?: string;
@@ -41,7 +44,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     try {
       setLoading(true);
       if (activeTab === 'pending') {
-        const response = await fetch('http://localhost:3001/auth/admin/students/pending', {
+        const response = await fetch(`${API_BASE_URL}/auth/admin/students/pending`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -57,7 +60,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
           setPendingStudents(data.students);
         }
       } else {
-        const response = await fetch('http://localhost:3001/auth/admin/students', {
+        const response = await fetch(`${API_BASE_URL}/auth/admin/students`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -91,7 +94,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         return;
       }
       
-      const response = await fetch(`http://localhost:3001/auth/admin/students/${studentId}/approve`, {
+      const response = await fetch(`${API_BASE_URL}/auth/admin/students/${studentId}/approve`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,7 +139,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       // console.log('🔍 Student ID:', studentId);
       // console.log('🔍 Rejection reason:', rejectionReason);
       
-      const response = await fetch(`http://localhost:3001/auth/admin/students/${studentId}/reject`, {
+      const response = await fetch(`${API_BASE_URL}/auth/admin/students/${studentId}/reject`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

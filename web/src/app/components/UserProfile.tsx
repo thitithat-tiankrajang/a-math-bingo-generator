@@ -5,6 +5,9 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import Button from '@/app/ui/Button';
 import AdminDashboard from './AdminDashboard';
 
+// Get API base URL from environment or use default
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dasc-anagram-generator-jet.vercel.app';
+
 export default function UserProfile() {
   const { user, logout, isAuthenticated, token } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -31,7 +34,7 @@ export default function UserProfile() {
       // console.log('🔍 UserProfile - Fetching pending count...');
       // console.log('🔍 UserProfile - Token from AuthContext:', token);
       
-      const response = await fetch('http://localhost:3001/auth/admin/students/pending', {
+      const response = await fetch(`${API_BASE_URL}/auth/admin/students/pending`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
