@@ -1,6 +1,6 @@
 // src/app/play/page.tsx
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import EquationAnagramGenerator from '@/app/components/EquationAnagramGenerator';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { assignmentService, type Assignment, type CurrentOptionSetInfo } from '@/app/lib/assignmentService';
@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 
-export default function PlayPage() {
+// Component that uses useSearchParams
+function PlayPageContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -274,5 +275,21 @@ export default function PlayPage() {
         />
       </div>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function PlayPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-md p-6 flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+          <span className="text-gray-600">Loading...</span>
+        </div>
+      </div>
+    }>
+      <PlayPageContent />
+    </Suspense>
   );
 }
