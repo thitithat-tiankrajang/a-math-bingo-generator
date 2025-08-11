@@ -64,6 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // console.log('🔍 AuthContext - User profile data:', userData);
       // API returns {user: {...}}, so we set the entire object
       setUser(userData);
+      
+      // Redirect to home page after successful login
+      if (typeof window !== 'undefined') {
+        window.location.href = '/home';
+      }
     } catch (error) {
       console.error('🔍 AuthContext - Login error:', error);
       throw error;

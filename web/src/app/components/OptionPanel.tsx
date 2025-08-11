@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useId, useCallback } from 'react';
 import { FaDice, FaBullseye } from 'react-icons/fa';
 import InputNumberBox from '../ui/InputNumberBox';
+import { Dice1, Settings, AlertTriangle } from 'lucide-react';
 
 // Define types inline to match your project
 interface EquationAnagramOptions {
@@ -257,19 +258,19 @@ export default function OptionPanel({
                   <span className="font-bold">Mode:</span> {options.operatorMode}
                 </span>
                 <span className="inline-flex items-center gap-1 bg-purple-50 rounded px-2 py-1">
-                  <span className="font-bold">Ops:</span> {randomSettings.operators ? '🎲' : ''}{options.operatorCount}
+                  <span className="font-bold">Ops:</span> {randomSettings.operators ? <Dice1 size={12} className="inline" /> : ''}{options.operatorCount}
                 </span>
                 <span className="inline-flex items-center gap-1 bg-orange-50 rounded px-2 py-1">
-                  <span className="font-bold">=:</span> {randomSettings.equals ? '🎲' : ''}{options.equalsCount}
+                  <span className="font-bold">=:</span> {randomSettings.equals ? <Dice1 size={12} className="inline" /> : ''}{options.equalsCount}
                 </span>
                 <span className="inline-flex items-center gap-1 bg-red-50 rounded px-2 py-1">
-                  <span className="font-bold">Heavy:</span> {randomSettings.heavy ? '🎲' : ''}{options.heavyNumberCount}
+                  <span className="font-bold">Heavy:</span> {randomSettings.heavy ? <Dice1 size={12} className="inline" /> : ''}{options.heavyNumberCount}
                 </span>
                 <span className="inline-flex items-center gap-1 bg-yellow-50 rounded px-2 py-1">
-                  <span className="font-bold">Blank:</span> {randomSettings.blank ? '🎲' : ''}{options.BlankCount}
+                  <span className="font-bold">Blank:</span> {randomSettings.blank ? <Dice1 size={12} className="inline" /> : ''}{options.BlankCount}
                 </span>
                 <span className="inline-flex items-center gap-1 bg-gray-50 rounded px-2 py-1">
-                  <span className="font-bold">Zero:</span> {randomSettings.zero ? '🎲' : ''}{options.zeroCount}
+                  <span className="font-bold">Zero:</span> {randomSettings.zero ? <Dice1 size={12} className="inline" /> : ''}{options.zeroCount}
                 </span>
                 {typeof numQuestions === 'number' && (
                   <span className="inline-flex items-center gap-1 bg-blue-50 rounded px-2 py-1">
@@ -374,7 +375,7 @@ export default function OptionPanel({
           {variant === 'pdftext' && (
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-green-900 flex items-center gap-2">
-                <span className="text-yellow-500">⚙️</span>
+                <Settings size={16} className="text-yellow-500" />
                 Configuration Options
               </h2>
             </div>
@@ -687,6 +688,11 @@ function AnimatedCardContent({
   const [show, setShow] = useState<'random' | 'specific'>(mode);
   const [fade, setFade] = useState<'in' | 'out'>('in');
   const operatorFixed = getOperatorFixed(options);
+  const fixedSum = Object.values(operatorFixed).reduce<number>((sum, v) => sum + (typeof v === 'number' ? v : 0), 0);
+  const remainingCapacityFor = (key: keyof typeof operatorFixed) => {
+    const current = typeof operatorFixed[key] === 'number' ? operatorFixed[key] || 0 : 0;
+    return Math.max(0, operatorCount - (fixedSum - current));
+  };
   
   useEffect(() => {
     if (mode !== show) {
@@ -778,7 +784,9 @@ function AnimatedCardContent({
                   value={typeof operatorFixed['+'] === 'number' ? operatorFixed['+'] : ''}
                   onChange={(val: number | string) => {
                     if (typeof val === 'number') {
-                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+': val } });
+                      const maxAllowed = remainingCapacityFor('+');
+                      const clamped = Math.max(0, Math.min(maxAllowed, val));
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+': clamped } });
                     } else {
                       onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+': 0 } });
                     }
@@ -793,9 +801,12 @@ function AnimatedCardContent({
                   className="w-8 h-8 rounded-full bg-green-200 hover:bg-green-300 text-green-800 font-bold text-sm disabled:opacity-50 transition-all duration-200 flex items-center justify-center"
                   onClick={() => {
                     const current = operatorFixed['+'] || 0;
-                    onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+': current + 1 } });
+                    const maxAllowed = remainingCapacityFor('+');
+                    if (current < maxAllowed) {
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+': current + 1 } });
+                    }
                   }}
-                  disabled={typeof operatorFixed['+'] !== 'number'}
+                  disabled={typeof operatorFixed['+'] !== 'number' || remainingCapacityFor('+') <= 0}
                 >
                   +
                 </button>
@@ -843,7 +854,9 @@ function AnimatedCardContent({
                   value={typeof operatorFixed['-'] === 'number' ? operatorFixed['-'] : ''}
                   onChange={(val: number | string) => {
                     if (typeof val === 'number') {
-                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '-': val } });
+                      const maxAllowed = remainingCapacityFor('-');
+                      const clamped = Math.max(0, Math.min(maxAllowed, val));
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '-': clamped } });
                     } else {
                       onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '-': 0 } });
                     }
@@ -858,9 +871,12 @@ function AnimatedCardContent({
                   className="w-8 h-8 rounded-full bg-red-200 hover:bg-red-300 text-red-800 font-bold text-sm disabled:opacity-50 transition-all duration-200 flex items-center justify-center"
                   onClick={() => {
                     const current = operatorFixed['-'] || 0;
-                    onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '-': current + 1 } });
+                    const maxAllowed = remainingCapacityFor('-');
+                    if (current < maxAllowed) {
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '-': current + 1 } });
+                    }
                   }}
-                  disabled={typeof operatorFixed['-'] !== 'number'}
+                  disabled={typeof operatorFixed['-'] !== 'number' || remainingCapacityFor('-') <= 0}
                 >
                   +
                 </button>
@@ -908,7 +924,9 @@ function AnimatedCardContent({
                   value={typeof operatorFixed['×'] === 'number' ? operatorFixed['×'] : ''}
                   onChange={(val: number | string) => {
                     if (typeof val === 'number') {
-                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×': val } });
+                      const maxAllowed = remainingCapacityFor('×');
+                      const clamped = Math.max(0, Math.min(maxAllowed, val));
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×': clamped } });
                     } else {
                       onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×': 0 } });
                     }
@@ -923,9 +941,12 @@ function AnimatedCardContent({
                   className="w-8 h-8 rounded-full bg-blue-200 hover:bg-blue-300 text-blue-800 font-bold text-sm disabled:opacity-50 transition-all duration-200 flex items-center justify-center"
                   onClick={() => {
                     const current = operatorFixed['×'] || 0;
-                    onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×': current + 1 } });
+                    const maxAllowed = remainingCapacityFor('×');
+                    if (current < maxAllowed) {
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×': current + 1 } });
+                    }
                   }}
-                  disabled={typeof operatorFixed['×'] !== 'number'}
+                  disabled={typeof operatorFixed['×'] !== 'number' || remainingCapacityFor('×') <= 0}
                 >
                   +
                 </button>
@@ -973,7 +994,9 @@ function AnimatedCardContent({
                   value={typeof operatorFixed['÷'] === 'number' ? operatorFixed['÷'] : ''}
                   onChange={(val: number | string) => {
                     if (typeof val === 'number') {
-                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '÷': val } });
+                      const maxAllowed = remainingCapacityFor('÷');
+                      const clamped = Math.max(0, Math.min(maxAllowed, val));
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '÷': clamped } });
                     } else {
                       onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '÷': 0 } });
                     }
@@ -988,9 +1011,12 @@ function AnimatedCardContent({
                   className="w-8 h-8 rounded-full bg-purple-200 hover:bg-purple-300 text-purple-800 font-bold text-sm disabled:opacity-50 transition-all duration-200 flex items-center justify-center"
                   onClick={() => {
                     const current = operatorFixed['÷'] || 0;
-                    onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '÷': current + 1 } });
+                    const maxAllowed = remainingCapacityFor('÷');
+                    if (current < maxAllowed) {
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '÷': current + 1 } });
+                    }
                   }}
-                  disabled={typeof operatorFixed['÷'] !== 'number'}
+                  disabled={typeof operatorFixed['÷'] !== 'number' || remainingCapacityFor('÷') <= 0}
                 >
                   +
                 </button>
@@ -1038,7 +1064,9 @@ function AnimatedCardContent({
                   value={typeof operatorFixed['+/-'] === 'number' ? operatorFixed['+/-'] : ''}
                   onChange={(val: number | string) => {
                     if (typeof val === 'number') {
-                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+/-': val } });
+                      const maxAllowed = remainingCapacityFor('+/-');
+                      const clamped = Math.max(0, Math.min(maxAllowed, val));
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+/-': clamped } });
                     } else {
                       onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+/-': 0 } });
                     }
@@ -1053,9 +1081,12 @@ function AnimatedCardContent({
                   className="w-8 h-8 rounded-full bg-orange-200 hover:bg-orange-300 text-orange-800 font-bold text-sm disabled:opacity-50 transition-all duration-200 flex items-center justify-center"
                   onClick={() => {
                     const current = operatorFixed['+/-'] || 0;
-                    onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+/-': current + 1 } });
+                    const maxAllowed = remainingCapacityFor('+/-');
+                    if (current < maxAllowed) {
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '+/-': current + 1 } });
+                    }
                   }}
-                  disabled={typeof operatorFixed['+/-'] !== 'number'}
+                  disabled={typeof operatorFixed['+/-'] !== 'number' || remainingCapacityFor('+/-') <= 0}
                 >
                   +
                 </button>
@@ -1103,7 +1134,9 @@ function AnimatedCardContent({
                   value={typeof operatorFixed['×/÷'] === 'number' ? operatorFixed['×/÷'] : ''}
                   onChange={(val: number | string) => {
                     if (typeof val === 'number') {
-                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×/÷': val } });
+                      const maxAllowed = remainingCapacityFor('×/÷');
+                      const clamped = Math.max(0, Math.min(maxAllowed, val));
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×/÷': clamped } });
                     } else {
                       onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×/÷': 0 } });
                     }
@@ -1118,9 +1151,12 @@ function AnimatedCardContent({
                   className="w-8 h-8 rounded-full bg-teal-200 hover:bg-teal-300 text-teal-800 font-bold text-sm disabled:opacity-50 transition-all duration-200 flex items-center justify-center"
                   onClick={() => {
                     const current = operatorFixed['×/÷'] || 0;
-                    onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×/÷': current + 1 } });
+                    const maxAllowed = remainingCapacityFor('×/÷');
+                    if (current < maxAllowed) {
+                      onOptionsChange({ ...options, operatorFixed: { ...operatorFixed, '×/÷': current + 1 } });
+                    }
                   }}
-                  disabled={typeof operatorFixed['×/÷'] !== 'number'}
+                  disabled={typeof operatorFixed['×/÷'] !== 'number' || remainingCapacityFor('×/÷') <= 0}
                 >
                   +
                 </button>
@@ -1130,7 +1166,8 @@ function AnimatedCardContent({
           {/* Warning if total is 0 */}
           {operatorCount === 0 && !isRandom && (
             <div className="text-xs text-red-600 text-center mt-2 bg-red-50 border border-red-200 rounded-lg p-2">
-              ⚠️ Please select at least 1 operator
+              <AlertTriangle size={16} className="inline mr-1" />
+              Please select at least 1 operator
             </div>
           )}
         </>

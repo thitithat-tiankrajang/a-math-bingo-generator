@@ -4,7 +4,7 @@ import type { EquationAnagramResult } from '@/app/types/EquationAnagram';
 
 interface DisplaySectionProps {
   results: EquationAnagramResult[];
-  onGenerate: () => void;
+  onGenerate?: () => void;
   isGenerating: boolean;
   currentIndex: number;
   setCurrentIndex: (idx: number) => void;
@@ -12,14 +12,42 @@ interface DisplaySectionProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  assignmentMode?: boolean;
+  onValidEquation?: (equation: string) => void;
+  activeAssignment?: {
+    id: string;
+    studentProgress?: {
+      answers?: Array<{
+        questionNumber: number;
+        questionText: string;
+        answerText: string;
+        answeredAt: string;
+      }>;
+    };
+  } | null;
+  onSubmitAnswer?: (questionText: string, answerText: string) => Promise<void>;
 }
 
-export default function DisplaySection({ results, onGenerate, isGenerating, currentIndex, setCurrentIndex, onUndo, onRedo, canUndo, canRedo }: DisplaySectionProps) {
+export default function DisplaySection({ 
+  results, 
+  onGenerate, 
+  isGenerating, 
+  currentIndex, 
+  setCurrentIndex, 
+  onUndo, 
+  onRedo, 
+  canUndo, 
+  canRedo,
+  assignmentMode = false,
+  onValidEquation,
+  activeAssignment,
+  onSubmitAnswer
+}: DisplaySectionProps) {
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
       <DisplayBox 
         result={results.length > 0 ? results[currentIndex] : null}
-        onGenerate={onGenerate}
+            onGenerate={assignmentMode ? undefined : onGenerate}
         isGenerating={isGenerating}
         currentIndex={currentIndex}
         total={results.length}
@@ -28,6 +56,10 @@ export default function DisplaySection({ results, onGenerate, isGenerating, curr
         onRedo={onRedo}
         canUndo={canUndo}
         canRedo={canRedo}
+        assignmentMode={assignmentMode}
+        onValidEquation={onValidEquation}
+        activeAssignment={activeAssignment}
+        onSubmitAnswer={onSubmitAnswer}
       />
     </div>
   );

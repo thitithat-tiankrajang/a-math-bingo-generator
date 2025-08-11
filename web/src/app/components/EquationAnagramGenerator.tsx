@@ -1,13 +1,14 @@
 // src/components/EquationAnagramGenerator.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { generateEquationAnagram } from "@/app/lib/equationAnagramLogic";
 import type {
   EquationAnagramOptions,
   EquationAnagramResult,
 } from "@/app/types/EquationAnagram";
 import { jsPDF } from "jspdf";
+import { CheckCircle, Lightbulb } from 'lucide-react';
 import HeaderSection from "./HeaderSection";
 import ConfigSection from "./ConfigSection";
 import DisplaySection from "./DisplaySection";
@@ -17,11 +18,44 @@ import PrintTextAreaSection from "./PrintTextAreaSection";
 import Button from "../ui/Button";
 import type { OptionSet } from "../types/EquationAnagram";
 import OptionSetsSummary from "./OptionSetsSummary";
+import { useUndoRedo } from "@/app/contexts/UndoRedoContext";
 
 
-export default function EquationAnagramGenerator() {
+interface EquationAnagramGeneratorProps {
+  assignmentMode?: boolean;
+  onSendAnswer?: (questionText: string, answerText: string) => Promise<void>;
+  activeAssignment?: {
+    id: string;
+    studentProgress?: {
+      answers?: Array<{
+        questionNumber: number;
+        questionText: string;
+        answerText: string;
+        answeredAt: string;
+      }>;
+      currentQuestionElements?: string[] | null;
+    };
+  } | null;
+  // When in assignment mode, enforced options from current option set
+  enforcedOptions?: EquationAnagramOptions;
+  // Pre-generated elements to lock question (from backend persistence)
+  presetElements?: string[] | null;
+  // Callback to persist generated elements to backend if not present
+  onPersistElements?: (elements: string[]) => void | Promise<void>;
+}
+
+export default function EquationAnagramGenerator({ 
+  assignmentMode = false, 
+  onSendAnswer,
+  activeAssignment,
+  enforcedOptions,
+  presetElements: presetElementsProp,
+  onPersistElements,
+}: EquationAnagramGeneratorProps = {}) {
+  const { setUndoRedoHandler, clearUndoRedoHandler } = useUndoRedo();
+  
   // Main page state (for DisplayBox only)
-  const defaultOptions: EquationAnagramOptions = {
+  const defaultOptions: EquationAnagramOptions = useMemo(() => ({
     totalCount: 8,
     operatorMode: "random",
     operatorCount: 2,
@@ -37,7 +71,7 @@ export default function EquationAnagramGenerator() {
       '+/-': null,
       '×/÷': null
     }
-  };
+  }), []);
 
   // Hydration guard
   const [hydrated, setHydrated] = useState(false);
@@ -60,6 +94,49 @@ export default function EquationAnagramGenerator() {
   const [showSolution, setShowSolution] = useState(true);
   const [showExampleSolution, setShowExampleSolution] = useState(true);
   const [fontLoaded, setFontLoaded] = useState(false);
+  
+  // Assignment mode states
+  const [assignmentQuestion, setAssignmentQuestion] = useState<string>('');
+  const [assignmentAnswer, setAssignmentAnswer] = useState<string>('');
+  const [submittingAnswer, setSubmittingAnswer] = useState<boolean>(false);
+  const [lastValidEquation, setLastValidEquation] = useState<string>('');
+  const [lastSubmissionAt, setLastSubmissionAt] = useState<number>(0);
+  const [presetElements, setPresetElements] = useState<string[] | null>(null);
+
+  // Undo: restore previous state from history
+  const handleUndo = useCallback(() => {
+    if (history.length === 0) return;
+    const prev = history[history.length - 1];
+    setFuture(f => [{ results: [...results], currentIndex }, ...f]);
+    setResults(prev.results);
+    setCurrentIndex(prev.currentIndex);
+    setHistory(h => h.slice(0, h.length - 1));
+  }, [history, results, currentIndex]);
+
+  // Redo: restore next state from future
+  const handleRedo = useCallback(() => {
+    if (future.length === 0) return;
+    const next = future[0];
+    setHistory(h => [...h, { results: [...results], currentIndex }]);
+    setResults(next.results);
+    setCurrentIndex(next.currentIndex);
+    setFuture(f => f.slice(1));
+  }, [future, results, currentIndex]);
+
+  // Set up undo/redo handlers
+  useEffect(() => {
+    setUndoRedoHandler(
+      handleUndo,
+      handleRedo,
+      history.length > 0,
+      future.length > 0
+    );
+
+    // Cleanup on unmount
+    return () => {
+      clearUndoRedoHandler();
+    };
+  }, [history.length, future.length, setUndoRedoHandler, clearUndoRedoHandler, handleUndo, handleRedo]);
 
   // Load Thai font on component mount
   useEffect(() => {
@@ -130,6 +207,77 @@ export default function EquationAnagramGenerator() {
       );
     }
   }, [optionSets, hydrated]);
+
+  // In assignment mode, sync preset elements from props or activeAssignment if available
+  useEffect(() => {
+    if (!assignmentMode) return;
+    if (presetElementsProp && presetElementsProp.length > 0) {
+      setPresetElements(presetElementsProp);
+      return;
+    }
+    if (activeAssignment?.studentProgress?.currentQuestionElements) {
+      setPresetElements(activeAssignment.studentProgress.currentQuestionElements);
+    }
+  }, [assignmentMode, presetElementsProp, activeAssignment?.studentProgress?.currentQuestionElements]);
+
+  // In assignment mode, use enforcedOptions to generate a single problem and regenerate after each submission
+  useEffect(() => {
+    const generateForAssignment = async () => {
+      if (!assignmentMode) return;
+      if (!enforcedOptions) return;
+      setIsGenerating(true);
+      try {
+        // Merge with defaults to ensure all required fields are present
+        const mergedOptions: EquationAnagramOptions = {
+          ...defaultOptions,
+          ...enforcedOptions,
+          operatorFixed: {
+            '+': null,
+            '-': null,
+            '×': null,
+            '÷': null,
+            '+/-': null,
+            '×/÷': null,
+            ...(enforcedOptions.operatorFixed || {})
+          }
+        };
+        if (presetElements && presetElements.length > 0) {
+          // Use preset elements from backend persistence, but compute solutions so ExampleSolution can show in assignment mode
+          try {
+            const { findAllPossibleEquations } = await import('@/app/lib/equationAnagramLogic');
+            const equations = findAllPossibleEquations(presetElements as unknown as string[]);
+            setResults([{ 
+              elements: presetElements, 
+              sampleEquation: equations[0] || '', 
+              possibleEquations: equations 
+            }]);
+          } catch {
+            setResults([{ elements: presetElements, sampleEquation: '', possibleEquations: [] }]);
+          }
+        } else {
+          const generated = await generateEquationAnagram(mergedOptions);
+          setResults([generated]);
+          // Persist to backend so refresh won't change
+          if (onPersistElements) {
+            try {
+              await onPersistElements(generated.elements as unknown as string[]);
+            } catch (e) {
+              console.error('Persist current elements failed:', e);
+              // Continue without persistence - not critical
+            }
+          }
+          setPresetElements(generated.elements as unknown as string[]);
+        }
+        setCurrentIndex(0);
+      } catch (error) {
+        console.error('Error generating assignment problem:', error);
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+    // Trigger on options change or after a submission
+    generateForAssignment();
+  }, [assignmentMode, enforcedOptions, lastSubmissionAt, defaultOptions, presetElements, onPersistElements]);
 
   // Helper function to convert ArrayBuffer to base64
   const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
@@ -222,26 +370,6 @@ export default function EquationAnagramGenerator() {
     }
   };
 
-  // Undo: restore previous state from history
-  const handleUndo = () => {
-    if (history.length === 0) return;
-    const prev = history[history.length - 1];
-    setFuture(f => [{ results: [...results], currentIndex }, ...f]);
-    setResults(prev.results);
-    setCurrentIndex(prev.currentIndex);
-    setHistory(h => h.slice(0, h.length - 1));
-  };
-
-  // Redo: restore next state from future
-  const handleRedo = () => {
-    if (future.length === 0) return;
-    const next = future[0];
-    setHistory(h => [...h, { results: [...results], currentIndex }]);
-    setResults(next.results);
-    setCurrentIndex(next.currentIndex);
-    setFuture(f => f.slice(1));
-  };
-
   // For print/textarea (all problems, use optionSets from popup)
   const handlePrintText = async () => {
     setIsGenerating(true);
@@ -286,6 +414,49 @@ export default function EquationAnagramGenerator() {
     setShowOptionModal(false);
   };
 
+  // Handle assignment answer submission
+  const handleSendAssignmentAnswer = async () => {
+    if (!onSendAnswer || !assignmentQuestion.trim() || !assignmentAnswer.trim()) return;
+    
+    try {
+      setSubmittingAnswer(true);
+      await onSendAnswer(assignmentQuestion.trim(), assignmentAnswer.trim());
+      
+      // Clear form after successful submission
+      setAssignmentQuestion('');
+      setAssignmentAnswer('');
+      setLastValidEquation('');
+    } catch (error) {
+      console.error('Error sending assignment answer:', error);
+    } finally {
+      setSubmittingAnswer(false);
+    }
+  };
+
+  // Handle valid equation from DisplayBox in assignment mode
+  const handleValidEquation = async (equation: string) => {
+    if (!assignmentMode) return;
+    setLastValidEquation(equation);
+    setAssignmentAnswer(equation);
+
+    // Auto-submit when equation is valid
+    if (!onSendAnswer) return;
+    if (submittingAnswer) return;
+    try {
+      setSubmittingAnswer(true);
+      const current = results[currentIndex];
+      const questionText = current ? current.elements.join(", ") : `Equation`;
+      await onSendAnswer(questionText, equation);
+      // Trigger regeneration for next problem
+      setLastSubmissionAt(Date.now());
+      // Auto-exit handled in play/page after refresh; no type-safe access needed here
+    } catch (error) {
+      console.error('Auto submit answer failed:', error);
+    } finally {
+      setSubmittingAnswer(false);
+    }
+  };
+
   if (!hydrated) return null;
 
   return (
@@ -303,39 +474,45 @@ export default function EquationAnagramGenerator() {
             onRedo={handleRedo}
             canUndo={history.length > 0}
             canRedo={future.length > 0}
+            assignmentMode={assignmentMode}
+            onValidEquation={handleValidEquation}
+            activeAssignment={activeAssignment}
+            onSubmitAnswer={onSendAnswer}
           />
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-            <div className="xl:col-span-3">
-              <ConfigSection
-                options={options}
-                setOptions={setOptions}
-                numQuestions={numQuestions}
-                setNumQuestions={setNumQuestions}
-              />
+          {!assignmentMode && (
+            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+              <div className="xl:col-span-3">
+                <ConfigSection
+                  options={options}
+                  setOptions={setOptions}
+                  numQuestions={numQuestions}
+                  setNumQuestions={setNumQuestions}
+                />
+              </div>
+              <div className="xl:col-span-2">
+                <ActionSection
+                  onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
+                  options={options}
+                  numQuestions={numQuestions.toString()}
+                  onNumQuestionsChange={(e) =>
+                    handleNumQuestionsChange(e.target.value)
+                  }
+                  onNumQuestionsBlur={() => {}}
+                  onShowOptionModal={handleShowOptionModal}
+                  onPrintText={handlePrintText}
+                  showSolution={showSolution}
+                  onShowSolutionChange={handleShowSolutionChange}
+                  showExampleSolution={showExampleSolution}
+                  onShowExampleSolutionChange={handleShowExampleSolutionChange}
+                />
+              </div>
             </div>
-            <div className="xl:col-span-2">
-              <ActionSection
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-                options={options}
-                numQuestions={numQuestions.toString()}
-                onNumQuestionsChange={(e) =>
-                  handleNumQuestionsChange(e.target.value)
-                }
-                onNumQuestionsBlur={() => {}}
-                onShowOptionModal={handleShowOptionModal}
-                onPrintText={handlePrintText}
-                showSolution={showSolution}
-                onShowSolutionChange={handleShowSolutionChange}
-                showExampleSolution={showExampleSolution}
-                onShowExampleSolutionChange={handleShowExampleSolutionChange}
-              />
-            </div>
-          </div>
+          )}
         </div>
       </div>
       {/* Enhanced Modal */}
-      {showOptionModal && (
+      {!assignmentMode && showOptionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
@@ -510,6 +687,36 @@ export default function EquationAnagramGenerator() {
                 >
                   Generate Text Output
                 </Button>
+                
+                {/* Assignment Send Answer Button */}
+                {assignmentMode && (
+                  <Button
+                    onClick={handleSendAssignmentAnswer}
+                    disabled={!assignmentQuestion.trim() || !assignmentAnswer.trim() || submittingAnswer}
+                    className="bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50"
+                    icon={
+                      submittingAnswer ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        <svg
+                          className="w-5 h-5 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                          />
+                        </svg>
+                      )
+                    }
+                  >
+                    {submittingAnswer ? 'Sending...' : 'Send Answer to Assignment'}
+                  </Button>
+                )}
               </div>
               {/* PrintTextAreaSection (SplitTextAreas) */}
               {printText ? (
@@ -528,6 +735,51 @@ export default function EquationAnagramGenerator() {
                       PDF/text generation. You can modify them here without
                       affecting the main page configuration.
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Assignment Answer Form */}
+              {assignmentMode && (
+                <div className="mt-6 bg-green-50 border border-green-200 rounded-xl p-6">
+                  <h3 className="text-lg font-semibold text-green-900 mb-4">Assignment Answer Form</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="assignmentQuestion" className="block text-sm font-medium text-green-800 mb-2">
+                        Question/Problem Statement
+                      </label>
+                      <textarea
+                        id="assignmentQuestion"
+                        value={assignmentQuestion}
+                        onChange={(e) => setAssignmentQuestion(e.target.value)}
+                        placeholder="Enter the math problem or question you want to submit..."
+                        className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
+                        rows={3}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="assignmentAnswer" className="block text-sm font-medium text-green-800 mb-2">
+                        Your Answer/Solution
+                      </label>
+                      <textarea
+                        id="assignmentAnswer"
+                        value={assignmentAnswer}
+                        onChange={(e) => setAssignmentAnswer(e.target.value)}
+                        placeholder="Enter your answer or solution here..."
+                        className="w-full px-3 py-2 border border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none"
+                        rows={4}
+                      />
+                      {lastValidEquation && (
+                        <div className="mt-2 text-sm text-green-600">
+                          <CheckCircle size={16} className="inline mr-1" />
+                          Valid equation detected: <span className="font-mono font-bold">{lastValidEquation}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm text-green-700">
+                      <Lightbulb size={16} className="inline mr-1" />
+                      Tip: You can use the equation generator above to create problems, then copy/paste them into this form.
+                    </div>
                   </div>
                 </div>
               )}

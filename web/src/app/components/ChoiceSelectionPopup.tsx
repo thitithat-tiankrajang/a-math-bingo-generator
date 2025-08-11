@@ -1,4 +1,5 @@
 import React from 'react';
+import { Target } from 'lucide-react';
 
 interface ChoiceSelectionPopupProps {
   isVisible: boolean;
@@ -149,7 +150,7 @@ export default function ChoiceSelectionPopup({
           {/* Header */}
           <div className="text-center mb-4">
             <div className="inline-flex items-center bg-gradient-to-r from-yellow-200 to-orange-200 px-3 py-1 rounded-full border-2 border-orange-300 shadow-lg mb-2">
-              <span className="text-lg mr-2 animate-bounce">🎯</span>
+              <Target size={20} className="mr-2 animate-bounce" />
               <span className="font-bold text-orange-800 text-sm">
                 Choose for: <span className="text-lg font-black text-purple-700">{choiceTokens[currentChoiceStep]}</span>
               </span>

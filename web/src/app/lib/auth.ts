@@ -8,7 +8,7 @@ export interface LoginCredentials {
 
 export interface User {
   user: {
-    _id: string;
+    id: string;
     username: string;
     role: 'admin' | 'student';
     status: 'pending' | 'approved' | 'rejected';
@@ -61,7 +61,7 @@ class AuthService {
   }
 
   async register(credentials: LoginCredentials): Promise<{ message: string }> {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetch(`${API_BASE_URL}/auth/register/student`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,8 +1,7 @@
 // src/lib/EquationAnagramLogic.ts - Optimized with True Pool Sampling
 import type { EquationAnagramOptions, EquationAnagramResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/EquationAnagram';
 import { Fraction, compareFractions } from './fractionUtil';
-import { isNumber, isLightNumber, isHeavyNumber, isOperator, getElementType } from './tokenUtil';
-import { generateLimitedPermutations } from './permutationUtil';
+import { isHeavyNumber, getElementType } from './tokenUtil';
 import { evaluateExpressionAsFraction } from './expressionUtil';
 
 export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
@@ -89,48 +88,63 @@ export async function generateEquationAnagram(options: EquationAnagramOptions): 
  * Generate tokens based on selected options - Random individual counts only
  */
 function generateTokensBasedOnOptions(options: EquationAnagramOptions): EquationElement[] {
-  // สร้าง options ใหม่โดยสุ่มเฉพาะจำนวนของ options ที่เป็น random
+  // Randomize counts only when BOTH randomSettings.field is true AND corresponding *Mode is 'random'.
+  // Otherwise, respect provided counts strictly.
   const processedOptions = { ...options };
-  
-  if (options.randomSettings) {
-    const { totalCount, randomSettings } = options;
+
+  const randomSettings = options.randomSettings;
+  const allowRandomOperators = !!(randomSettings && randomSettings.operators && options.operatorMode === 'random');
+  const allowRandomEquals = !!(randomSettings && randomSettings.equals && options.equalsMode === 'random');
+  const allowRandomHeavy = !!(randomSettings && randomSettings.heavy && options.heavyNumberMode === 'random');
+  const allowRandomBlank = !!(randomSettings && randomSettings.blank && options.blankMode === 'random');
+  const allowRandomZero = !!(randomSettings && randomSettings.zero && options.zeroMode === 'random');
+
+  if (allowRandomOperators || allowRandomEquals || allowRandomHeavy || allowRandomBlank || allowRandomZero) {
+    const totalCount = options.totalCount;
     let remainingTiles = totalCount;
-    
-    // คำนวณจำนวนที่ fixed ก่อน
-    if (!randomSettings.operators) remainingTiles -= options.operatorCount;
-    if (!randomSettings.equals) remainingTiles -= options.equalsCount;
-    if (!randomSettings.heavy) remainingTiles -= options.heavyNumberCount;
-    if (!randomSettings.blank) remainingTiles -= options.BlankCount;
-    if (!randomSettings.zero) remainingTiles -= options.zeroCount;
-    
-    // สุ่มจำนวนสำหรับ options ที่เป็น random
-    if (randomSettings.operators) {
-      processedOptions.operatorCount = Math.max(1, Math.min(remainingTiles - 1, Math.floor(Math.random() * (remainingTiles / 2)) + 1));
-      remainingTiles -= processedOptions.operatorCount;
+
+    // Subtract fixed parts first
+    if (!allowRandomOperators) remainingTiles -= options.operatorCount;
+    if (!allowRandomEquals) remainingTiles -= options.equalsCount;
+    if (!allowRandomHeavy) remainingTiles -= options.heavyNumberCount;
+    if (!allowRandomBlank) remainingTiles -= options.BlankCount;
+    if (!allowRandomZero) remainingTiles -= options.zeroCount;
+
+    // Guard against negative due to misconfigured inputs
+    remainingTiles = Math.max(0, remainingTiles);
+
+    // Randomize parts that are allowed
+    if (allowRandomOperators) {
+      processedOptions.operatorCount = Math.max(1, Math.min(Math.max(1, remainingTiles - 1), Math.floor(Math.random() * Math.max(1, remainingTiles / 2)) + 1));
+      remainingTiles = Math.max(0, remainingTiles - processedOptions.operatorCount);
     }
-    
-    if (randomSettings.equals) {
-      processedOptions.equalsCount = Math.max(1, Math.min(remainingTiles - 1, Math.floor(Math.random() * 3) + 1));
-      remainingTiles -= processedOptions.equalsCount;
+
+    if (allowRandomEquals) {
+      const maxEq = Math.max(1, Math.min(3, remainingTiles - 1));
+      processedOptions.equalsCount = Math.max(1, Math.floor(Math.random() * maxEq) + 1);
+      remainingTiles = Math.max(0, remainingTiles - processedOptions.equalsCount);
     }
-    
-    if (randomSettings.heavy) {
-      processedOptions.heavyNumberCount = Math.max(0, Math.min(remainingTiles, Math.floor(Math.random() * (remainingTiles / 3))));
-      remainingTiles -= processedOptions.heavyNumberCount;
+
+    if (allowRandomHeavy) {
+      const heavyRand = Math.floor(Math.random() * Math.max(1, remainingTiles / 3));
+      processedOptions.heavyNumberCount = Math.max(0, Math.min(remainingTiles, heavyRand));
+      remainingTiles = Math.max(0, remainingTiles - processedOptions.heavyNumberCount);
     }
-    
-    if (randomSettings.blank) {
-      processedOptions.BlankCount = Math.max(0, Math.min(remainingTiles, Math.floor(Math.random() * (remainingTiles / 4))));
-      remainingTiles -= processedOptions.BlankCount;
+
+    if (allowRandomBlank) {
+      const blankRand = Math.floor(Math.random() * Math.max(1, remainingTiles / 4));
+      processedOptions.BlankCount = Math.max(0, Math.min(remainingTiles, blankRand));
+      remainingTiles = Math.max(0, remainingTiles - processedOptions.BlankCount);
     }
-    
-    if (randomSettings.zero) {
-      processedOptions.zeroCount = Math.max(0, Math.min(remainingTiles, Math.floor(Math.random() * (remainingTiles / 4))));
-      remainingTiles -= processedOptions.zeroCount;
+
+    if (allowRandomZero) {
+      const zeroRand = Math.floor(Math.random() * Math.max(1, remainingTiles / 4));
+      processedOptions.zeroCount = Math.max(0, Math.min(remainingTiles, zeroRand));
+      remainingTiles = Math.max(0, remainingTiles - processedOptions.zeroCount);
     }
   }
-  
-  // ใช้ deterministic generation กับ options ที่ประมวลผลแล้ว
+
+  // Deterministic generation with processed options
   return generateTokensDeterministic(processedOptions);
 }
 
@@ -231,7 +245,7 @@ function generateTokensDeterministic(options: EquationAnagramOptions): EquationE
       }
     }
   } else {
-    // Random mode
+    // Random mode: enforce exact operatorCount count by sampling only from operator pool
     for (let i = 0; i < operatorCount; i++) {
       const token = pickTokenFromPool('operator', availablePool);
       if (!token) {
@@ -266,13 +280,26 @@ function generateTokensDeterministic(options: EquationAnagramOptions): EquationE
     selectedTokens.push(createElementFromToken(token));
   }
   
-  return sortTokensByPriority(selectedTokens);
+  // Final guard: ensure counts match requested EXACTLY
+  const final = sortTokensByPriority(selectedTokens);
+  const actualOperators = final.filter(el => el.type === 'operator').length;
+  const actualEquals = final.filter(el => el.value === '=').length;
+  const actualBlank = final.filter(el => el.value === '?').length;
+  const actualZero = final.filter(el => el.value === '0').length;
+  const actualHeavy = final.filter(el => isHeavyNumber(el.value)).length;
+  const actualTotal = final.length;
+
+  if (actualOperators !== operatorCount || actualEquals !== equalsCount || actualBlank !== BlankCount || actualZero !== zeroCount || actualHeavy !== heavyNumberCount || actualTotal !== totalCount) {
+    throw new Error('Generated token counts do not match requested options. Retrying...');
+  }
+
+  return final;
 }
 
 /**
- * Enhanced blank expansion with smart optimization
+ * Deprecated: permutation-era helper. Not used by the current backtracking algorithm.
  */
-function expandBlanks(tokens: string[]): string[][] {
+/* function expandBlanks(tokens: string[]): string[][] {
   const SMART_REPLACEMENTS = [
     // High priority (essential for equations)
     '=', '+', '-', '×', '÷', '+/-', '×/÷',
@@ -325,12 +352,12 @@ function expandBlanks(tokens: string[]): string[][] {
   
   smartExpansion([], 0, false);
   return results;
-}
+} */
 
 /**
- * Limited expansion for cases with too many blanks
+ * Deprecated: permutation-era helper. Not used by the current backtracking algorithm.
  */
-function expandBlanksLimited(tokens: string[], limitedReplacements: string[]): string[][] {
+/* function expandBlanksLimited(tokens: string[], limitedReplacements: string[]): string[][] {
   const results: string[][] = [];
   
   function helper(current: string[], idx: number) {
@@ -358,74 +385,263 @@ function expandBlanksLimited(tokens: string[], limitedReplacements: string[]): s
   
   helper([], 0);
   return results;
-}
+} */
 
 /**
- * Optimized equation finding with early termination
+ * Structure-first backtracking equation finder (replaces permutation-based search)
  */
 function findValidEquations(tokens: EquationElement[], equalsCount: number): string[] {
-  const validEquations: string[] = [];
+  const MAX_RESULTS = 10;
+  const requiredEquals = Math.max(equalsCount, 1);
+  const results = new Set<string>();
+
   const tokenValues = tokens.map(t => t.originalToken);
 
-  // Quick validation checks - คำนึงว่า ? สามารถแทน = ได้
-  const hasEquals = tokenValues.some(t => t === '=');
-  const hasBlanks = tokenValues.some(t => t === '?');
-  const hasOperators = tokenValues.some(t => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(t));
-  const hasNumbers = tokenValues.some(t => /^\d+$/.test(t));
-  
-  // ถ้าไม่มี = และไม่มี ? เลย ให้ return empty
-  if ((!hasEquals && !hasBlanks) || !hasOperators || !hasNumbers) {
+  // Quick viability checks
+  const hasSomeNumber = tokenValues.some(v => /^\d+$/.test(v));
+  const hasSomeOperator = tokenValues.some(v => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(v));
+  const hasEqualsOrBlank = tokenValues.some(v => v === '=' || v === '?');
+  if (!hasSomeNumber || !hasSomeOperator || !hasEqualsOrBlank) {
     return [];
   }
 
-  const expandedTokenSets = expandBlanks(tokenValues);
-  
-  // Filter token sets before permutation - คำนึงว่า ? สามารถแทน = ได้
-  const filteredTokenSets = expandedTokenSets.filter(tokens => {
-    const hasEqualsOrBlanks = tokens.some(t => t === '=' || t === '?');
-    if (!hasEqualsOrBlanks) return false;
-    
-    if (!tokens.some(t => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(t))) return false;
-    
-    const numberCount = tokens.filter(t => /^\d+$/.test(t)).length;
-    if (numberCount < 2) return false;
-    
-    return true;
-  });
+  // Build multiset counts
+  const counts: Record<string, number> = {};
+  for (const v of tokenValues) counts[v] = (counts[v] || 0) + 1;
 
-  for (const expandedTokens of filteredTokenSets) {
-    const maxPermutations = expandedTokens.length > 8 ? 500 : 1000;
-    const permutations = generateLimitedPermutations(expandedTokens, maxPermutations);
-    
-    for (const perm of permutations) {
-      try {
-        const equation = createEquationFromPermutation(perm as AmathToken[], Math.max(equalsCount, 1));
-        if (equation && isValidEquationByRules(equation, Math.max(equalsCount, 1))) {
-          validEquations.push(equation);
-          
-          if (validEquations.length >= 10) {
-            return validEquations;
-          }
-        }
-      } catch {
-        continue;
+  // Helpers
+  const HEAVY_NUMBERS: ReadonlyArray<string> = ['10','11','12','13','14','15','16','17','18','19','20'];
+  const LIGHT_DIGITS: ReadonlyArray<string> = ['1','2','3','4','5','6','7','8','9'];
+  const OPS: ReadonlyArray<string> = ['+','-','×','÷'];
+  const BLANK_REPLACEMENTS: ReadonlyArray<string> = ['=', '+', '-', '×', '÷', '+/-', '×/÷', ...LIGHT_DIGITS, '10', '12', '0'];
+
+  const tokensRemaining = () => Object.values(counts).reduce((s, n) => s + n, 0);
+  const canPlaceMoreEquals = (used: number) => {
+    const availableEquals = (counts['='] || 0) + (counts['?'] || 0);
+    return (requiredEquals - used) <= availableEquals;
+  };
+  const hasAnyOperatorAvailable = () => OPS.some(op => (counts[op] || 0) > 0) || (counts['+/-'] || 0) > 0 || (counts['×/÷'] || 0) > 0 || (counts['?'] || 0) > 0;
+
+  type Phase = 'start' | 'afterNumber' | 'afterOperator' | 'afterEquals';
+  const equationParts: string[] = [];
+
+  function consume(token: string) { counts[token] = (counts[token] || 0) - 1; }
+  function unconsume(token: string) { counts[token] = (counts[token] || 0) + 1; }
+
+  // function* sourcesForSymbol(symbol: string): Generator<string> {
+  //   if ((counts[symbol] || 0) > 0) yield symbol; // direct
+  //   if ((symbol === '+' || symbol === '-') && (counts['+/-'] || 0) > 0) yield '+/-';
+  //   if ((symbol === '×' || symbol === '÷') && (counts['×/÷'] || 0) > 0) yield '×/÷';
+  //   if ((counts['?'] || 0) > 0 && BLANK_REPLACEMENTS.includes(symbol)) yield '?';
+  // }
+
+  function yieldIfValid(eq: string, usedEquals: number) {
+    if (usedEquals !== requiredEquals) return;
+    try {
+      if (isValidEquationByRules(eq, requiredEquals)) results.add(eq);
+    } catch { /* ignore */ }
+  }
+
+  function canStartNumber(zeroAllowed: boolean): boolean {
+    // If only zeros/blanks left and zero not allowed, fail
+    if (!zeroAllowed) {
+      const nonZeroCandidate = HEAVY_NUMBERS.some(h => (counts[h] || 0) > 0) ||
+        LIGHT_DIGITS.some(d => (counts[d] || 0) > 0);
+      if (!nonZeroCandidate && (counts['?'] || 0) === 0) return false;
+    }
+    return (
+      HEAVY_NUMBERS.some(h => (counts[h] || 0) > 0) ||
+      LIGHT_DIGITS.some(d => (counts[d] || 0) > 0) ||
+      (counts['0'] || 0) > 0 ||
+      (counts['?'] || 0) > 0
+    );
+  }
+
+  function buildNumber(usedEquals: number, zeroAllowed: boolean) {
+    if (results.size >= MAX_RESULTS) return;
+
+    // Heavy numbers
+    for (const h of HEAVY_NUMBERS) {
+      if ((counts[h] || 0) > 0) {
+        equationParts.push(h); consume(h);
+        dfs('afterNumber', usedEquals);
+        unconsume(h); equationParts.pop();
+        if (results.size >= MAX_RESULTS) return;
       }
     }
-    
-    if (validEquations.length >= 10) {
-      break;
+    // Blank as limited heavy (10 or 12)
+    for (const h of ['10','12']) {
+      if ((counts['?'] || 0) > 0) {
+        // Use a blank to represent this heavy
+        consume('?'); equationParts.push(h);
+        dfs('afterNumber', usedEquals);
+        equationParts.pop(); unconsume('?');
+        if (results.size >= MAX_RESULTS) return;
+      }
+    }
+
+    // Zero
+    if (zeroAllowed && ((counts['0'] || 0) > 0 || (counts['?'] || 0) > 0)) {
+      if ((counts['0'] || 0) > 0) {
+        equationParts.push('0'); consume('0');
+        dfs('afterNumber', usedEquals);
+        unconsume('0'); equationParts.pop();
+      }
+      if (results.size >= MAX_RESULTS) return;
+      if ((counts['?'] || 0) > 0) {
+        equationParts.push('0'); consume('?');
+        dfs('afterNumber', usedEquals);
+        unconsume('?'); equationParts.pop();
+      }
+      if (results.size >= MAX_RESULTS) return;
+    }
+
+    // Compose light number from digits (1..9), up to length 3
+    const digits: string[] = [];
+    function addDigit() {
+      if (results.size >= MAX_RESULTS) return;
+      if (digits.length >= 3) return;
+      for (const d of LIGHT_DIGITS) {
+        // direct digit
+        if ((counts[d] || 0) > 0) {
+          digits.push(d); consume(d);
+          const num = digits.join('');
+          equationParts.push(num);
+          dfs('afterNumber', usedEquals);
+          equationParts.pop();
+          addDigit();
+          unconsume(d); digits.pop();
+          if (results.size >= MAX_RESULTS) return;
+        }
+        // blank as digit
+        if ((counts['?'] || 0) > 0) {
+          digits.push(d); consume('?');
+          const num = digits.join('');
+          equationParts.push(num);
+          dfs('afterNumber', usedEquals);
+          equationParts.pop();
+          addDigit();
+          unconsume('?'); digits.pop();
+          if (results.size >= MAX_RESULTS) return;
+        }
+      }
+    }
+    addDigit();
+  }
+
+  function dfs(phase: Phase, usedEquals: number) {
+    if (results.size >= MAX_RESULTS) return;
+    if (!canPlaceMoreEquals(usedEquals)) return;
+
+    if (tokensRemaining() === 0) {
+      if (phase === 'afterNumber' && usedEquals === requiredEquals) {
+        const eq = equationParts.join('');
+        yieldIfValid(eq, usedEquals);
+      }
+      return;
+    }
+
+    switch (phase) {
+      case 'start': {
+        if (!canStartNumber(true)) return;
+        buildNumber(usedEquals, true);
+        return;
+      }
+      case 'afterNumber': {
+        if (!hasAnyOperatorAvailable()) return;
+        // try equals
+        if (usedEquals < requiredEquals) {
+          // '=' direct or via blank
+          if ((counts['='] || 0) > 0) {
+            equationParts.push('='); consume('=');
+            dfs('afterEquals', usedEquals + 1);
+            unconsume('='); equationParts.pop();
+            if (results.size >= MAX_RESULTS) return;
+          }
+          if ((counts['?'] || 0) > 0) {
+            equationParts.push('='); consume('?');
+            dfs('afterEquals', usedEquals + 1);
+            unconsume('?'); equationParts.pop();
+            if (results.size >= MAX_RESULTS) return;
+          }
+        }
+        // try binary operators (+,-,×,÷) via direct, choice or blank
+        for (const op of OPS) {
+          // direct
+          if ((counts[op] || 0) > 0) {
+            equationParts.push(op); consume(op);
+            dfs('afterOperator', usedEquals);
+            unconsume(op); equationParts.pop();
+            if (results.size >= MAX_RESULTS) return;
+          }
+          // choice tokens
+          if ((op === '+' || op === '-') && (counts['+/-'] || 0) > 0) {
+            equationParts.push(op); consume('+/-');
+            dfs('afterOperator', usedEquals);
+            unconsume('+/-'); equationParts.pop();
+            if (results.size >= MAX_RESULTS) return;
+          }
+          if ((op === '×' || op === '÷') && (counts['×/÷'] || 0) > 0) {
+            equationParts.push(op); consume('×/÷');
+            dfs('afterOperator', usedEquals);
+            unconsume('×/÷'); equationParts.pop();
+            if (results.size >= MAX_RESULTS) return;
+          }
+          // blank as operator
+          if ((counts['?'] || 0) > 0 && BLANK_REPLACEMENTS.includes(op)) {
+            equationParts.push(op); consume('?');
+            dfs('afterOperator', usedEquals);
+            unconsume('?'); equationParts.pop();
+            if (results.size >= MAX_RESULTS) return;
+          }
+        }
+        return;
+      }
+      case 'afterOperator': {
+        if (!canStartNumber(true)) return;
+        buildNumber(usedEquals, true);
+        return;
+      }
+      case 'afterEquals': {
+        // optional unary minus before number: from '-', '+/-' or '?'
+        const tryUnary = () => {
+          // direct '-'
+          if ((counts['-'] || 0) > 0) {
+            equationParts.push('-'); consume('-');
+            if (canStartNumber(false)) buildNumber(usedEquals, false);
+            unconsume('-'); equationParts.pop();
+          }
+          // choice '+/-'
+          if ((counts['+/-'] || 0) > 0) {
+            equationParts.push('-'); consume('+/-');
+            if (canStartNumber(false)) buildNumber(usedEquals, false);
+            unconsume('+/-'); equationParts.pop();
+          }
+          // blank as '-'
+          if ((counts['?'] || 0) > 0) {
+            equationParts.push('-'); consume('?');
+            if (canStartNumber(false)) buildNumber(usedEquals, false);
+            unconsume('?'); equationParts.pop();
+          }
+        };
+        tryUnary();
+        if (results.size >= MAX_RESULTS) return;
+        if (canStartNumber(true)) buildNumber(usedEquals, true);
+        return;
+      }
     }
   }
 
-  return validEquations;
+  dfs('start', 0);
+  return Array.from(results).slice(0, MAX_RESULTS);
 }
 
 // ฟังก์ชันอื่นๆ ที่เหลือยังคงเหมือนเดิม (ไม่เปลี่ยนแปลง)
 
 /**
- * Create equation from permutation
+ * Deprecated: permutation-era helper. Not used by the current backtracking algorithm.
  */
-function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number): string | null {
+/* function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number): string | null {
   // Handle choice tokens FIRST before any processing
   const processedTokens = tokens.map(token => {
     if (token === '+/-') {
@@ -447,12 +663,12 @@ function createEquationFromPermutation(tokens: AmathToken[], equalsCount: number
   const equation = processed.join('');
   
   return equation;
-}
+} */
 
 /**
- * Combine adjacent numbers with improved logic
+ * Deprecated: permutation-era helper. Not used by the current backtracking algorithm.
  */
-function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
+/* function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
   const result: string[] = [];
   let i = 0;
 
@@ -495,12 +711,12 @@ function combineAdjacentNumbers(tokens: AmathToken[]): string[] {
   }
 
   return result;
-}
+} */
 
 /**
- * Check if token structure is valid
+ * Deprecated: permutation-era helper. Not used by the current backtracking algorithm.
  */
-function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
+/* function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
   if (tokens.length < 3) return false;
 
   // คำนึงว่า ? สามารถแทน = ได้
@@ -576,7 +792,7 @@ function isValidTokenStructure(tokens: string[], equalsCount: number): boolean {
   }
   
   return true;
-}
+} */
 
 /**
  * Check if equation is valid according to rules

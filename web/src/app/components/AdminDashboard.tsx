@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { Lightbulb, PartyPopper, BookOpen } from 'lucide-react';
 
 // Get API base URL from environment or use default
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dasc-anagram-generator-jet.vercel.app';
@@ -274,7 +275,8 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
               </div>
               <div>
                 <p className="text-sm text-green-800 font-medium">
-                  <strong>💡 Tip:</strong> Manage student approvals efficiently with this dashboard
+                  <Lightbulb size={16} className="inline mr-1" />
+                  <strong>Tip:</strong> Manage student approvals efficiently with this dashboard
                 </p>
                 <p className="text-xs text-green-600 mt-1">Debsirin School Management System</p>
               </div>
@@ -296,7 +298,16 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                     </svg>
                   </div>
                   <h3 className="text-lg font-semibold text-green-800 mb-2">
-                    {activeTab === 'pending' ? '🎉 No pending students' : '📚 No student data'}
+                    {activeTab === 'pending' ? 
+                      <>
+                        <PartyPopper size={16} className="inline mr-1" />
+                        No pending students
+                      </> : 
+                      <>
+                        <BookOpen size={16} className="inline mr-1" />
+                        No student data
+                      </>
+                    }
                   </h3>
                   <p className="text-green-600">
                     {activeTab === 'pending' ? 'All students have been processed successfully!' : 'No students in the system yet'}
@@ -310,15 +321,24 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                           <div className="flex items-center space-x-3 mb-4">
                           <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-yellow-500 rounded-xl flex items-center justify-center">
                             <span className="text-white font-bold text-lg">
-                              {student.firstName.charAt(0)}
+                              {typeof student.firstName === 'string' ? student.firstName.charAt(0) : '?'}
                             </span>
                           </div>
                           <div>
                             <h3 className="font-semibold text-green-800 text-lg">
-                              {student.firstName} {student.lastName}
-                              {student.nickname && (
-                                <span className="text-green-600 font-normal"> ({student.nickname})</span>
-                              )}
+                              {(() => {
+                                const firstName = typeof student.firstName === 'string' ? student.firstName : '';
+                                const lastName = typeof student.lastName === 'string' ? student.lastName : '';
+                                const nickname = typeof student.nickname === 'string' ? student.nickname : '';
+                                return (
+                                  <>
+                                    {firstName} {lastName}
+                                    {nickname && (
+                                      <span className="text-green-600 font-normal"> ({nickname})</span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </h3>
                             <div className="flex items-center space-x-2 mt-1">
                               {getStatusBadge(student.status)}
@@ -338,7 +358,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                             <span className="text-green-700">
-                              <strong>Username:</strong> {student.username}
+                              <strong>Username:</strong> {typeof student.username === 'string' ? student.username : 'Unknown'}
                             </span>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -346,7 +366,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                             <span className="text-green-700">
-                              <strong>School:</strong> {student.school}
+                              <strong>School:</strong> {typeof student.school === 'string' ? student.school : 'Unknown'}
                             </span>
                           </div>
                         </div>
@@ -358,7 +378,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                             </svg>
                             <div>
                               <span className="text-sm font-medium text-green-800">Purpose:</span>
-                              <p className="text-sm text-green-700 mt-1">{student.purpose}</p>
+                              <p className="text-sm text-green-700 mt-1">
+                                {typeof student.purpose === 'string' ? student.purpose : 'No purpose specified'}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -371,7 +393,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                               </svg>
                               <div>
                                 <span className="text-sm font-medium text-red-800">Rejection Reason:</span>
-                                <p className="text-sm text-red-700 mt-1">{student.rejectionReason}</p>
+                                <p className="text-sm text-red-700 mt-1">
+                                  {typeof student.rejectionReason === 'string' ? student.rejectionReason : 'No reason specified'}
+                                </p>
                               </div>
                             </div>
                           </div>
