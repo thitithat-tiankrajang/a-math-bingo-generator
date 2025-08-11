@@ -18,6 +18,7 @@ export default function AssignmentDetailPage() {
   const [saving, setSaving] = useState(false);
   const [students, setStudents] = useState<StudentAssignment[]>([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
+  const [expandedStudents, setExpandedStudents] = useState<Set<string>>(new Set());
 
 
   const assignmentId = params.id as string;
@@ -163,6 +164,27 @@ export default function AssignmentDetailPage() {
   const clearAllStudents = () => {
     console.log('Clearing all students from assignment...');
     setStudents([]);
+  };
+
+  const toggleStudentExpanded = (studentId: string) => {
+    setExpandedStudents(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(studentId)) {
+        newSet.delete(studentId);
+      } else {
+        newSet.add(studentId);
+      }
+      return newSet;
+    });
+  };
+
+  const expandAllStudents = () => {
+    const allStudentIds = students.map(s => s.studentId);
+    setExpandedStudents(new Set(allStudentIds));
+  };
+
+  const collapseAllStudents = () => {
+    setExpandedStudents(new Set());
   };
 
   // const handleStatusChange = async (studentId: string, newStatus: string) => {
@@ -446,24 +468,43 @@ export default function AssignmentDetailPage() {
             <h2 className="text-xl font-semibold text-gray-900">
               Student Management ({students.length})
             </h2>
-            {editing && (
-              <div className="flex space-x-2">
-                <Button
-                  onClick={selectAllStudents}
-                  variant="outline"
-                  size="sm"
-                >
-                  Select All
-                </Button>
-                <Button
-                  onClick={clearAllStudents}
-                  variant="outline"
-                  size="sm"
-                >
-                  Clear All
-                </Button>
-              </div>
-            )}
+            <div className="flex space-x-2">
+              {editing ? (
+                <>
+                  <Button
+                    onClick={selectAllStudents}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Select All
+                  </Button>
+                  <Button
+                    onClick={clearAllStudents}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Clear All
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={expandAllStudents}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Expand All
+                  </Button>
+                  <Button
+                    onClick={collapseAllStudents}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Collapse All
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {editing ? (
@@ -557,8 +598,31 @@ export default function AssignmentDetailPage() {
                           </div>
                         </div>
                         <div className="mt-3 border-t pt-3">
-                          <h5 className="font-medium text-gray-900 mb-2">Submitted Answers</h5>
-                          <p className="text-gray-500 text-sm">Student data not available</p>
+                          <div className="group">
+                            <button 
+                              onClick={() => toggleStudentExpanded(studentAssignment.studentId)}
+                              className="flex items-center justify-between w-full cursor-pointer bg-gray-50 hover:bg-gray-100 rounded-lg p-2 transition-colors duration-200"
+                            >
+                              <h5 className="font-medium text-gray-900">
+                                Submitted Answers (0)
+                              </h5>
+                              <svg 
+                                className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                                  expandedStudents.has(studentAssignment.studentId) ? 'rotate-180' : ''
+                                }`}
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                            {expandedStudents.has(studentAssignment.studentId) && (
+                              <div className="mt-3">
+                                <p className="text-gray-500 text-sm">Student data not available</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -627,33 +691,54 @@ export default function AssignmentDetailPage() {
 
                       {/* Always show answers for admin view */}
                       <div className="mt-3 border-t pt-3">
-                        <h5 className="font-medium text-gray-900 mb-2">Submitted Answers</h5>
-                        {studentAssignment.answers && studentAssignment.answers.length > 0 ? (
-                          <div className="space-y-3">
-                            {studentAssignment.answers.map((answer, index) => (
-                              <div key={index} className="border border-gray-200 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-medium text-gray-700">
-                                    Question {answer.questionNumber}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {formatDate(answer.answeredAt)}
-                                  </span>
-                                </div>
-                                <div className="mb-2">
-                                  <p className="text-sm text-gray-600 mb-1">
-                                    <strong>Question:</strong> {answer.questionText}
-                                  </p>
-                                  <p className="text-sm text-gray-900">
-                                    <strong>Answer:</strong> {answer.answerText}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-gray-500 text-sm">No answers submitted yet.</p>
-                        )}
+                        <div className="group">
+                          <button 
+                            onClick={() => toggleStudentExpanded(studentAssignment.studentId)}
+                            className="flex items-center justify-between w-full cursor-pointer bg-gray-50 hover:bg-gray-100 rounded-lg p-2 transition-colors duration-200"
+                          >
+                            <h5 className="font-medium text-gray-900">
+                              Submitted Answers ({studentAssignment.answers?.length || 0})
+                            </h5>
+                            <svg 
+                              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                                expandedStudents.has(studentAssignment.studentId) ? 'rotate-180' : ''
+                              }`}
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {expandedStudents.has(studentAssignment.studentId) && (
+                            <div className="mt-3 space-y-3">
+                              {studentAssignment.answers && studentAssignment.answers.length > 0 ? (
+                                studentAssignment.answers.map((answer, index) => (
+                                  <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-medium text-gray-700">
+                                        Question {answer.questionNumber}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {formatDate(answer.answeredAt)}
+                                      </span>
+                                    </div>
+                                    <div className="mb-2">
+                                      <p className="text-sm text-gray-600 mb-1">
+                                        <strong>Question:</strong> {answer.questionText}
+                                      </p>
+                                      <p className="text-sm text-gray-900">
+                                        <strong>Answer:</strong> {answer.answerText}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-gray-500 text-sm">No answers submitted yet.</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

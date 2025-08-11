@@ -474,14 +474,20 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 <div className="flex items-center space-x-3 mb-4 p-3 bg-gray-50 rounded-lg">
                   <div className="w-10 h-10 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl flex items-center justify-center">
                     <span className="text-white font-bold">
-                      {selectedStudent.firstName.charAt(0)}
+                      {typeof selectedStudent.firstName === 'string' ? selectedStudent.firstName.charAt(0) : '?'}
                     </span>
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">
-                      {selectedStudent.firstName} {selectedStudent.lastName}
+                      {(() => {
+                        const firstName = typeof selectedStudent.firstName === 'string' ? selectedStudent.firstName : '';
+                        const lastName = typeof selectedStudent.lastName === 'string' ? selectedStudent.lastName : '';
+                        return `${firstName} ${lastName}`.trim() || 'Unknown Name';
+                      })()}
                     </p>
-                    <p className="text-sm text-gray-500">{selectedStudent.username}</p>
+                    <p className="text-sm text-gray-500">
+                      {typeof selectedStudent.username === 'string' ? selectedStudent.username : 'Unknown'}
+                    </p>
                   </div>
                 </div>
 
