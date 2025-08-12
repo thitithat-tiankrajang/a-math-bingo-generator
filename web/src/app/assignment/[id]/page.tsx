@@ -128,10 +128,10 @@ export default function AssignmentDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-6 flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-          <span className="text-gray-600">กำลังโหลดงาน...</span>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+          <span className="text-[var(--brand-dark)] font-medium">กำลังโหลดงาน...</span>
         </div>
       </div>
     );
@@ -203,7 +203,7 @@ export default function AssignmentDetailPage() {
   // If assignment hasn't been started yet
   if (progress?.status === 'todo') {
     return (
-      <div className="min-h-screen bg-green-900 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">
             <div className="mb-6">
@@ -292,7 +292,7 @@ export default function AssignmentDetailPage() {
 
   // Main assignment interface (similar to play page but assignment-focused)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">

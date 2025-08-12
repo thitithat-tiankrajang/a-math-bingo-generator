@@ -1140,16 +1140,16 @@ mainText.style.textAlign = 'center';
   };
 
   return (
-    <div className="bg-green-100 rounded-lg shadow-lg p-6 border border-green-200">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-green-900">
-            <Target className="inline mr-2" size={20} />
-            DASC Bingo Problem
+          <h2 className="text-2xl font-bold text-[var(--brand-dark)]">
+            <Target className="inline mr-2" size={24} />
+            🎯 DASC Bingo Problem
           </h2>
           {result && (
-            <div className="text-sm text-green-800 bg-yellow-100 px-3 py-1 rounded-full">
-              {result.elements.length} tiles
+            <div className="text-sm text-[var(--brand-dark)] bg-[var(--brand-accent-light)] px-3 py-1 rounded-full font-medium border border-[var(--brand-secondary)]">
+              🎲 {result.elements.length} tiles
             </div>
           )}
         </div>

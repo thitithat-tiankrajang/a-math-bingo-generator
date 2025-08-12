@@ -84,53 +84,65 @@ export default function AnswerArea({
 }: AnswerAreaProps) {
   return (
     <div className="space-y-4" id="answer-section">
-      <div className={`flex items-center justify-between ${showChoicePopup ? '' : ''}`}>
-        <h3 className="text-lg font-semibold text-purple-900 border-b pb-2">
-          Your Answer
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${showChoicePopup ? '' : ''}`}>
+        <h3 className="text-lg font-semibold text-[var(--brand-dark)] border-b-2 border-[var(--brand-secondary)] pb-2">
+          ✏️ Your Answer
         </h3>
         <div className="flex items-center gap-2">
           {/* Save Image Button */}
           {onSaveProblemImage && (
-            <ChildButton onClick={onSaveProblemImage} className="px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600">
+            <ChildButton 
+              onClick={onSaveProblemImage} 
+              className="px-3 py-1 text-xs bg-[var(--brand)] text-[var(--color-on-brand)] hover:bg-[var(--brand-medium)] rounded-lg shadow-sm font-medium border border-[var(--brand-secondary)]"
+            >
               💾 Save Image
             </ChildButton>
           )}
           {/* Reset button */}
           <ChildButton
             onClick={onResetOrder}
-            className="text-xs px-3 py-1"
+            className="text-xs px-3 py-1 bg-amber-100 text-amber-800 hover:bg-amber-200 rounded-lg border border-amber-300 font-medium"
           >
-            Reset
+            🔄 Reset
           </ChildButton>
           <ChildButton
             onClick={onClearAllAnswers}
-            className="text-xs px-3 py-1"
+            className="text-xs px-3 py-1 bg-red-100 text-red-800 hover:bg-red-200 rounded-lg border border-red-300 font-medium"
           >
-            Clear All
+            🗑️ Clear All
           </ChildButton>
           {/* Undo/Redo Buttons */}
           {onUndo && (
             <ChildButton 
               onClick={onUndo} 
               disabled={!canUndo} 
-              className="text-xs px-3 py-1">
-              Undo
+              className="text-xs px-3 py-1 bg-[var(--brand-secondary)] text-[var(--color-on-brand)] hover:bg-[var(--brand)] rounded-lg border border-[var(--brand)] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ↶ Undo
             </ChildButton>
           )}
           {onRedo && (
             <ChildButton 
               onClick={onRedo} 
               disabled={!canRedo} 
-              className="text-xs px-3 py-1">
-              Redo
+              className="text-xs px-3 py-1 bg-[var(--brand-secondary)] text-[var(--color-on-brand)] hover:bg-[var(--brand)] rounded-lg border border-[var(--brand)] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ↷ Redo
             </ChildButton>
           )}
         </div>
       </div>
       
-      {/* Answer Boxes - single row */}
+      {/* Answer Boxes - responsive grid for mobile, flex for desktop */}
       <div 
-        className={`flex gap-1 sm:gap-2 justify-center p-6 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl shadow-lg border-2 border-purple-300 min-h-[100px] relative overflow-x-auto ${showChoicePopup ? 'z-30' : ''}`}
+        className={`
+          grid grid-cols-4 sm:flex sm:flex-wrap lg:grid-cols-none lg:flex lg:justify-center
+          gap-1 sm:gap-2 p-4 sm:p-6 
+          bg-gradient-to-br from-[var(--brand-secondary-light)] to-[var(--brand-accent-light)] 
+          rounded-xl shadow-lg border-2 border-[var(--brand-secondary)] 
+          min-h-[100px] relative overflow-hidden
+          ${showChoicePopup ? 'z-30' : ''}
+        `}
         data-answer-container
         onDragOver={(e) => {
           e.preventDefault();
@@ -303,32 +315,36 @@ export default function AnswerArea({
       
       {/* Submit Section */}
       <div className={`flex flex-col items-center gap-3 ${showChoicePopup ? 'blur-sm opacity-60' : ''}`}>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
           <ChildButton
             onClick={onSubmitAnswer}
             disabled={isCheckingAnswer || answerTiles.every(tile => tile === null)}
-            className={`px-6 py-3 text-lg font-bold border-2 transition-all duration-200 ${
+            className={`px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-lg font-bold border-2 rounded-lg transition-all duration-200 ${
               isCheckingAnswer || answerTiles.every(tile => tile === null)
+                ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
+                : 'bg-[var(--brand)] text-[var(--color-on-brand)] border-[var(--brand-secondary)] hover:bg-[var(--brand-medium)] shadow-md'
             }`}
           >
-            {isCheckingAnswer ? 'Selecting...' : 'Select Operator'}
+            {isCheckingAnswer ? '🔄 Selecting...' : '🎯 Select Operator'}
           </ChildButton>
           
           {/* Show Check Equation button - always visible but disabled when not ready */}
           <ChildButton
             onClick={onValidateEquationWithChoices}
             disabled={isCheckingAnswer || !hasAllChoicesSelected()}
-            className={`px-6 py-3 text-lg font-bold border-2 transition-all duration-200 ${
+            className={`px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-lg font-bold border-2 rounded-lg transition-all duration-200 ${
               isCheckingAnswer || !hasAllChoicesSelected()
+                ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
+                : 'bg-[var(--brand-accent)] text-[var(--color-on-brand)] border-[var(--brand-secondary)] hover:bg-[var(--brand-secondary)] shadow-md'
             }`}
           >
-            {isCheckingAnswer ? 'Checking...' : 'Check Equation'}
+            {isCheckingAnswer ? '⏳ Checking...' : '✅ Check Equation'}
           </ChildButton>
           
-          <div className="text-sm text-gray-600">
-            Answer: {answerTiles.filter(tile => tile !== null).length} | 
-            Rack: {rackTilesCount} | 
-            Total: {answerTiles.filter(tile => tile !== null).length + rackTilesCount} / {totalTilesCount}
+          <div className="text-sm text-[var(--brand-medium)] font-medium bg-[var(--brand-accent-light)] px-3 py-1 rounded-full border border-[var(--brand-secondary)]">
+            📊 Answer: {answerTiles.filter(tile => tile !== null).length} | 
+            🎲 Rack: {rackTilesCount} | 
+            🎯 Total: {answerTiles.filter(tile => tile !== null).length + rackTilesCount} / {totalTilesCount}
           </div>
         </div>
       </div>

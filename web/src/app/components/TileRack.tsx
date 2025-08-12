@@ -41,14 +41,21 @@ export default function TileRack({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-green-900 border-b pb-2">
-          Problem Set
+        <h3 className="text-lg font-semibold text-[var(--brand-dark)] border-b-2 border-[var(--brand-secondary)] pb-2">
+          🧮 Problem Set
         </h3>
       </div>
       
-      {/* Tile rack: single row responsive layout with visible empty slots */}
+      {/* Tile rack: responsive grid layout for mobile, horizontal for desktop */}
       <div
-        className={`flex gap-1 sm:gap-2 justify-center p-3 bg-amber-50 rounded-lg shadow-sm border-2 border-amber-200 relative overflow-x-auto ${showChoicePopup ? 'blur-sm opacity-60' : ''}`}
+        className={`
+          grid grid-cols-4 sm:flex sm:flex-wrap lg:grid-cols-none lg:flex lg:justify-center
+          gap-1 sm:gap-2 p-3 sm:p-4
+          bg-[var(--brand-accent-light)] rounded-lg shadow-lg 
+          border-2 border-[var(--brand-secondary)]
+          relative overflow-hidden
+          ${showChoicePopup ? 'blur-sm opacity-60' : ''}
+        `}
         onDragOver={onRackDragOver}
         onDragLeave={onRackDragLeave}
         onDrop={onRackDrop}

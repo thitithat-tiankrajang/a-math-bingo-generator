@@ -1,5 +1,12 @@
 import React from 'react';
 
+interface AnswerTile {
+  value: string;
+  sourceIndex: number;
+  tileId: string;
+  choiceSelection?: string;
+}
+
 interface AnswerFeedbackProps {
   answerFeedback: { type: 'success' | 'error'; message: string } | null;
   assignmentMode?: boolean;
@@ -17,7 +24,7 @@ interface AnswerFeedbackProps {
     };
   } | null;
   finalizeEquation: () => string;
-  answerTiles: any[];
+  answerTiles: (AnswerTile | null)[];
   onValidEquation?: (equation: string) => void;
   setAnswerFeedback: (feedback: { type: 'success' | 'error'; message: string } | null) => void;
   setIsSubmittingAnswer: (submitting: boolean) => void;
@@ -25,15 +32,6 @@ interface AnswerFeedbackProps {
 
 export default function AnswerFeedback({
   answerFeedback,
-  assignmentMode,
-  onSubmitAnswer,
-  isSubmittingAnswer,
-  activeAssignment,
-  finalizeEquation,
-  answerTiles,
-  onValidEquation,
-  setAnswerFeedback,
-  setIsSubmittingAnswer,
 }: AnswerFeedbackProps) {
   if (!answerFeedback) return null;
 

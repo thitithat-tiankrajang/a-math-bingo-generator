@@ -25,6 +25,12 @@ interface AdminDashboardProps {
   onClose: () => void;
 }
 
+interface Notification {
+  type: 'success' | 'error';
+  message: string;
+  studentName?: string;
+}
+
 export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const { token } = useAuth();
   const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
@@ -36,6 +42,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const [processing, setProcessing] = useState<string | null>(null);
   const [studentToApprove, setStudentToApprove] = useState<Student | null>(null);
   const [studentToReject, setStudentToReject] = useState<Student | null>(null);
+  const [notification, setNotification] = useState<Notification | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -106,19 +113,36 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       // console.log('🔍 Response status:', response.status);
       
       if (response.ok) {
-        // const result = await response.json();
-              // console.log('🔍 Approval successful:', result);
-      // console.log('🔍 Approved student data:', studentToApprove);
-      alert(`Student ${studentToApprove?.firstName} ${studentToApprove?.lastName} approved successfully`);
-      fetchStudents();
+        const result = await response.json();
+        console.log('🔍 Approval successful:', result);
+        console.log('🔍 Approved student data:', studentToApprove);
+        
+        const studentName = studentToApprove ? 
+          `${studentToApprove.firstName || ''} ${studentToApprove.lastName || ''}`.trim() || 
+          studentToApprove.username || 
+          'Unknown Student' : 
+          'Unknown Student';
+        
+        setNotification({
+          type: 'success',
+          message: 'Student approved successfully',
+          studentName
+        });
+        fetchStudents();
       } else {
         const error = await response.json();
         console.error('🔍 Approval error:', error);
-        alert(`Error: ${error.message}`);
+        setNotification({
+          type: 'error',
+          message: error.message || 'Failed to approve student'
+        });
       }
     } catch (error) {
       console.error('Error approving student:', error);
-      alert('Error approving student');
+      setNotification({
+        type: 'error',
+        message: 'Error approving student'
+      });
     } finally {
       setProcessing(null);
       setStudentToApprove(null);
@@ -127,7 +151,10 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
   const handleReject = async (student: Student) => {
     if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+      setNotification({
+        type: 'error',
+        message: 'Please provide a rejection reason'
+      });
       return;
     }
 
@@ -153,17 +180,34 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         const result = await response.json();
         console.log('🔍 Rejection successful:', result);
         console.log('🔍 Rejected student data:', studentToReject);
-        alert(`Student ${studentToReject?.firstName} ${studentToReject?.lastName} rejected successfully`);
+        
+        const studentName = studentToReject ? 
+          `${studentToReject.firstName || ''} ${studentToReject.lastName || ''}`.trim() || 
+          studentToReject.username || 
+          'Unknown Student' : 
+          'Unknown Student';
+        
+        setNotification({
+          type: 'success',
+          message: 'Student rejected successfully',
+          studentName
+        });
         setRejectionReason('');
         setSelectedStudent(null);
         fetchStudents();
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message}`);
+        setNotification({
+          type: 'error',
+          message: error.message || 'Failed to reject student'
+        });
       }
     } catch (error) {
       console.error('Error rejecting student:', error);
-      alert('Error rejecting student');
+      setNotification({
+        type: 'error',
+        message: 'Error rejecting student'
+      });
     } finally {
       setProcessing(null);
       setStudentToReject(null);
@@ -174,6 +218,20 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     setSelectedStudent(null);
     setRejectionReason('');
   };
+
+  const closeNotification = () => {
+    setNotification(null);
+  };
+
+  // Auto-hide notification after 5 seconds
+  React.useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const getStudentId = (student: Student): string => {
     return student.id || student._id || '';
@@ -195,7 +253,55 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const students = activeTab === 'pending' ? pendingStudents : allStudents;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <>
+      {/* Notification Toast */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-60 max-w-sm w-full animate-in slide-in-from-right-2 duration-300">
+          <div className={`rounded-lg shadow-lg p-4 border-l-4 ${
+            notification.type === 'success' 
+              ? 'bg-green-50 border-green-400 text-green-800' 
+              : 'bg-red-50 border-red-400 text-red-800'
+          }`}>
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                {notification.type === 'success' ? (
+                  <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="ml-3 flex-1">
+                <p className="text-sm font-medium">
+                  {notification.studentName && (
+                    <span className="font-semibold">{notification.studentName}</span>
+                  )}
+                  {' '}{notification.message}
+                </p>
+              </div>
+              <div className="ml-4 flex-shrink-0">
+                <button
+                  onClick={closeNotification}
+                  className={`inline-flex rounded-md p-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                    notification.type === 'success'
+                      ? 'text-green-400 hover:text-green-600 focus:ring-green-500'
+                      : 'text-red-400 hover:text-red-600 focus:ring-red-500'
+                  }`}
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -542,5 +648,6 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         )}
       </div>
     </div>
+    </>
   );
 }

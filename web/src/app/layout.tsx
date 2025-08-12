@@ -33,12 +33,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-green-100`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[var(--brand-dark)] text-white`}
       >
         <AuthProvider>
           <UndoRedoProvider>
             <NavbarWrapper />
-            <main className="min-h-screen bg-green-100">
+            <main className="min-h-screen bg-[var(--brand-dark)] text-white">
               {children}
             </main>
           </UndoRedoProvider>

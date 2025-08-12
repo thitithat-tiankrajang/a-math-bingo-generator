@@ -195,10 +195,10 @@ function PlayPageContent() {
 
   if (isLoading || checkingAssignment) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-6 flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-          <span className="text-gray-600">Loading...</span>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+          <span className="text-[var(--brand-dark)] font-medium">Loading...</span>
         </div>
       </div>
     );
@@ -206,13 +206,13 @@ function PlayPageContent() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h1>
-          <p className="text-gray-600 mb-6">Please log in to access the equation anagram generator.</p>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="text-center bg-white rounded-lg shadow-xl p-8 border-2 border-[var(--brand-secondary)]">
+          <h1 className="text-2xl font-bold text-[var(--brand-dark)] mb-4">Authentication Required 🔐</h1>
+          <p className="text-[var(--brand-medium)] mb-6">Please log in to access the equation anagram generator.</p>
           <Link
             href="/login"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-[var(--brand)] text-[var(--color-on-brand)] font-medium rounded-lg hover:bg-[var(--brand-medium)] transition-colors shadow-md"
           >
             Go to Login
           </Link>
@@ -222,43 +222,43 @@ function PlayPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-green-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] py-8">
       <div className="container mx-auto px-4">
         {/* Assignment Status Bar */}
         {activeAssignment && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+          <div className="bg-white border-2 border-[var(--brand-secondary)] rounded-lg p-6 mb-6 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-                  <span className="font-medium text-blue-900">Assignment Mode</span>
+                  <div className="w-3 h-3 bg-[var(--brand)] rounded-full animate-pulse"></div>
+                  <span className="font-bold text-[var(--brand-dark)] text-lg">📝 Assignment Mode</span>
                 </div>
-                <div className="text-blue-700">
-                  <span className="font-semibold">{activeAssignment.title}</span>
-                  <span className="mx-2">•</span>
-                  <span>
-                    Progress: {activeAssignment.studentProgress?.answeredQuestions || 0}/{activeAssignment.totalQuestions}
-                  </span>
-                  {currentSetInfo?.currentSet && (
-                    <>
-                      <span className="mx-2">•</span>
-                      <span>Set {currentSetInfo.currentSetIndex + 1}/{currentSetInfo.totalSets} ({currentSetInfo.questionsCompleted}/{currentSetInfo.currentSet?.numQuestions})</span>
-                    </>
-                  )}
+                <div className="text-[var(--brand-medium)] space-y-1 sm:space-y-0">
+                  <div className="font-semibold text-[var(--brand-dark)]">{activeAssignment.title}</div>
+                  <div className="text-sm flex flex-wrap gap-x-4 gap-y-1">
+                    <span className="bg-[var(--brand-accent-light)] px-2 py-1 rounded-full text-[var(--brand-dark)] font-medium">
+                      Progress: {activeAssignment.studentProgress?.answeredQuestions || 0}/{activeAssignment.totalQuestions}
+                    </span>
+                    {currentSetInfo?.currentSet && (
+                      <span className="bg-[var(--brand-secondary-light)] px-2 py-1 rounded-full text-[var(--brand-dark)] font-medium">
+                        Set {currentSetInfo.currentSetIndex + 1}/{currentSetInfo.totalSets} ({currentSetInfo.questionsCompleted}/{currentSetInfo.currentSet?.numQuestions})
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Link
                   href={`/assignment/${activeAssignment.id}`}
-                  className="text-blue-600 hover:text-blue-800 text-sm underline"
+                  className="px-3 py-2 bg-[var(--brand)] text-[var(--color-on-brand)] rounded-lg hover:bg-[var(--brand-medium)] transition-colors text-sm font-medium shadow-sm"
                 >
-                  View Assignment
+                  📊 View Assignment
                 </Link>
                 <button
                   onClick={handleExitAssignment}
-                  className="px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors text-sm"
+                  className="px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium border-2 border-red-200"
                 >
-                  Exit Assignment
+                  🚪 Exit Assignment
                 </button>
               </div>
             </div>
@@ -282,10 +282,10 @@ function PlayPageContent() {
 export default function PlayPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-6 flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-          <span className="text-gray-600">Loading...</span>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+          <span className="text-[var(--brand-dark)] font-medium">Loading...</span>
         </div>
       </div>
     }>

@@ -30,10 +30,10 @@ const disabledClasses: Record<string, string> = {
 
 // New variant classes
 const variantClasses: Record<string, string> = {
-  primary: 'bg-blue-600 hover:bg-blue-700 text-white border-transparent',
-  secondary: 'bg-gray-600 hover:bg-gray-700 text-white border-transparent',
-  outline: 'bg-transparent hover:bg-blue-50 text-blue-600 border-blue-600 hover:border-blue-700',
-  ghost: 'bg-transparent hover:bg-gray-100 text-gray-700 border-transparent',
+  primary: 'bg-[var(--brand)] hover:bg-[color:oklch(var(--brand)/0.9)] text-[var(--color-on-brand)] border-transparent',
+  secondary: 'bg-[var(--brand-secondary)] hover:bg-[color:oklch(var(--brand-secondary)/0.9)] text-[var(--color-on-brand)] border-transparent',
+  outline: 'bg-transparent hover:bg-[color:oklch(var(--brand)/0.1)] text-[var(--brand)] border-[var(--brand)] hover:border-[color:oklch(var(--brand)/0.9)]',
+  ghost: 'bg-transparent hover:bg-[color:oklch(var(--brand-dark)/0.2)] text-white border-transparent',
   danger: 'bg-red-600 hover:bg-red-700 text-white border-transparent',
 };
 
@@ -68,7 +68,7 @@ export default function Button({
       : colorClasses[color] || colorClasses.green;
   } else {
     // New variant system
-    const baseClasses = 'rounded-lg font-medium border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500';
+    const baseClasses = 'rounded-lg font-medium border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--brand-accent)]';
     const variantClass = variantClasses[variant] || variantClasses.primary;
     const sizeClass = sizeClasses[size] || sizeClasses.md;
     const widthClass = fullWidth ? 'w-full' : '';

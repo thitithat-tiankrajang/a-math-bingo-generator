@@ -1,21 +1,68 @@
 @import "tailwindcss";
 
 :root {
-  --background: #1B4332; /* dark green */
-  --foreground: #FFFFFF; /* white text for better contrast */
+  /* Brand palette */
+  --brand-accent: #FFF67E;   /* bright accent */
+  --brand-secondary: #BFEA7C;/* light green */
+  --brand: #9BCF53;          /* brand green */
+  --brand-dark: #416D19;     /* dark green */
+
+  /* Extended palette for better design */
+  --brand-accent-light: #FFFADB;   /* very light accent for backgrounds */
+  --brand-secondary-light: #E8F5C8; /* very light green for content areas */
+  --brand-light: #D4E8A8;           /* light version of brand */
+  --brand-medium: #7BA142;          /* medium green */
+  
+  /* App-level background/foreground */
+  --background: var(--brand-dark);
+  --foreground: #FFFFFF; /* always ensure max contrast on dark bg */
+  
+  /* Content area colors */
+  --content-bg: #FFFFFF;            /* main content background */
+  --content-bg-soft: var(--brand-accent-light); /* soft content background */
+  --content-border: var(--brand-secondary);     /* content borders */
 }
 
 @theme inline {
+  /* App tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-medium: var(--brand-medium);
+  --color-brand-light: var(--brand-light);
+  --color-secondary: var(--brand-secondary);
+  --color-secondary-light: var(--brand-secondary-light);
+  --color-accent: var(--brand-accent);
+  --color-accent-light: var(--brand-accent-light);
+  --color-content-bg: var(--content-bg);
+  --color-content-bg-soft: var(--content-bg-soft);
+  --color-content-border: var(--content-border);
+
+  /* High-contrast text tokens */
+  --color-on-brand: #1a1a1a;       /* text on brand/secondary/accent backgrounds */
+  --color-on-brand-dark: #ffffff;  /* text on brand-dark backgrounds */
+
+  /* Remap popular green scale to brand palette for global theming */
+  --color-green-950: var(--brand-dark);
+  --color-green-900: var(--brand-dark);
+  --color-green-800: var(--brand-dark);
+  --color-green-700: var(--brand-dark);
+  --color-green-600: var(--brand);
+  --color-green-500: var(--brand);
+  --color-green-400: var(--brand-secondary);
+  --color-green-300: var(--brand-secondary);
+  --color-green-200: var(--brand-secondary);
+  --color-green-100: var(--brand-accent);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0F2E1C; /* even darker green for dark mode */
-    --foreground: #FFFFFF; /* white text for better contrast */
+    --background: #2E5612; /* keep dark, close to brand-dark for dark mode */
+    --foreground: #FFFFFF;
   }
 }
 

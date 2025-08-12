@@ -187,10 +187,10 @@ export default function AssignmentPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-green-800 rounded-lg shadow-md p-6 flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          <span className="text-white">Loading...</span>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+          <span className="text-[var(--brand-dark)] font-medium">Loading...</span>
         </div>
       </div>
     );
@@ -198,13 +198,13 @@ export default function AssignmentPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Access Denied</h1>
-          <p className="text-green-100 mb-6">Please log in to view your assignments.</p>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="text-center bg-white rounded-lg shadow-xl p-8 border-2 border-[var(--brand-secondary)]">
+          <h1 className="text-2xl font-bold text-[var(--brand-dark)] mb-4">Access Denied 🚫</h1>
+          <p className="text-[var(--brand-medium)] mb-6">Please log in to view your assignments.</p>
           <Link
             href="/login"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-[var(--brand)] text-[var(--color-on-brand)] font-medium rounded-lg hover:bg-[var(--brand-medium)] transition-colors shadow-md"
           >
             Go to Login
           </Link>
@@ -214,14 +214,14 @@ export default function AssignmentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-green-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            {user?.user?.role === 'admin' ? 'Assignment Management' : 'My Assignments'}
+        <div className="mb-8 bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)]">
+          <h1 className="text-3xl font-bold text-[var(--brand-dark)] mb-2">
+            {user?.user?.role === 'admin' ? '📚 Assignment Management' : '📝 My Assignments'}
           </h1>
-          <p className="text-green-100">
+          <p className="text-[var(--brand-medium)] text-lg mb-4">
             {user?.user?.role === 'admin' 
               ? 'Create and manage assignments for your students.' 
               : 'Track your progress and complete your assignments.'
@@ -230,7 +230,7 @@ export default function AssignmentPage() {
           {user?.user?.role === 'admin' && (
             <Link
               href="/allassignment"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-[var(--brand)] text-[var(--color-on-brand)] font-medium rounded-lg hover:bg-[var(--brand-medium)] transition-colors shadow-md"
             >
               Create New Assignment
             </Link>
@@ -239,16 +239,18 @@ export default function AssignmentPage() {
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-            <p className="text-green-100">Loading assignments...</p>
+            <div className="bg-white rounded-lg shadow-xl p-8 border-2 border-[var(--brand-secondary)] max-w-md mx-auto">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--brand)] mx-auto mb-4"></div>
+              <p className="text-[var(--brand-dark)] font-medium">Loading assignments...</p>
+            </div>
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <div className="bg-red-900/50 border border-red-700 rounded-lg p-6 max-w-md mx-auto">
-              <p className="text-red-200 mb-4">{error}</p>
+            <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 max-w-md mx-auto shadow-xl">
+              <p className="text-red-800 mb-4 font-medium">{error}</p>
               <button
                 onClick={() => loadAssignments()}
-                className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-600 transition-colors"
+                className="px-6 py-3 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors shadow-md"
               >
                 Try Again
               </button>
@@ -256,10 +258,10 @@ export default function AssignmentPage() {
           </div>
         ) : assignments.length === 0 ? (
           <div className="text-center py-12">
-            <div className="bg-green-800/50 border border-green-700 rounded-lg p-6 max-w-md mx-auto">
-              <BookOpen size={64} className="text-green-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">No Assignments</h3>
-              <p className="text-green-100 mb-4">
+            <div className="bg-white rounded-lg shadow-xl p-8 border-2 border-[var(--brand-secondary)] max-w-md mx-auto">
+              <BookOpen size={64} className="text-[var(--brand-accent)] mx-auto mb-4 drop-shadow-md" />
+              <h3 className="text-xl font-semibold text-[var(--brand-dark)] mb-2">No Assignments</h3>
+              <p className="text-[var(--brand-medium)] mb-4">
                 {user?.user?.role === 'admin' 
                   ? 'No assignments have been created yet.' 
                   : 'You don\'t have any assignments at the moment.'
@@ -268,7 +270,7 @@ export default function AssignmentPage() {
               {user?.user?.role === 'admin' && (
                 <Link
                   href="/allassignment"
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center px-6 py-3 bg-[var(--brand)] text-[var(--color-on-brand)] font-medium rounded-lg hover:bg-[var(--brand-medium)] transition-colors shadow-md"
                 >
                   Create First Assignment
                 </Link>
@@ -287,27 +289,27 @@ export default function AssignmentPage() {
                 const statistics = assignment.statistics;
 
                 const CardContent = () => (
-                  <div className="bg-green-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform group-hover:-translate-y-1 overflow-hidden border border-green-700">
+                  <div className="bg-white rounded-lg shadow-xl hover:shadow-2xl transition-all duration-200 transform group-hover:-translate-y-1 overflow-hidden border-2 border-[var(--brand-secondary)]">
                     {/* Header */}
                     <div className="p-6 pb-0">
                       <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-lg font-semibold text-white group-hover:text-blue-300 transition-colors line-clamp-2">
+                        <h3 className="text-lg font-semibold text-[var(--brand-dark)] group-hover:text-[var(--brand)] transition-colors line-clamp-2">
                           {assignment.title}
                         </h3>
                         {isAdmin ? (
-                          <div className="flex items-center px-2 py-1 rounded-full text-xs font-medium border bg-purple-200 text-purple-800 border-purple-300">
+                          <div className="flex items-center px-3 py-1.5 rounded-full text-xs font-medium border-2 bg-purple-100 text-purple-800 border-purple-300">
                             <span className="mr-1">👨‍🏫</span>
                             Admin
                           </div>
                         ) : (
-                          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(progress?.status || 'todo')}`}>
+                          <div className={`flex items-center px-3 py-1.5 rounded-full text-xs font-medium border-2 ${getStatusColor(progress?.status || 'todo')}`}>
                             <span className="mr-1">{getStatusIcon(progress?.status || 'todo')}</span>
                             {getStatusText(progress?.status || 'todo')}
                           </div>
                         )}
                       </div>
                       
-                      <p className="text-green-100 text-sm mb-4 line-clamp-2">
+                      <p className="text-[var(--brand-medium)] text-sm mb-4 line-clamp-2">
                         {assignment.description}
                       </p>
 
@@ -315,32 +317,32 @@ export default function AssignmentPage() {
                       {isAdmin ? (
                         /* Admin Statistics */
                         <div className="mb-4">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-green-100">สถิตินักเรียน</span>
-                            <span className="text-sm text-green-200">
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-sm font-medium text-[var(--brand-dark)]">📊 สถิตินักเรียน</span>
+                            <span className="text-sm text-[var(--brand-medium)] font-semibold">
                               {statistics?.totalStudents || 0} คน
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="bg-gray-200 rounded p-2 text-center">
-                              <div className="font-medium text-gray-800">{statistics?.statusBreakdown?.todo || 0}</div>
-                              <div className="text-gray-600">ยังไม่เริ่ม</div>
+                            <div className="bg-[var(--brand-accent-light)] rounded-lg p-3 text-center border border-[var(--brand-secondary)]">
+                              <div className="font-bold text-[var(--brand-dark)]">{statistics?.statusBreakdown?.todo || 0}</div>
+                              <div className="text-[var(--brand-medium)]">ยังไม่เริ่ม</div>
                             </div>
-                            <div className="bg-blue-200 rounded p-2 text-center">
-                              <div className="font-medium text-blue-800">{statistics?.statusBreakdown?.inprogress || 0}</div>
+                            <div className="bg-blue-100 rounded-lg p-3 text-center border border-blue-200">
+                              <div className="font-bold text-blue-800">{statistics?.statusBreakdown?.inprogress || 0}</div>
                               <div className="text-blue-600">กำลังทำ</div>
                             </div>
-                            <div className="bg-green-200 rounded p-2 text-center">
-                              <div className="font-medium text-green-800">{statistics?.statusBreakdown?.complete || 0}</div>
+                            <div className="bg-green-100 rounded-lg p-3 text-center border border-green-200">
+                              <div className="font-bold text-green-800">{statistics?.statusBreakdown?.complete || 0}</div>
                               <div className="text-green-600">Complete</div>
                             </div>
-                            <div className="bg-purple-200 rounded p-2 text-center">
-                              <div className="font-medium text-purple-800">{statistics?.statusBreakdown?.done || 0}</div>
+                            <div className="bg-purple-100 rounded-lg p-3 text-center border border-purple-200">
+                              <div className="font-bold text-purple-800">{statistics?.statusBreakdown?.done || 0}</div>
                               <div className="text-purple-600">Checked</div>
                             </div>
                           </div>
                           {statistics?.completionRate !== undefined && (
-                            <div className="mt-2 text-center text-sm text-green-200">
+                            <div className="mt-3 text-center text-sm text-[var(--brand-dark)] font-medium bg-[var(--brand-secondary)] rounded-lg py-1">
                               อัตราเสร็จสิ้น: {statistics.completionRate}%
                             </div>
                           )}
@@ -348,25 +350,25 @@ export default function AssignmentPage() {
                       ) : (
                         /* Student Progress */
                         <div className="mb-4">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-green-100">ความคืบหน้า</span>
-                            <span className="text-sm text-green-200">
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-sm font-medium text-[var(--brand-dark)]">📈 ความคืบหน้า</span>
+                            <span className="text-sm text-[var(--brand-medium)] font-semibold">
                               {progress?.answeredQuestions || 0} / {assignment.totalQuestions} ข้อ
                             </span>
                           </div>
-                          <div className="w-full bg-green-700 rounded-full h-2">
+                          <div className="w-full bg-[var(--brand-secondary-light)] rounded-full h-3 border border-[var(--brand-secondary)]">
                             <div
-                              className={`h-2 rounded-full transition-all duration-300 ${
+                              className={`h-3 rounded-full transition-all duration-300 ${
                                 progressPercentage === 100
-                                  ? 'bg-green-400'
+                                  ? 'bg-green-500'
                                   : progressPercentage > 0
-                                  ? 'bg-blue-400'
-                                  : 'bg-green-600'
+                                  ? 'bg-[var(--brand)]'
+                                  : 'bg-[var(--brand-secondary)]'
                               }`}
                               style={{ width: `${progressPercentage}%` }}
                             />
                           </div>
-                          <div className="text-right text-xs text-green-300 mt-1">
+                          <div className="text-right text-sm text-[var(--brand-dark)] font-medium mt-2">
                             {progressPercentage}%
                           </div>
                         </div>
@@ -374,44 +376,44 @@ export default function AssignmentPage() {
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-4 bg-green-700 border-t border-green-600">
+                    <div className="px-6 py-4 bg-[var(--brand-accent-light)] border-t-2 border-[var(--brand-secondary)]">
                       <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center text-green-200">
+                        <div className="flex items-center text-[var(--brand-dark)]">
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          กำหนดส่ง: {new Date(assignment.dueDate).toLocaleDateString('th-TH')}
+                          <span className="font-medium">กำหนดส่ง: {new Date(assignment.dueDate).toLocaleDateString('th-TH')}</span>
                         </div>
                         {isOverdue && (
-                          <span className="text-red-400 font-medium text-xs">
+                          <span className="text-red-600 font-bold text-xs bg-red-100 px-2 py-1 rounded-full">
                             เลยกำหนด
                           </span>
                         )}
                       </div>
 
                       {!isAdmin && progress?.status === 'complete' && (
-                        <div className="mt-2 text-xs text-green-300 font-medium">
-                          <CheckCircle size={16} className="inline mr-1" />
+                        <div className="mt-2 text-xs text-green-700 font-medium bg-green-100 rounded-lg px-2 py-1">
+                          <CheckCircle size={14} className="inline mr-1" />
                           Completed on {new Date(progress.completedAt!).toLocaleDateString('en-US')}
                         </div>
                       )}
 
                       {!isAdmin && progress?.status === 'done' && (
-                        <div className="mt-2 text-xs text-purple-300 font-medium">
-                          <Target size={16} className="inline mr-1" />
+                        <div className="mt-2 text-xs text-purple-700 font-medium bg-purple-100 rounded-lg px-2 py-1">
+                          <Target size={14} className="inline mr-1" />
                           Checked on {new Date(progress.markedDoneAt!).toLocaleDateString('en-US')}
                         </div>
                       )}
 
                       {isAdmin && (
-                        <div className="mt-2 text-xs text-green-200">
-                          คลิกเพื่อดูรายละเอียดและจัดการงาน
+                        <div className="mt-2 text-xs text-[var(--brand-medium)] font-medium">
+                          💼 คลิกเพื่อดูรายละเอียดและจัดการงาน
                         </div>
                       )}
                     </div>
 
                     {/* Hover indicator */}
-                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-blue-400 rounded-lg pointer-events-none transition-colors" />
+                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-[var(--brand)] rounded-lg pointer-events-none transition-colors" />
                   </div>
                 );
 
@@ -436,23 +438,23 @@ export default function AssignmentPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center space-x-2">
+              <div className="flex justify-center items-center space-x-3">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-3 py-2 rounded-lg bg-green-800 shadow-md text-white disabled:opacity-50 hover:bg-green-700 transition-colors border border-green-600"
+                  className="px-4 py-2 rounded-lg bg-white shadow-xl text-[var(--brand-dark)] disabled:opacity-50 hover:bg-[var(--brand-accent-light)] transition-colors border-2 border-[var(--brand-secondary)] font-medium"
                 >
-                  ก่อนหน้า
+                  ← ก่อนหน้า
                 </button>
-                <span className="px-4 py-2 text-green-100">
+                <span className="px-6 py-2 text-white bg-[var(--brand)] rounded-lg font-medium shadow-md">
                   หน้า {page} จาก {totalPages}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-3 py-2 rounded-lg bg-green-800 shadow-md text-white disabled:opacity-50 hover:bg-green-700 transition-colors border border-green-600"
+                  className="px-4 py-2 rounded-lg bg-white shadow-xl text-[var(--brand-dark)] disabled:opacity-50 hover:bg-[var(--brand-accent-light)] transition-colors border-2 border-[var(--brand-secondary)] font-medium"
                 >
-                  Next
+                  ถัดไป →
                 </button>
               </div>
             )}

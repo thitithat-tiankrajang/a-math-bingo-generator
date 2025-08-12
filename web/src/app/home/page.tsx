@@ -61,10 +61,10 @@ export default function HomePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-green-800 rounded-lg shadow-md p-6 flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          <span className="text-white">Loading...</span>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+          <span className="text-[var(--brand-dark)] font-medium">Loading...</span>
         </div>
       </div>
     );
@@ -72,13 +72,13 @@ export default function HomePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Welcome!</h1>
-          <p className="text-green-100 mb-6">Please log in to access your dashboard.</p>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="text-center bg-white rounded-lg shadow-xl p-8 border-2 border-[var(--brand-secondary)]">
+          <h1 className="text-2xl font-bold text-[var(--brand-dark)] mb-4">Welcome! 👋</h1>
+          <p className="text-[var(--brand-medium)] mb-6">Please log in to access your dashboard.</p>
           <Link
             href="/login"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-[var(--brand)] text-[var(--color-on-brand)] font-medium rounded-lg hover:bg-[var(--brand-medium)] transition-colors shadow-md"
           >
             Go to Login
           </Link>
@@ -90,72 +90,72 @@ export default function HomePage() {
   const isAdmin = user?.user?.role === 'admin';
 
   return (
-    <div className="min-h-screen bg-green-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Welcome Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
+        <div className="mb-8 bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)]">
+          <h1 className="text-3xl font-bold text-[var(--brand-dark)] mb-2">
             Welcome back, {user?.user?.firstName || user?.user?.username}! 👋
           </h1>
-          <p className="text-green-100">
+          <p className="text-[var(--brand-medium)] text-lg">
             {isAdmin ? 'Manage your assignments and track student progress.' : 'Track your progress and stay on top of your assignments.'}
           </p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-green-800 rounded-lg shadow-md p-6 border border-green-700">
+          <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)] hover:shadow-2xl transition-all">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-blue-200 rounded-lg flex items-center justify-center">
-                  <BookOpen className="text-blue-700" size={20} />
+                <div className="w-10 h-10 bg-[var(--brand-secondary)] rounded-lg flex items-center justify-center">
+                  <BookOpen className="text-[var(--brand-dark)]" size={22} />
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-green-100">Total Assignments</p>
-                <p className="text-2xl font-bold text-white">{stats.totalAssignments}</p>
+                <p className="text-sm font-medium text-[var(--brand-medium)]">Total Assignments</p>
+                <p className="text-2xl font-bold text-[var(--brand-dark)]">{stats.totalAssignments}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-green-800 rounded-lg shadow-md p-6 border border-green-700">
+          <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)] hover:shadow-2xl transition-all">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-green-200 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-green-200 rounded-lg flex items-center justify-center">
                   <span className="text-green-700 text-xl">✅</span>
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-green-100">Completed</p>
-                <p className="text-2xl font-bold text-white">{stats.completedAssignments}</p>
+                <p className="text-sm font-medium text-[var(--brand-medium)]">Completed</p>
+                <p className="text-2xl font-bold text-[var(--brand-dark)]">{stats.completedAssignments}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-green-800 rounded-lg shadow-md p-6 border border-green-700">
+          <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)] hover:shadow-2xl transition-all">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-yellow-200 rounded-lg flex items-center justify-center">
-                  <span className="text-yellow-700 text-xl">🔄</span>
+                <div className="w-10 h-10 bg-[var(--brand-accent)] rounded-lg flex items-center justify-center">
+                  <span className="text-[var(--brand-dark)] text-xl">🔄</span>
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-green-100">In Progress</p>
-                <p className="text-2xl font-bold text-white">{stats.inProgressAssignments}</p>
+                <p className="text-sm font-medium text-[var(--brand-medium)]">In Progress</p>
+                <p className="text-2xl font-bold text-[var(--brand-dark)]">{stats.inProgressAssignments}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-green-800 rounded-lg shadow-md p-6 border border-green-700">
+          <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)] hover:shadow-2xl transition-all">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-red-200 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="text-red-700" size={20} />
+                <div className="w-10 h-10 bg-red-200 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="text-red-700" size={22} />
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-green-100">Overdue</p>
-                <p className="text-2xl font-bold text-white">{stats.overdueAssignments}</p>
+                <p className="text-sm font-medium text-[var(--brand-medium)]">Overdue</p>
+                <p className="text-2xl font-bold text-[var(--brand-dark)]">{stats.overdueAssignments}</p>
               </div>
             </div>
           </div>
@@ -164,47 +164,47 @@ export default function HomePage() {
         
 
           {/* Scoreboard Section */}
-          <div className="bg-green-800 rounded-lg shadow-md border border-green-700">
-            <div className="px-6 py-4 border-b border-green-700">
-              <h2 className="text-lg font-semibold text-white">Scoreboard</h2>
+          <div className="bg-white rounded-lg shadow-xl border-2 border-[var(--brand-secondary)] mb-8">
+            <div className="px-6 py-4 border-b border-[var(--brand-secondary)] bg-[var(--brand-accent-light)]">
+              <h2 className="text-lg font-semibold text-[var(--brand-dark)]">🏆 Scoreboard</h2>
             </div>
             <div className="p-6">
               {/* Placeholder Scoreboard Table */}
-              <div className="text-center center py-8">
+              <div className="text-center py-8">
                 <div className="mb-4">
-                  <Trophy size={64} className="text-yellow-400 mx-auto" />
+                  <Trophy size={64} className="text-[var(--brand-accent)] mx-auto drop-shadow-md" />
                 </div>
-                <h3 className="text-xl font-medium text-white mb-2">Scoreboard Coming Soon</h3>
-                <p className="text-green-100 mb-6">
+                <h3 className="text-xl font-medium text-[var(--brand-dark)] mb-2">Scoreboard Coming Soon</h3>
+                <p className="text-[var(--brand-medium)] mb-6">
                   Track your performance and compare with other students.
                 </p>
                 
                 {/* Placeholder Table */}
                 <div className="max-w-md mx-auto">
-                  <div className="bg-green-700 rounded-lg p-4 border-2 border-dashed border-green-600">
+                  <div className="bg-[var(--brand-accent-light)] rounded-lg p-4 border-2 border-dashed border-[var(--brand-secondary)]">
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between py-2 px-3 bg-green-800 rounded border border-green-600">
+                      <div className="flex items-center justify-between py-3 px-4 bg-white rounded-lg border border-[var(--brand-secondary)] shadow-sm">
                         <div className="flex items-center space-x-3">
-                          <Medal className="w-6 h-6 text-yellow-400" />
-                          <span className="font-medium text-green-100">Top Student</span>
+                          <Medal className="w-6 h-6 text-yellow-500" />
+                          <span className="font-medium text-[var(--brand-dark)]">Top Student</span>
                         </div>
-                        <span className="text-green-300 font-bold">--</span>
+                        <span className="text-[var(--brand-medium)] font-bold">--</span>
                       </div>
-                      <div className="flex items-center justify-between py-2 px-3 bg-green-800 rounded border border-green-600">
+                      <div className="flex items-center justify-between py-3 px-4 bg-white rounded-lg border border-[var(--brand-secondary)] shadow-sm">
                         <div className="flex items-center space-x-3">
-                          <Medal className="w-6 h-6 text-gray-300" />
-                          <span className="font-medium text-green-100">Second Place</span>
+                          <Medal className="w-6 h-6 text-gray-400" />
+                          <span className="font-medium text-[var(--brand-dark)]">Second Place</span>
                         </div>
-                        <span className="text-blue-300 font-bold">--</span>
+                        <span className="text-[var(--brand-medium)] font-bold">--</span>
                       </div>
-                      <div className="flex items-center justify-between py-2 px-3 bg-green-800 rounded border border-green-600">
+                      <div className="flex items-center justify-between py-3 px-4 bg-white rounded-lg border border-[var(--brand-secondary)] shadow-sm">
                         <div className="flex items-center space-x-3">
                           <Award className="w-6 h-6 text-orange-400" />
-                          <span className="font-medium text-green-100">Third Place</span>
+                          <span className="font-medium text-[var(--brand-dark)]">Third Place</span>
                         </div>
-                        <span className="text-orange-300 font-bold">--</span>
+                        <span className="text-[var(--brand-medium)] font-bold">--</span>
                       </div>
-                      <div className="py-3 px-3 text-center text-green-300 text-sm">
+                      <div className="py-3 px-3 text-center text-[var(--brand-medium)] text-sm">
                         ... more rankings to come
                       </div>
                     </div>
@@ -216,46 +216,48 @@ export default function HomePage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8 bg-green-800 rounded-lg shadow-md p-6 border border-green-700">
-          <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
+        <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)]">
+          <div className="flex items-center mb-4">
+            <h2 className="text-lg font-semibold text-[var(--brand-dark)]">⚡ Quick Actions</h2>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link
               href="/assignment"
-              className="flex items-center p-4 rounded-lg border border-green-600 hover:border-blue-400 hover:bg-green-700 transition-all group"
+              className="flex items-center p-4 rounded-lg border-2 border-[var(--brand-secondary)] hover:border-[var(--brand)] hover:bg-[var(--brand-accent-light)] transition-all group shadow-sm hover:shadow-md"
             >
-              <div className="w-10 h-10 bg-blue-200 rounded-lg flex items-center justify-center mr-4 group-hover:bg-blue-300 transition-colors">
-                <BookOpen className="text-blue-700" size={20} />
+              <div className="w-12 h-12 bg-[var(--brand-secondary)] rounded-lg flex items-center justify-center mr-4 group-hover:bg-[var(--brand)] transition-colors">
+                <BookOpen className="text-[var(--brand-dark)]" size={22} />
               </div>
               <div>
-                <h3 className="font-medium text-white">View Assignments</h3>
-                <p className="text-sm text-green-100">See all your assignments</p>
+                <h3 className="font-medium text-[var(--brand-dark)]">View Assignments</h3>
+                <p className="text-sm text-[var(--brand-medium)]">See all your assignments</p>
               </div>
             </Link>
 
             <Link
               href="/play"
-              className="flex items-center p-4 rounded-lg border border-green-600 hover:border-green-400 hover:bg-green-700 transition-all group"
+              className="flex items-center p-4 rounded-lg border-2 border-[var(--brand-secondary)] hover:border-[var(--brand)] hover:bg-[var(--brand-accent-light)] transition-all group shadow-sm hover:shadow-md"
             >
-              <div className="w-10 h-10 bg-green-200 rounded-lg flex items-center justify-center mr-4 group-hover:bg-green-300 transition-colors">
-                <Target className="text-green-700" size={20} />
+              <div className="w-12 h-12 bg-[var(--brand-accent)] rounded-lg flex items-center justify-center mr-4 group-hover:bg-[var(--brand)] transition-colors">
+                <Target className="text-[var(--brand-dark)]" size={22} />
               </div>
               <div>
-                <h3 className="font-medium text-white">Practice Mode</h3>
-                <p className="text-sm text-green-100">Generate practice problems</p>
+                <h3 className="font-medium text-[var(--brand-dark)]">Practice Mode</h3>
+                <p className="text-sm text-[var(--brand-medium)]">Generate practice problems</p>
               </div>
             </Link>
 
             {isAdmin && (
               <Link
                 href="/allassignment"
-                className="flex items-center p-4 rounded-lg border border-green-600 hover:border-purple-400 hover:bg-green-700 transition-all group"
+                className="flex items-center p-4 rounded-lg border-2 border-[var(--brand-secondary)] hover:border-[var(--brand)] hover:bg-[var(--brand-accent-light)] transition-all group shadow-sm hover:shadow-md"
               >
-                <div className="w-10 h-10 bg-purple-200 rounded-lg flex items-center justify-center mr-4 group-hover:bg-purple-300 transition-colors">
-                  <Settings className="text-purple-700" size={20} />
+                <div className="w-12 h-12 bg-purple-200 rounded-lg flex items-center justify-center mr-4 group-hover:bg-purple-300 transition-colors">
+                  <Settings className="text-purple-700" size={22} />
                 </div>
                 <div>
-                  <h3 className="font-medium text-white">Manage Assignments</h3>
-                  <p className="text-sm text-green-100">Create and manage assignments</p>
+                  <h3 className="font-medium text-[var(--brand-dark)]">Manage Assignments</h3>
+                  <p className="text-sm text-[var(--brand-medium)]">Create and manage assignments</p>
                 </div>
               </Link>
             )}

@@ -17,10 +17,10 @@ export default function RootPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-6 flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-          <span className="text-gray-600">Loading...</span>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+          <span className="text-[var(--brand-dark)] font-medium">Loading...</span>
         </div>
       </div>
     );
@@ -28,7 +28,7 @@ export default function RootPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
         <div className="container mx-auto px-4">
           <AuthHeader />
         </div>
@@ -38,10 +38,10 @@ export default function RootPage() {
 
   // Show loading while redirecting
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-md p-6 flex items-center space-x-2">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-        <span className="text-gray-600">Redirecting to home...</span>
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+        <span className="text-[var(--brand-dark)] font-medium">Redirecting to home...</span>
       </div>
     </div>
   );

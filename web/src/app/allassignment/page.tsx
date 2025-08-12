@@ -91,10 +91,10 @@ export default function AllAssignmentPage() {
 
   if (isLoading && !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-md p-6 flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-          <span className="text-gray-600">Loading...</span>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl p-6 flex items-center space-x-3 border-2 border-[var(--brand-secondary)]">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--brand)]"></div>
+          <span className="text-[var(--brand-dark)] font-medium">Loading...</span>
         </div>
       </div>
     );
@@ -102,13 +102,13 @@ export default function AllAssignmentPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h1>
-          <p className="text-gray-600 mb-6">Please log in to access assignment management.</p>
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="text-center bg-white rounded-lg shadow-xl p-8 border-2 border-[var(--brand-secondary)]">
+          <h1 className="text-2xl font-bold text-[var(--brand-dark)] mb-4">Authentication Required 🔐</h1>
+          <p className="text-[var(--brand-medium)] mb-6">Please log in to access assignment management.</p>
           <Link
             href="/login"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-[var(--brand)] text-[var(--color-on-brand)] font-medium rounded-lg hover:bg-[var(--brand-medium)] transition-colors shadow-md"
           >
             Go to Login
           </Link>
@@ -119,14 +119,14 @@ export default function AllAssignmentPage() {
 
   if (user?.user?.role !== 'admin') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] flex items-center justify-center">
+        <div className="text-center bg-white rounded-lg shadow-xl p-8 border-2 border-[var(--brand-secondary)]">
           <div className="text-6xl mb-4">🚫</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-6">This page is only accessible to administrators.</p>
+          <h1 className="text-2xl font-bold text-[var(--brand-dark)] mb-4">Access Denied</h1>
+          <p className="text-[var(--brand-medium)] mb-6">This page is only accessible to administrators.</p>
           <Link
             href="/home"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center px-6 py-3 bg-[var(--brand)] text-[var(--color-on-brand)] font-medium rounded-lg hover:bg-[var(--brand-medium)] transition-colors shadow-md"
           >
             Go to Home
           </Link>
@@ -136,27 +136,30 @@ export default function AllAssignmentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-yellow-900 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--brand-dark)] to-[var(--brand-medium)] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Assignment Management</h1>
-            <p className="text-green-100">Create and manage assignments for your students</p>
+        <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)] mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-[var(--brand-dark)] mb-2">🎯 Assignment Management</h1>
+              <p className="text-[var(--brand-medium)] text-lg">Create and manage assignments for your students</p>
+            </div>
+            <Button
+              onClick={() => setShowCreateModal(true)}
+              variant="primary"
+              size="md"
+              fullWidth={false}
+              className="bg-[var(--brand)] hover:bg-[var(--brand-medium)] text-[var(--color-on-brand)] font-medium shadow-lg border-2 border-[var(--brand-secondary)]"
+              icon={
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              }
+            >
+              ✨ Create Assignment
+            </Button>
           </div>
-          <Button
-            onClick={() => setShowCreateModal(true)}
-            variant="primary"
-            size="md"
-            fullWidth={false}
-            icon={
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            }
-          >
-            Create Assignment
-          </Button>
         </div>
 
         {/* Search Bar */}

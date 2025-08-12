@@ -275,8 +275,11 @@ export default function EquationAnagramGenerator({
         setIsGenerating(false);
       }
     };
-    // Trigger on options change or after a submission
-    generateForAssignment();
+    
+    // Only trigger generation if we're in assignment mode AND have enforced options
+    if (assignmentMode && enforcedOptions) {
+      generateForAssignment();
+    }
   }, [assignmentMode, enforcedOptions, lastSubmissionAt, defaultOptions, presetElements, onPersistElements]);
 
   // Helper function to convert ArrayBuffer to base64
