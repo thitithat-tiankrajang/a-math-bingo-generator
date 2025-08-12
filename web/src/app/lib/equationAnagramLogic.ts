@@ -282,7 +282,8 @@ function generateTokensDeterministic(options: EquationAnagramOptions): EquationE
   
   // Final guard: ensure counts match requested EXACTLY
   const final = sortTokensByPriority(selectedTokens);
-  const actualOperators = final.filter(el => el.type === 'operator').length;
+  // Count both strict operators and choice-operators as operators to honor operatorCount
+  const actualOperators = final.filter(el => el.type === 'operator' || el.type === 'choice').length;
   const actualEquals = final.filter(el => el.value === '=').length;
   const actualBlank = final.filter(el => el.value === '?').length;
   const actualZero = final.filter(el => el.value === '0').length;
