@@ -112,7 +112,7 @@ function PlayPageContent() {
     } finally {
       setCheckingAssignment(false);
     }
-  }, [user, searchParams, getExitKey, saveExitFlag]);
+  }, [user, searchParams, getExitKey, saveExitFlag, router]);
 
   // Check for active assignment when page loads
   useEffect(() => {

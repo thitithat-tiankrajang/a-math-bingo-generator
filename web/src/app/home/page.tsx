@@ -54,7 +54,7 @@ export default function HomePage() {
         overdueAssignments: overdue
       });
     } catch (err) {
-      console.error('Failed to load dashboard data:', err);
+      throw err;
     } finally {
     }
   };

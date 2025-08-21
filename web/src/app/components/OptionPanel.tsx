@@ -203,10 +203,34 @@ export default function OptionPanel({
       [field]: !randomSettings[field]
     };
     
-    onOptionsChange({
+    // When enabling random, clear the fixed count to force regeneration
+    const updatedOptions = {
       ...options,
       randomSettings: newRandomSettings
-    });
+    };
+    
+    // Clear the specific count when enabling random for that field
+    if (newRandomSettings[field]) {
+      switch (field) {
+        case 'equals':
+          updatedOptions.equalsCount = 0; // Will be randomized in logic
+          break;
+        case 'heavy':
+          updatedOptions.heavyNumberCount = 0; // Will be randomized in logic
+          break;
+        case 'blank':
+          updatedOptions.BlankCount = 0; // Will be randomized in logic
+          break;
+        case 'zero':
+          updatedOptions.zeroCount = 0; // Will be randomized in logic
+          break;
+        case 'operators':
+          // Operators are handled differently - they respect operatorMode
+          break;
+      }
+    }
+    
+    onOptionsChange(updatedOptions);
   };
 
   const maxOperators = Math.max(1, options.totalCount - options.equalsCount - options.heavyNumberCount - 

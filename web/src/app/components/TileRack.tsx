@@ -46,14 +46,13 @@ export default function TileRack({
         </h3>
       </div>
       
-      {/* Tile rack: responsive grid layout for mobile, horizontal for desktop */}
+      {/* Tile rack: single-row with responsive tile size - no scrolling needed */}
       <div
         className={`
-          grid grid-cols-4 sm:flex sm:flex-wrap lg:grid-cols-none lg:flex lg:justify-center
-          gap-1 sm:gap-2 p-3 sm:p-4
+          flex items-center justify-center gap-[var(--tile-gap)] p-3 sm:p-4
           bg-[var(--brand-accent-light)] rounded-lg shadow-lg 
           border-2 border-[var(--brand-secondary)]
-          relative overflow-hidden
+          relative flex-wrap
           ${showChoicePopup ? 'blur-sm opacity-60' : ''}
         `}
         onDragOver={onRackDragOver}

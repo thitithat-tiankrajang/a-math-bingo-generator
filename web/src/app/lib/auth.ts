@@ -78,24 +78,16 @@ class AuthService {
   }
 
   async getProfile(): Promise<User> {
-    console.log('🔍 AuthService - Getting profile...');
-    console.log('🔍 AuthService - API URL:', `${API_BASE_URL}/auth/profile`);
-    console.log('🔍 AuthService - Auth headers:', this.getAuthHeaders());
-    
     const response = await fetch(`${API_BASE_URL}/auth/profile`, {
       headers: this.getAuthHeaders(),
     });
 
-    console.log('🔍 AuthService - Profile response status:', response.status);
-
     if (!response.ok) {
       const error = await response.json();
-      console.error('🔍 AuthService - Profile error:', error);
       throw new Error(error.message || 'Failed to get profile');
     }
 
     const userData = await response.json();
-    console.log('🔍 AuthService - Profile response data:', userData);
     // Return the data as is since API returns {user: {...}}
     return userData;
   }

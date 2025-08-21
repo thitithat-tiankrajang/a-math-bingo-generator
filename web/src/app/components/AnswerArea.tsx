@@ -133,14 +133,13 @@ export default function AnswerArea({
         </div>
       </div>
       
-      {/* Answer Boxes - responsive grid for mobile, flex for desktop */}
+      {/* Answer Boxes - single row with responsive tile size - no scrolling needed */}
       <div 
         className={`
-          grid grid-cols-4 sm:flex sm:flex-wrap lg:grid-cols-none lg:flex lg:justify-center
-          gap-1 sm:gap-2 p-4 sm:p-6 
+          flex items-center justify-center gap-[var(--tile-gap)] p-4 sm:p-6 
           bg-gradient-to-br from-[var(--brand-secondary-light)] to-[var(--brand-accent-light)] 
           rounded-xl shadow-lg border-2 border-[var(--brand-secondary)] 
-          min-h-[100px] relative overflow-hidden
+          min-h-[calc(var(--tile-size)+1rem)] relative flex-wrap
           ${showChoicePopup ? 'z-30' : ''}
         `}
         data-answer-container
@@ -341,7 +340,7 @@ export default function AnswerArea({
             {isCheckingAnswer ? '⏳ Checking...' : '✅ Check Equation'}
           </ChildButton>
           
-          <div className="text-sm text-[var(--brand-medium)] font-medium bg-[var(--brand-accent-light)] px-3 py-1 rounded-full border border-[var(--brand-secondary)]">
+          <div className="text-xs sm:text-sm text-[var(--brand-medium)] font-medium bg-[var(--brand-accent-light)] px-2 sm:px-3 py-1 rounded-full border border-[var(--brand-secondary)]">
             📊 Answer: {answerTiles.filter(tile => tile !== null).length} | 
             🎲 Rack: {rackTilesCount} | 
             🎯 Total: {answerTiles.filter(tile => tile !== null).length + rackTilesCount} / {totalTilesCount}

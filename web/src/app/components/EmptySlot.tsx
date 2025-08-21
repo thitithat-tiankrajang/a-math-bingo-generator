@@ -40,8 +40,8 @@ export default function EmptySlot({
   // Base styles for empty slots
   const baseClasses = `
     relative aspect-square 
-    min-w-[40px] w-12 sm:w-14 md:w-16 lg:w-18 
-    text-sm sm:text-base md:text-lg lg:text-xl
+    min-w-[var(--tile-size)] w-[var(--tile-size)] h-[var(--tile-size)]
+    text-[calc(var(--tile-size)*0.35)]
     flex items-center justify-center rounded font-bold 
     transition-all duration-300 ease-in-out flex-shrink-0
     cursor-pointer
@@ -49,21 +49,21 @@ export default function EmptySlot({
 
   // Type-specific styles
   const typeClasses = slotType === 'answer'
-    ? 'border-2 border-dashed border-purple-400 bg-gradient-to-br from-purple-200 to-purple-300 hover:from-purple-300 hover:to-purple-400 shadow-sm'
-    : 'border-2 border-dashed border-amber-400 bg-gradient-to-br from-amber-100 to-amber-200 hover:from-amber-200 hover:to-amber-300 shadow-md ring-1 ring-amber-300';
+    ? 'border-2 border-dashed border-[var(--brand)] bg-[var(--brand-accent-light)] hover:bg-[color:oklch(var(--brand-accent-light)/0.9)] shadow-sm'
+    : 'border-2 border-dashed border-[var(--brand-secondary)] bg-[var(--brand-accent-light)] hover:bg-[color:oklch(var(--brand-accent-light)/0.9)] shadow-md ring-1 ring-[var(--brand-secondary)]';
 
   // Drag feedback styles
   const dragClasses = `
     ${isDragOver 
-      ? 'ring-4 ring-green-400 ring-opacity-75 scale-105 bg-green-50' 
+      ? 'ring-4 ring-[var(--brand)] ring-opacity-75 scale-105 bg-[var(--brand-accent-light)]' 
       : ''
     }
     ${isDropTarget && slotType === 'answer'
-      ? 'ring-4 ring-green-500 ring-opacity-90 bg-gradient-to-br from-green-200 to-green-300 border-green-600 scale-110 z-10 animate-pulse shadow-xl'
+      ? 'ring-4 ring-[var(--brand)] ring-opacity-90 bg-[var(--brand-accent-light)] border-[var(--brand)] scale-110 z-10 animate-pulse shadow-xl'
       : ''
     }
     ${isDropTarget && slotType === 'rack'
-      ? 'ring-4 ring-amber-500 ring-opacity-90 bg-gradient-to-br from-amber-200 to-amber-300 border-amber-600 scale-110 z-10 animate-pulse shadow-xl'
+      ? 'ring-4 ring-[var(--brand-secondary)] ring-opacity-90 bg-[var(--brand-accent-light)] border-[var(--brand-secondary)] scale-110 z-10 animate-pulse shadow-xl'
       : ''
     }
   `;
@@ -72,7 +72,7 @@ export default function EmptySlot({
   const renderContent = () => {
     if (slotType === 'answer') {
       return (
-        <div className="text-purple-500 text-sm font-medium transition-all flex items-center justify-center">
+        <div className="text-[var(--brand-dark)] text-sm font-medium transition-all flex items-center justify-center">
           <span>{index + 1}</span>
         </div>
       );

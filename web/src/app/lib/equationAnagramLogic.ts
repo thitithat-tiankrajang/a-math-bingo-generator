@@ -93,54 +93,128 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
   const processedOptions = { ...options };
 
   const randomSettings = options.randomSettings;
+  // Operators respect explicit operatorMode. Other categories rely solely on randomSettings toggles
   const allowRandomOperators = !!(randomSettings && randomSettings.operators && options.operatorMode === 'random');
-  const allowRandomEquals = !!(randomSettings && randomSettings.equals && options.equalsMode === 'random');
-  const allowRandomHeavy = !!(randomSettings && randomSettings.heavy && options.heavyNumberMode === 'random');
-  const allowRandomBlank = !!(randomSettings && randomSettings.blank && options.blankMode === 'random');
-  const allowRandomZero = !!(randomSettings && randomSettings.zero && options.zeroMode === 'random');
+  const allowRandomEquals = !!(randomSettings && randomSettings.equals);
+  const allowRandomHeavy = !!(randomSettings && randomSettings.heavy);
+  const allowRandomBlank = !!(randomSettings && randomSettings.blank);
+  const allowRandomZero = !!(randomSettings && randomSettings.zero);
 
   if (allowRandomOperators || allowRandomEquals || allowRandomHeavy || allowRandomBlank || allowRandomZero) {
     const totalCount = options.totalCount;
-    let remainingTiles = totalCount;
 
-    // Subtract fixed parts first
-    if (!allowRandomOperators) remainingTiles -= options.operatorCount;
-    if (!allowRandomEquals) remainingTiles -= options.equalsCount;
-    if (!allowRandomHeavy) remainingTiles -= options.heavyNumberCount;
-    if (!allowRandomBlank) remainingTiles -= options.BlankCount;
-    if (!allowRandomZero) remainingTiles -= options.zeroCount;
+    // Prepare pool counts from AMATH_TOKENS (true pool sampling)
+    const poolCounts: Record<string, number> = {};
+    Object.entries(AMATH_TOKENS).forEach(([token, info]) => {
+      poolCounts[token] = info.count;
+    });
 
-    // Guard against negative due to misconfigured inputs
+    const OP_TOKENS: ReadonlyArray<string> = ['+','-','×','÷','+/-','×/÷'];
+    const LIGHT_TOKENS: ReadonlyArray<string> = ['1','2','3','4','5','6','7','8','9'];
+    const HEAVY_TOKENS: ReadonlyArray<string> = ['10','11','12','13','14','15','16','17','18','19','20'];
+
+    const removeFromCategory = (tokenList: ReadonlyArray<string>, count: number) => {
+      let remaining = Math.max(0, count);
+      while (remaining > 0) {
+        const candidates = tokenList.filter(t => (poolCounts[t] || 0) > 0);
+        if (candidates.length === 0) break;
+        const weights = candidates.map(t => poolCounts[t]);
+        // weighted pick
+        let sum = 0;
+        for (const w of weights) sum += w;
+        let r = Math.random() * sum;
+        let picked = candidates[0];
+        for (let i = 0; i < candidates.length; i++) {
+          r -= weights[i];
+          if (r <= 0) { picked = candidates[i]; break; }
+        }
+        poolCounts[picked] = (poolCounts[picked] || 0) - 1;
+        remaining--;
+      }
+    };
+
+    // Account for fixed parts by removing them from the pool first
+    const fixedOperators = allowRandomOperators ? 0 : options.operatorCount;
+    const fixedEquals = allowRandomEquals ? 0 : options.equalsCount;
+    const fixedHeavy = allowRandomHeavy ? 0 : options.heavyNumberCount;
+    const fixedBlank = allowRandomBlank ? 0 : options.BlankCount;
+    const fixedZero = allowRandomZero ? 0 : options.zeroCount;
+
+    if (fixedOperators > 0) removeFromCategory(OP_TOKENS, fixedOperators);
+    if (fixedEquals > 0) removeFromCategory(['='], fixedEquals);
+    if (fixedHeavy > 0) removeFromCategory(HEAVY_TOKENS, fixedHeavy);
+    if (fixedBlank > 0) removeFromCategory(['?'], fixedBlank);
+    if (fixedZero > 0) removeFromCategory(['0'], fixedZero);
+
+    let remainingTiles = totalCount - (fixedOperators + fixedEquals + fixedHeavy + fixedBlank + fixedZero);
     remainingTiles = Math.max(0, remainingTiles);
 
-    // Randomize parts that are allowed
+    // Reserve at least 1 '=' when equals are randomized and available
+    let sampledEquals = 0;
+    if (allowRandomEquals && (poolCounts['='] || 0) > 0 && remainingTiles > 0) {
+      poolCounts['='] = (poolCounts['='] || 0) - 1;
+      sampledEquals += 1;
+      remainingTiles -= 1;
+    }
+
+    let sampledOperators = 0;
+    let sampledHeavy = 0;
+    let sampledBlank = 0;
+    let sampledZero = 0;
+
+    // Draw remaining tiles from the pool honoring toggles
+    for (let i = 0; i < remainingTiles; i++) {
+      const candidates: string[] = [];
+      const pushAvailable = (token: string) => { if ((poolCounts[token] || 0) > 0) candidates.push(token); };
+      const pushList = (list: ReadonlyArray<string>) => { for (const t of list) pushAvailable(t); };
+
+      // Include categories under random toggles
+      if (allowRandomOperators) pushList(OP_TOKENS);
+      if (allowRandomEquals) pushAvailable('=');
+      if (allowRandomHeavy) pushList(HEAVY_TOKENS);
+      if (allowRandomBlank) pushAvailable('?');
+      if (allowRandomZero) pushAvailable('0');
+      // Always allow light numbers to fill
+      pushList(LIGHT_TOKENS);
+
+      if (candidates.length === 0) break;
+
+      const weights = candidates.map(t => poolCounts[t]);
+      // weighted pick one token from candidates
+      let sum = 0; for (const w of weights) sum += w;
+      let r = Math.random() * sum;
+      let picked = candidates[0];
+      for (let j = 0; j < candidates.length; j++) {
+        r -= weights[j];
+        if (r <= 0) { picked = candidates[j]; break; }
+      }
+
+      poolCounts[picked] = (poolCounts[picked] || 0) - 1;
+
+      if (OP_TOKENS.includes(picked)) sampledOperators += 1;
+      else if (picked === '=') sampledEquals += 1;
+      else if (HEAVY_TOKENS.includes(picked)) sampledHeavy += 1;
+      else if (picked === '?') sampledBlank += 1;
+      else if (picked === '0') sampledZero += 1;
+    }
+
+    // Apply sampled counts back to options for randomized fields
     if (allowRandomOperators) {
-      processedOptions.operatorCount = Math.max(1, Math.min(Math.max(1, remainingTiles - 1), Math.floor(Math.random() * Math.max(1, remainingTiles / 2)) + 1));
-      remainingTiles = Math.max(0, remainingTiles - processedOptions.operatorCount);
+      // Ensure at least 1 operator to form expressions
+      processedOptions.operatorCount = Math.max(1, sampledOperators);
     }
-
     if (allowRandomEquals) {
-      const maxEq = Math.max(1, Math.min(3, remainingTiles - 1));
-      processedOptions.equalsCount = Math.max(1, Math.floor(Math.random() * maxEq) + 1);
-      remainingTiles = Math.max(0, remainingTiles - processedOptions.equalsCount);
+      // Keep at least 1 '=' to ensure valid equation
+      processedOptions.equalsCount = Math.max(1, sampledEquals);
     }
-
     if (allowRandomHeavy) {
-      const heavyRand = Math.floor(Math.random() * Math.max(1, remainingTiles / 3));
-      processedOptions.heavyNumberCount = Math.max(0, Math.min(remainingTiles, heavyRand));
-      remainingTiles = Math.max(0, remainingTiles - processedOptions.heavyNumberCount);
+      processedOptions.heavyNumberCount = Math.max(0, sampledHeavy);
     }
-
     if (allowRandomBlank) {
-      const blankRand = Math.floor(Math.random() * Math.max(1, remainingTiles / 4));
-      processedOptions.BlankCount = Math.max(0, Math.min(remainingTiles, blankRand));
-      remainingTiles = Math.max(0, remainingTiles - processedOptions.BlankCount);
+      processedOptions.BlankCount = Math.max(0, sampledBlank);
     }
-
     if (allowRandomZero) {
-      const zeroRand = Math.floor(Math.random() * Math.max(1, remainingTiles / 4));
-      processedOptions.zeroCount = Math.max(0, Math.min(remainingTiles, zeroRand));
-      remainingTiles = Math.max(0, remainingTiles - processedOptions.zeroCount);
+      processedOptions.zeroCount = Math.max(0, sampledZero);
     }
   }
 
@@ -165,20 +239,43 @@ function generateTokensDeterministic(options: EquationAnagramOptions): EquationE
   const availablePool = createTokenPool();
   const selectedTokens: EquationElement[] = [];
   
-  // Pick equals tokens
+  // Pick equals tokens with weighted sampling
   for (let i = 0; i < equalsCount; i++) {
-    // พยายามเลือก equals token ก่อน
-    let token = pickTokenFromPool('equals', availablePool);
+    // Weighted sampling for equals tokens
+    const equalsTokens = availablePool.filter(t => t === '=');
+    const blankTokens = availablePool.filter(t => t === '?');
     
-    // ถ้าไม่มี equals tokens เหลือ ให้ใช้ blank token แทน (เพราะ ? สามารถแทน = ได้)
-    if (!token) {
-      token = pickTokenFromPool('Blank', availablePool);
-      if (!token) {
+    if (equalsTokens.length > 0 || blankTokens.length > 0) {
+      // Calculate weights based on AMATH_TOKENS counts
+      const equalsWeight = equalsTokens.length * AMATH_TOKENS['='].count;
+      const blankWeight = blankTokens.length * AMATH_TOKENS['?'].count;
+      const totalWeight = equalsWeight + blankWeight;
+      
+      if (totalWeight > 0) {
+        const random = Math.random() * totalWeight;
+        let token: AmathToken;
+        
+        if (random < equalsWeight && equalsTokens.length > 0) {
+          // Pick equals token
+          const index = Math.floor(Math.random() * equalsTokens.length);
+          token = equalsTokens[index];
+          availablePool.splice(availablePool.indexOf(token), 1);
+        } else if (blankTokens.length > 0) {
+          // Pick blank token
+          const index = Math.floor(Math.random() * blankTokens.length);
+          token = blankTokens[index];
+          availablePool.splice(availablePool.indexOf(token), 1);
+        } else {
+          throw new Error('Not enough equals (=) or blank (?) tokens in pool.');
+        }
+        
+        selectedTokens.push(createElementFromToken(token));
+      } else {
         throw new Error('Not enough equals (=) or blank (?) tokens in pool.');
       }
+    } else {
+      throw new Error('Not enough equals (=) or blank (?) tokens in pool.');
     }
-    
-    selectedTokens.push(createElementFromToken(token));
   }
   
   // Pick operator tokens based on mode

@@ -59,6 +59,66 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Responsive tile sizing variables - Calculate to fit 15 tiles without scrolling */
+:root {
+  --tile-size: calc((100vw - 2rem - 2rem) / 15 - 4px);  /* Fit 15 tiles with padding and gaps */
+  --tile-gap: 4px;       /* base gap */
+}
+
+/* Ensure minimum tile size for usability */
+@media (max-width: 320px) {
+  :root { 
+    --tile-size: 28px; 
+    --tile-gap: 1px; 
+  }
+}
+@media (max-width: 360px) {
+  :root { 
+    --tile-size: 32px; 
+    --tile-gap: 2px; 
+  }
+}
+@media (min-width: 361px) and (max-width: 480px) {
+  :root { 
+    --tile-size: calc((100vw - 2rem - 2rem) / 15 - 4px);
+    --tile-gap: 3px; 
+  }
+}
+@media (min-width: 481px) and (max-width: 640px) {
+  :root { 
+    --tile-size: calc((100vw - 2rem - 2rem) / 15 - 6px);
+    --tile-gap: 4px; 
+  }
+}
+@media (min-width: 641px) and (max-width: 768px) {
+  :root { 
+    --tile-size: calc((100vw - 2rem - 2rem) / 15 - 8px);
+    --tile-gap: 5px; 
+  }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root { 
+    --tile-size: 48px;  /* Fixed size for tablets */
+    --tile-gap: 6px; 
+  }
+}
+@media (min-width: 1025px) and (max-width: 1440px) {
+  :root { 
+    --tile-size: 52px;  /* Fixed size for desktop */
+    --tile-gap: 8px; 
+  }
+}
+@media (min-width: 1441px) {
+  :root { 
+    --tile-size: 56px;  /* Fixed size for large desktop */
+    --tile-gap: 10px; 
+  }
+}
+
+/* Hide horizontal scrollbar for better UX while preserving scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #2E5612; /* keep dark, close to brand-dark for dark mode */

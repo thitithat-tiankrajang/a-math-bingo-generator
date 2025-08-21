@@ -141,8 +141,8 @@ export default function Tile({
     <div
       className={`
         relative aspect-square 
-        min-w-[40px] w-12 sm:w-14 md:w-16 lg:w-18 
-        text-sm sm:text-base md:text-lg lg:text-xl
+        min-w-[var(--tile-size)] w-[var(--tile-size)] h-[var(--tile-size)]
+        text-[calc(var(--tile-size)*0.35)]
         flex items-center justify-center rounded font-bold 
         transition-all duration-300 ease-in-out flex-shrink-0
         ${getElementStyle(element)}
@@ -191,7 +191,7 @@ export default function Tile({
             e.stopPropagation();
             onClear();
           }}
-          className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 transition-colors duration-200"
+          className="absolute -top-1 -right-1 w-[calc(var(--tile-size)*0.25)] h-[calc(var(--tile-size)*0.25)] bg-red-500 text-white rounded-full text-[calc(var(--tile-size)*0.2)] hover:bg-red-600 transition-colors duration-200 flex items-center justify-center"
           title="Remove tile"
         >
           ×
@@ -199,7 +199,7 @@ export default function Tile({
       )}
       
       {/* Point value */}
-      <div className="absolute bottom-0.5 right-1 text-xs text-black font-bold opacity-70 select-none pointer-events-none">
+      <div className="absolute bottom-0.5 right-1 text-[calc(var(--tile-size)*0.15)] text-black font-bold opacity-70 select-none pointer-events-none">
         {AMATH_TOKENS[element as keyof typeof AMATH_TOKENS]?.point ?? ""}
       </div>
     </div>
