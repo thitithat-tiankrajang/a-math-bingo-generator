@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Lightbulb, PartyPopper, BookOpen } from 'lucide-react';
 
@@ -19,6 +19,13 @@ interface Student {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   rejectionReason?: string;
+}
+
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  limit: number;
 }
 
 interface AdminDashboardProps {
@@ -43,32 +50,35 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const [studentToApprove, setStudentToApprove] = useState<Student | null>(null);
   const [studentToReject, setStudentToReject] = useState<Student | null>(null);
   const [notification, setNotification] = useState<Notification | null>(null);
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginationInfo, setPaginationInfo] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    limit: 10
+  });
 
-  useEffect(() => {
-    fetchStudents();
-  }, [activeTab]);
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
       if (activeTab === 'pending') {
-        const response = await fetch(`${API_BASE_URL}/auth/admin/students/pending`, {
+        // For pending students, we'll use the all students endpoint with status filter and pagination
+        const response = await fetch(`${API_BASE_URL}/auth/admin/students?status=pending&page=${currentPage}&limit=10`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
         if (response.ok) {
           const data = await response.json();
-          // console.log('🔍 API Response:', data);
-          // console.log('🔍 Students data:', data.students);
-          // if (data.students && data.students.length > 0) {
-          //   console.log('🔍 First student:', data.students[0]);
-          //   console.log('🔍 Student ID field:', data.students[0].id || data.students[0]._id);
-          // }
           setPendingStudents(data.students);
+          if (data.pagination) {
+            setPaginationInfo(data.pagination);
+          }
         }
       } else {
-        const response = await fetch(`${API_BASE_URL}/auth/admin/students`, {
+        const response = await fetch(`${API_BASE_URL}/auth/admin/students?page=${currentPage}&limit=10`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -76,6 +86,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         if (response.ok) {
           const data = await response.json();
           setAllStudents(data.students);
+          if (data.pagination) {
+            setPaginationInfo(data.pagination);
+          }
         }
       }
     } catch (error) {
@@ -83,7 +96,15 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, currentPage, token]);
+
+  useEffect(() => {
+    setCurrentPage(1); // Reset to first page when switching tabs
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
 
   const handleApprove = async (student: Student) => {
     const studentId = getStudentId(student);
@@ -237,6 +258,91 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     return student.id || student._id || '';
   };
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handlePrevPage = () => {
+    if (paginationInfo.currentPage > 1) {
+      setCurrentPage(paginationInfo.currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (paginationInfo.currentPage < paginationInfo.totalPages) {
+      setCurrentPage(paginationInfo.currentPage + 1);
+    }
+  };
+
+  const renderPagination = () => {
+    if (paginationInfo.totalPages <= 1) return null;
+
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, paginationInfo.currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(paginationInfo.totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors min-w-[40px] text-center ${
+            i === paginationInfo.currentPage
+              ? 'bg-gradient-to-r from-green-500 to-yellow-500 text-white shadow-lg'
+              : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+          }`}
+        >
+          {i}
+        </button>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-between mt-6 pt-4 border-t border-green-200">
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handlePrevPage}
+              disabled={paginationInfo.currentPage === 1}
+              className="px-3 py-2 text-sm font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            {pages}
+            <button
+              onClick={handleNextPage}
+              disabled={paginationInfo.currentPage === paginationInfo.totalPages}
+              className="px-3 py-2 text-sm font-medium rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex items-center space-x-2 text-sm text-green-600">
+            <span className="px-3 py-1 bg-green-100 rounded-lg font-medium">
+              Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
+            </span>
+          </div>
+        </div>
+        <div className="text-sm text-green-600">
+          {(() => {
+            const startItem = paginationInfo.totalItems === 0 ? 0 : ((paginationInfo.currentPage - 1) * paginationInfo.limit) + 1;
+            const endItem = Math.min(paginationInfo.currentPage * paginationInfo.limit, paginationInfo.totalItems);
+            return `Showing ${startItem} to ${endItem} of ${paginationInfo.totalItems} students`;
+          })()}
+        </div>
+      </div>
+    );
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -347,9 +453,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span>Pending Approval</span>
-                {pendingStudents.length > 0 && (
+                {paginationInfo.totalItems > 0 && activeTab === 'pending' && (
                   <span className="ml-2 bg-white/20 text-white px-2 py-0.5 text-xs rounded-full">
-                    {pendingStudents.length}
+                    {paginationInfo.totalItems}
                   </span>
                 )}
               </div>
@@ -367,6 +473,11 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
                 <span>All Students</span>
+                {paginationInfo.totalItems > 0 && activeTab === 'all' && (
+                  <span className="ml-2 bg-white/20 text-white px-2 py-0.5 text-xs rounded-full">
+                    {paginationInfo.totalItems}
+                  </span>
+                )}
               </div>
             </button>
           </div>
@@ -384,7 +495,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   <Lightbulb size={16} className="inline mr-1" />
                   <strong>Tip:</strong> Manage student approvals efficiently with this dashboard
                 </p>
-                <p className="text-xs text-green-600 mt-1">Debsirin School Management System</p>
+                <p className="text-xs text-green-600 mt-1">
+                  Debsirin School Management System • Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
+                </p>
               </div>
             </div>
           </div>
@@ -547,6 +660,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
               )}
             </div>
           )}
+
+          {/* Pagination */}
+          {!loading && students.length > 0 && renderPagination()}
         </div>
 
         {/* Rejection Modal */}

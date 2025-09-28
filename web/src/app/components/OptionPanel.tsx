@@ -377,16 +377,16 @@ export default function OptionPanel({
                   </button>
                   <InputNumberBox
                     value={numQuestions}
-                    onChange={(val: number | string) => typeof val === 'number' && onNumQuestionsChange ? onNumQuestionsChange(Math.max(1, Math.min(100, val))) : onNumQuestionsChange?.(1)}
+                    onChange={(val: number | string) => typeof val === 'number' && onNumQuestionsChange ? onNumQuestionsChange(Math.max(1, Math.min(500, val))) : onNumQuestionsChange?.(1)}
                     min={1}
-                    max={100}
+                    max={500}
                     className="w-16 h-10 sm:w-20 sm:h-12 text-center px-1 sm:px-2 py-1 sm:py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 text-lg sm:text-xl font-bold bg-white text-blue-900 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none shadow-sm min-w-0"
                   />
                   <button
                     type="button"
                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-200 hover:bg-blue-300 text-blue-900 font-bold text-sm sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md min-w-0"
-                    onClick={() => onNumQuestionsChange(Math.min(100, numQuestions + 1))}
-                    disabled={numQuestions >= 100}
+                    onClick={() => onNumQuestionsChange(Math.min(500, numQuestions + 1))}
+                    disabled={numQuestions >= 500}
                   >
                     +
                   </button>
