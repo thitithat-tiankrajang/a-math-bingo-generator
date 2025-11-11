@@ -19,6 +19,9 @@ import Button from "../ui/Button";
 import type { OptionSet } from "../types/EquationAnagram";
 import OptionSetsSummary from "./OptionSetsSummary";
 import { useUndoRedo } from "@/app/contexts/UndoRedoContext";
+import TokenCountConfigPanel from './TokenCountConfigPanel';
+import { AMATH_TOKENS } from '@/app/lib/equationAnagramLogic';
+import type { AmathToken, AmathTokenInfo } from "../types/EquationAnagram";
 
 
 interface EquationAnagramGeneratorProps {
@@ -102,6 +105,17 @@ export default function EquationAnagramGenerator({
   const [lastValidEquation, setLastValidEquation] = useState<string>('');
   const [lastSubmissionAt, setLastSubmissionAt] = useState<number>(0);
   const [presetElements, setPresetElements] = useState<string[] | null>(null);
+
+  // ---- Tile Token Count State ----
+  const getDefaultTokenCounts = () => {
+    const obj = {} as Record<AmathToken, number>;
+    (Object.entries(AMATH_TOKENS) as [AmathToken, AmathTokenInfo][]).forEach(([token, info]) => {
+      obj[token] = info.count;
+    });
+    return obj;
+  };
+  const [tokenCounts, setTokenCounts] = useState<Record<AmathToken, number>>(getDefaultTokenCounts());
+  const handleResetTokenCounts = () => setTokenCounts(getDefaultTokenCounts());
 
   // Undo: restore previous state from history
   const handleUndo = useCallback(() => {
@@ -352,14 +366,13 @@ export default function EquationAnagramGenerator({
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      // Save current state to history before generating new
       if (results.length > 0) {
         setHistory(prev => [...prev, { results: [...results], currentIndex }]);
         setFuture([]); // Clear redo stack on new generate
       }
       const generatedResults: EquationAnagramResult[] = [];
       for (let i = 0; i < numQuestions; i++) {
-        const generated = await generateEquationAnagram(options);
+        const generated = await generateEquationAnagram(options, tokenCounts);
         generatedResults.push(generated);
       }
       setResults(generatedResults);
@@ -460,10 +473,31 @@ export default function EquationAnagramGenerator({
     }
   };
 
+  // SessionStorage: load/save tokenCounts by tab
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.sessionStorage.getItem("bingo_token_counts");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if(parsed && typeof parsed === 'object') {
+            setTokenCounts((prev) => ({ ...prev, ...parsed }));
+          }
+        } catch { /* ignore */ }
+      }
+    }
+    // eslint-disable-next-line
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("bingo_token_counts", JSON.stringify(tokenCounts));
+    }
+  }, [tokenCounts]);
+
   if (!hydrated) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-6 sm:py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <HeaderSection />
         <div className="space-y-6">
@@ -512,8 +546,26 @@ export default function EquationAnagramGenerator({
               </div>
             </div>
           )}
+          {/* ------- NEW: Tile Token Counts Panel ------- */}
+          {!assignmentMode && (
+            <div>
+              <TokenCountConfigPanel
+                counts={tokenCounts}
+                onChange={setTokenCounts}
+              />
+              <div className="flex justify-end">
+                <button
+                  className="px-4 py-1 rounded bg-slate-200 text-slate-800 border border-slate-300 hover:bg-slate-300 shadow"
+                  onClick={handleResetTokenCounts}
+                  type="button"
+                >
+                  Reset to Default
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+
       {/* Enhanced Modal */}
       {!assignmentMode && showOptionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

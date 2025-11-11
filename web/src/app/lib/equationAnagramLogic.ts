@@ -6,18 +6,18 @@ import { evaluateExpressionAsFraction } from './expressionUtil';
 
 export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
   '0': { token: '0', count: 4, type: 'lightNumber', point: 1 },
-  '1': { token: '1', count: 6, type: 'lightNumber', point: 1 },
-  '2': { token: '2', count: 6, type: 'lightNumber', point: 1 },
-  '3': { token: '3', count: 5, type: 'lightNumber', point: 1 },
-  '4': { token: '4', count: 5, type: 'lightNumber', point: 2 },
+  '1': { token: '1', count: 4, type: 'lightNumber', point: 1 },
+  '2': { token: '2', count: 4, type: 'lightNumber', point: 1 },
+  '3': { token: '3', count: 4, type: 'lightNumber', point: 1 },
+  '4': { token: '4', count: 4, type: 'lightNumber', point: 2 },
   '5': { token: '5', count: 4, type: 'lightNumber', point: 2 },
   '6': { token: '6', count: 4, type: 'lightNumber', point: 2 },
   '7': { token: '7', count: 4, type: 'lightNumber', point: 2 },
   '8': { token: '8', count: 4, type: 'lightNumber', point: 2 },
   '9': { token: '9', count: 4, type: 'lightNumber', point: 2 },
-  '10': { token: '10', count: 2, type: 'heavyNumber', point: 3 },
+  '10': { token: '10', count: 1, type: 'heavyNumber', point: 3 },
   '11': { token: '11', count: 1, type: 'heavyNumber', point: 4 },
-  '12': { token: '12', count: 2, type: 'heavyNumber', point: 3 },
+  '12': { token: '12', count: 1, type: 'heavyNumber', point: 3 },
   '13': { token: '13', count: 1, type: 'heavyNumber', point: 6 },
   '14': { token: '14', count: 1, type: 'heavyNumber', point: 4 },
   '15': { token: '15', count: 1, type: 'heavyNumber', point: 4 },
@@ -30,7 +30,7 @@ export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
   '-': { token: '-', count: 4, type: 'operator', point: 2 },
   '×': { token: '×', count: 4, type: 'operator', point: 2 },
   '÷': { token: '÷', count: 4, type: 'operator', point: 2 },
-  '+/-': { token: '+/-', count: 5, type: 'choice', point: 1 },
+  '+/-': { token: '+/-', count: 4, type: 'choice', point: 1 },
   '×/÷': { token: '×/÷', count: 4, type: 'choice', point: 1 },
   '=': { token: '=', count: 11, type: 'equals', point: 1 },
   '?': { token: '?', count: 4, type: 'Blank', point: 0 }
@@ -41,10 +41,11 @@ export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
 /**
  * สร้าง pool ของ tokens ทั้งหมดตามจำนวนจริง
  */
-function createTokenPool(): AmathToken[] {
+function createTokenPool(customTokenCounts?: Record<AmathToken, number>): AmathToken[] {
   const pool: AmathToken[] = [];
   Object.entries(AMATH_TOKENS).forEach(([token, info]) => {
-    for (let i = 0; i < info.count; i++) {
+    const trueCount = customTokenCounts ? (customTokenCounts[token as AmathToken] ?? info.count) : info.count;
+    for (let i = 0; i < trueCount; i++) {
       pool.push(token as AmathToken);
     }
   });
@@ -54,8 +55,8 @@ function createTokenPool(): AmathToken[] {
 /**
  * Generate DS Equation Anagram problem based on options
  */
-export async function generateEquationAnagram(options: EquationAnagramOptions): Promise<EquationAnagramResult> {
-  const validation = validateEquationAnagramOptions(options);
+export async function generateEquationAnagram(options: EquationAnagramOptions, customTokenCounts?: Record<AmathToken, number>): Promise<EquationAnagramResult> {
+  const validation = validateEquationAnagramOptions(options, customTokenCounts);
   if (validation) {
     throw new Error(validation);
   }
@@ -65,7 +66,7 @@ export async function generateEquationAnagram(options: EquationAnagramOptions): 
 
   while (attempts < maxAttempts) {
     try {
-      const tokens = generateTokensBasedOnOptions(options);
+      const tokens = generateTokensBasedOnOptions(options, customTokenCounts);
       const equations = findValidEquations(tokens, Math.max(options.equalsCount, 1));
       
       if (equations.length > 0) {
@@ -87,7 +88,7 @@ export async function generateEquationAnagram(options: EquationAnagramOptions): 
 /**
  * Generate tokens based on selected options - Random individual counts only
  */
-function generateTokensBasedOnOptions(options: EquationAnagramOptions): EquationElement[] {
+function generateTokensBasedOnOptions(options: EquationAnagramOptions, customTokenCounts?: Record<AmathToken, number>): EquationElement[] {
   // Randomize counts only when BOTH randomSettings.field is true AND corresponding *Mode is 'random'.
   // Otherwise, respect provided counts strictly.
   const processedOptions = { ...options };
@@ -104,10 +105,9 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
     const totalCount = options.totalCount;
 
     // Prepare pool counts from AMATH_TOKENS (true pool sampling)
-    const poolCounts: Record<string, number> = {};
-    Object.entries(AMATH_TOKENS).forEach(([token, info]) => {
-      poolCounts[token] = info.count;
-    });
+    const AMATH_COUNTS = customTokenCounts
+      ? Object.assign({}, ...Object.keys(AMATH_TOKENS).map(k => ({[k]: customTokenCounts[k as AmathToken] ?? AMATH_TOKENS[k as AmathToken].count})))
+      : Object.fromEntries(Object.entries(AMATH_TOKENS).map(([k,v]) => [k, v.count]));
 
     const OP_TOKENS: ReadonlyArray<string> = ['+','-','×','÷','+/-','×/÷'];
     const LIGHT_TOKENS: ReadonlyArray<string> = ['1','2','3','4','5','6','7','8','9'];
@@ -116,9 +116,9 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
     const removeFromCategory = (tokenList: ReadonlyArray<string>, count: number) => {
       let remaining = Math.max(0, count);
       while (remaining > 0) {
-        const candidates = tokenList.filter(t => (poolCounts[t] || 0) > 0);
+        const candidates = tokenList.filter(t => (AMATH_COUNTS[t as AmathToken] || 0) > 0);
         if (candidates.length === 0) break;
-        const weights = candidates.map(t => poolCounts[t]);
+        const weights = candidates.map(t => AMATH_COUNTS[t as AmathToken]);
         // weighted pick
         let sum = 0;
         for (const w of weights) sum += w;
@@ -128,7 +128,7 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
           r -= weights[i];
           if (r <= 0) { picked = candidates[i]; break; }
         }
-        poolCounts[picked] = (poolCounts[picked] || 0) - 1;
+        AMATH_COUNTS[picked as AmathToken] = (AMATH_COUNTS[picked as AmathToken] || 0) - 1;
         remaining--;
       }
     };
@@ -151,8 +151,8 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
 
     // Reserve at least 1 '=' when equals are randomized and available
     let sampledEquals = 0;
-    if (allowRandomEquals && (poolCounts['='] || 0) > 0 && remainingTiles > 0) {
-      poolCounts['='] = (poolCounts['='] || 0) - 1;
+    if (allowRandomEquals && (AMATH_COUNTS['='] || 0) > 0 && remainingTiles > 0) {
+      AMATH_COUNTS['='] = (AMATH_COUNTS['='] || 0) - 1;
       sampledEquals += 1;
       remainingTiles -= 1;
     }
@@ -165,7 +165,7 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
     // Draw remaining tiles from the pool honoring toggles
     for (let i = 0; i < remainingTiles; i++) {
       const candidates: string[] = [];
-      const pushAvailable = (token: string) => { if ((poolCounts[token] || 0) > 0) candidates.push(token); };
+      const pushAvailable = (token: string) => { if ((AMATH_COUNTS[token as AmathToken] || 0) > 0) candidates.push(token); };
       const pushList = (list: ReadonlyArray<string>) => { for (const t of list) pushAvailable(t); };
 
       // Include categories under random toggles
@@ -179,7 +179,7 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
 
       if (candidates.length === 0) break;
 
-      const weights = candidates.map(t => poolCounts[t]);
+      const weights = candidates.map(t => AMATH_COUNTS[t as AmathToken]);
       // weighted pick one token from candidates
       let sum = 0; for (const w of weights) sum += w;
       let r = Math.random() * sum;
@@ -189,7 +189,7 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
         if (r <= 0) { picked = candidates[j]; break; }
       }
 
-      poolCounts[picked] = (poolCounts[picked] || 0) - 1;
+      AMATH_COUNTS[picked as AmathToken] = (AMATH_COUNTS[picked as AmathToken] || 0) - 1;
 
       if (OP_TOKENS.includes(picked)) sampledOperators += 1;
       else if (picked === '=') sampledEquals += 1;
@@ -219,7 +219,7 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
   }
 
   // Deterministic generation with processed options
-  return generateTokensDeterministic(processedOptions);
+  return generateTokensDeterministic(processedOptions, customTokenCounts);
 }
 
 
@@ -227,7 +227,7 @@ function generateTokensBasedOnOptions(options: EquationAnagramOptions): Equation
 /**
  * Generate tokens แบบเดิม (deterministic) สำหรับกรณีที่ไม่ได้ใช้ random
  */
-function generateTokensDeterministic(options: EquationAnagramOptions): EquationElement[] {
+function generateTokensDeterministic(options: EquationAnagramOptions, customTokenCounts?: Record<AmathToken, number>): EquationElement[] {
   const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed } = options;
   
   const lightNumberCount = totalCount - operatorCount - equalsCount - heavyNumberCount - BlankCount - zeroCount;
@@ -236,7 +236,7 @@ function generateTokensDeterministic(options: EquationAnagramOptions): EquationE
     throw new Error('Not enough light numbers. Please adjust your options.');
   }
   
-  const availablePool = createTokenPool();
+  const availablePool = createTokenPool(customTokenCounts);
   const selectedTokens: EquationElement[] = [];
   
   // Pick equals tokens with weighted sampling
@@ -247,8 +247,8 @@ function generateTokensDeterministic(options: EquationAnagramOptions): EquationE
     
     if (equalsTokens.length > 0 || blankTokens.length > 0) {
       // Calculate weights based on AMATH_TOKENS counts
-      const equalsWeight = equalsTokens.length * AMATH_TOKENS['='].count;
-      const blankWeight = blankTokens.length * AMATH_TOKENS['?'].count;
+      const equalsWeight = equalsTokens.length * (customTokenCounts ? customTokenCounts['='] ?? AMATH_TOKENS['='].count : AMATH_TOKENS['='].count);
+      const blankWeight = blankTokens.length * (customTokenCounts ? customTokenCounts['?'] ?? AMATH_TOKENS['?'].count : AMATH_TOKENS['?'].count);
       const totalWeight = equalsWeight + blankWeight;
       
       if (totalWeight > 0) {
@@ -640,9 +640,35 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
     }
 
     switch (phase) {
-      case 'start': {
-        if (!canStartNumber(true)) return;
-        buildNumber(usedEquals, true);
+      case 'start': { 
+        // Try unary minus at start (e.g., -1-2=-4+1)
+        const tryUnaryAtStart = () => {
+          // direct '-'
+          if ((counts['-'] || 0) > 0) {
+            equationParts.push('-'); consume('-');
+            if (canStartNumber(false)) buildNumber(usedEquals, false);
+            unconsume('-'); equationParts.pop();
+          }
+          // choice '+/-'
+          if ((counts['+/-'] || 0) > 0) {
+            equationParts.push('-'); consume('+/-');
+            if (canStartNumber(false)) buildNumber(usedEquals, false);
+            unconsume('+/-'); equationParts.pop();
+          }
+          // blank as '-'
+          if ((counts['?'] || 0) > 0) {
+            equationParts.push('-'); consume('?');
+            if (canStartNumber(false)) buildNumber(usedEquals, false);
+            unconsume('?'); equationParts.pop();
+          }
+        };
+        tryUnaryAtStart();
+        if (results.size >= MAX_RESULTS) return;
+        
+        // Also try starting with a number directly
+        if (canStartNumber(true)) {
+          buildNumber(usedEquals, true);
+        }
         return;
       }
       case 'afterNumber': {
@@ -932,7 +958,7 @@ export function isValidEquationByRules(equation: string, equalsCount?: number): 
 /**
  * Validate EquationAnagram options
  */
-function validateEquationAnagramOptions(options: EquationAnagramOptions): string | null {
+function validateEquationAnagramOptions(options: EquationAnagramOptions, customTokenCounts?: Record<AmathToken, number>): string | null {
   const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed, randomSettings } = options;
   
   if (totalCount < 8) {
@@ -941,8 +967,8 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
   
   // Validate random settings if enabled
   if (randomSettings) {
-    const availableBlanks = AMATH_TOKENS['?'].count;
-    const availableZeros = AMATH_TOKENS['0'].count;
+    const availableBlanks = customTokenCounts ? (customTokenCounts['?'] ?? AMATH_TOKENS['?'].count) : AMATH_TOKENS['?'].count;
+    const availableZeros = customTokenCounts ? (customTokenCounts['0'] ?? AMATH_TOKENS['0'].count) : AMATH_TOKENS['0'].count;
     
     if (randomSettings.blank && BlankCount > availableBlanks) {
       return `Random blank count (${BlankCount}) exceeds available tokens (${availableBlanks}).`;
@@ -965,17 +991,17 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
     }
     
     // Check individual operator availability
-    if ((specificOperators.plus || 0) > AMATH_TOKENS['+'].count) {
-      return `Requested number of + operators (${specificOperators.plus}) exceeds available tokens (${AMATH_TOKENS['+'].count}).`;
+    if ((specificOperators.plus || 0) > (customTokenCounts ? (customTokenCounts['+'] ?? AMATH_TOKENS['+'].count) : AMATH_TOKENS['+'].count)) {
+      return `Requested number of + operators (${specificOperators.plus}) exceeds available tokens (${customTokenCounts ? (customTokenCounts['+'] ?? AMATH_TOKENS['+'].count) : AMATH_TOKENS['+'].count}).`;
     }
-    if ((specificOperators.minus || 0) > AMATH_TOKENS['-'].count) {
-      return `Requested number of - operators (${specificOperators.minus}) exceeds available tokens (${AMATH_TOKENS['-'].count}).`;
+    if ((specificOperators.minus || 0) > (customTokenCounts ? (customTokenCounts['-'] ?? AMATH_TOKENS['-'].count) : AMATH_TOKENS['-'].count)) {
+      return `Requested number of - operators (${specificOperators.minus}) exceeds available tokens (${customTokenCounts ? (customTokenCounts['-'] ?? AMATH_TOKENS['-'].count) : AMATH_TOKENS['-'].count}).`;
     }
-    if ((specificOperators.multiply || 0) > AMATH_TOKENS['×'].count) {
-      return `Requested number of × operators (${specificOperators.multiply}) exceeds available tokens (${AMATH_TOKENS['×'].count}).`;
+    if ((specificOperators.multiply || 0) > (customTokenCounts ? (customTokenCounts['×'] ?? AMATH_TOKENS['×'].count) : AMATH_TOKENS['×'].count)) {
+      return `Requested number of × operators (${specificOperators.multiply}) exceeds available tokens (${customTokenCounts ? (customTokenCounts['×'] ?? AMATH_TOKENS['×'].count) : AMATH_TOKENS['×'].count}).`;
     }
-    if ((specificOperators.divide || 0) > AMATH_TOKENS['÷'].count) {
-      return `Requested number of ÷ operators (${specificOperators.divide}) exceeds available tokens (${AMATH_TOKENS['÷'].count}).`;
+    if ((specificOperators.divide || 0) > (customTokenCounts ? (customTokenCounts['÷'] ?? AMATH_TOKENS['÷'].count) : AMATH_TOKENS['÷'].count)) {
+      return `Requested number of ÷ operators (${specificOperators.divide}) exceeds available tokens (${customTokenCounts ? (customTokenCounts['÷'] ?? AMATH_TOKENS['÷'].count) : AMATH_TOKENS['÷'].count}).`;
     }
   }
 
@@ -987,11 +1013,11 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
     }
     
     // Check choice operators availability
-    if ((operatorFixed['+/-'] || 0) > AMATH_TOKENS['+/-'].count) {
-      return `Requested number of +/- operators (${operatorFixed['+/-']}) exceeds available tokens (${AMATH_TOKENS['+/-'].count}).`;
+    if ((operatorFixed['+/-'] || 0) > (customTokenCounts ? (customTokenCounts['+/-'] ?? AMATH_TOKENS['+/-'].count) : AMATH_TOKENS['+/-'].count)) {
+      return `Requested number of +/- operators (${operatorFixed['+/-']}) exceeds available tokens (${customTokenCounts ? (customTokenCounts['+/-'] ?? AMATH_TOKENS['+/-'].count) : AMATH_TOKENS['+/-'].count}).`;
     }
-    if ((operatorFixed['×/÷'] || 0) > AMATH_TOKENS['×/÷'].count) {
-      return `Requested number of ×/÷ operators (${operatorFixed['×/÷']}) exceeds available tokens (${AMATH_TOKENS['×/÷'].count}).`;
+    if ((operatorFixed['×/÷'] || 0) > (customTokenCounts ? (customTokenCounts['×/÷'] ?? AMATH_TOKENS['×/÷'].count) : AMATH_TOKENS['×/÷'].count)) {
+      return `Requested number of ×/÷ operators (${operatorFixed['×/÷']}) exceeds available tokens (${customTokenCounts ? (customTokenCounts['×/÷'] ?? AMATH_TOKENS['×/÷'].count) : AMATH_TOKENS['×/÷'].count}).`;
     }
   }
 
@@ -1013,8 +1039,8 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
   }
   
   // Check equals
-  const availableEquals = AMATH_TOKENS['='].count;
-  const availableBlanks = AMATH_TOKENS['?'].count;
+  const availableEquals = customTokenCounts ? (customTokenCounts['='] ?? AMATH_TOKENS['='].count) : AMATH_TOKENS['='].count;
+  const availableBlanks = customTokenCounts ? (customTokenCounts['?'] ?? AMATH_TOKENS['?'].count) : AMATH_TOKENS['?'].count;
   
   // ถ้าใช้ random settings และ blank เป็น random หรือ equals เป็น random
   // ให้รวม blank เข้าไปใน available equals เพราะ ? สามารถแทน = ได้
@@ -1045,13 +1071,13 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions): string
   }
   
   // Check Blanks
-  const availableBlank = AMATH_TOKENS['?'].count;
+  const availableBlank = customTokenCounts ? (customTokenCounts['?'] ?? AMATH_TOKENS['?'].count) : AMATH_TOKENS['?'].count;
   if (BlankCount > availableBlank) {
     return `Requested number of blank (${BlankCount}) exceeds available tokens (${availableBlank}).`;
   }
   
   // Check zero
-  const availableZeros = AMATH_TOKENS['0'].count;
+  const availableZeros = customTokenCounts ? (customTokenCounts['0'] ?? AMATH_TOKENS['0'].count) : AMATH_TOKENS['0'].count;
   if (zeroCount > availableZeros) {
     return `Requested number of zeros (${zeroCount}) exceeds available tokens (${availableZeros}).`;
   }
@@ -1084,34 +1110,34 @@ function weightedRandomFromPool(pool: AmathToken[], weights: number[]): AmathTok
 /**
  * Get weighted pool for specific token type
  */
-function getWeightedPool(tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', availablePool: AmathToken[], specificOperator?: '+' | '-' | '×' | '÷' | '+/-' | '×/÷'): { tokens: AmathToken[], weights: number[] } {
+function getWeightedPool(tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', availablePool: AmathToken[], specificOperator?: '+' | '-' | '×' | '÷' | '+/-' | '×/÷', customTokenCounts?: Record<AmathToken, number>): { tokens: AmathToken[], weights: number[] } {
   let candidates: AmathToken[] = [];
   let weights: number[] = [];
   
   if (tokenType === 'equals') {
     candidates = availablePool.filter(token => token === '=');
-    weights = candidates.map(() => AMATH_TOKENS['='].count);
+    weights = candidates.map(() => customTokenCounts ? (customTokenCounts['='] ?? AMATH_TOKENS['='].count) : AMATH_TOKENS['='].count);
   } else if (tokenType === 'operator') {
     if (specificOperator) {
       candidates = availablePool.filter(token => token === specificOperator);
-      weights = candidates.map(token => AMATH_TOKENS[token].count);
+      weights = candidates.map(token => customTokenCounts ? (customTokenCounts[token] ?? AMATH_TOKENS[token].count) : AMATH_TOKENS[token].count);
     } else {
       // รวม choice operators เป็นส่วนหนึ่งของ operator
       candidates = availablePool.filter(token => ['+', '-', '×', '÷', '+/-', '×/÷'].includes(token));
-      weights = candidates.map(token => AMATH_TOKENS[token].count);
+      weights = candidates.map(token => customTokenCounts ? (customTokenCounts[token] ?? AMATH_TOKENS[token].count) : AMATH_TOKENS[token].count);
     }
   } else if (tokenType === 'light') {
     candidates = availablePool.filter(token => ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(token));
-    weights = candidates.map(token => AMATH_TOKENS[token].count);
+    weights = candidates.map(token => customTokenCounts ? (customTokenCounts[token] ?? AMATH_TOKENS[token].count) : AMATH_TOKENS[token].count);
   } else if (tokenType === 'heavy') {
     candidates = availablePool.filter(token => ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20'].includes(token));
-    weights = candidates.map(token => AMATH_TOKENS[token].count);
+    weights = candidates.map(token => customTokenCounts ? (customTokenCounts[token] ?? AMATH_TOKENS[token].count) : AMATH_TOKENS[token].count);
   } else if (tokenType === 'Blank') {
     candidates = availablePool.filter(token => token === '?');
-    weights = candidates.map(() => AMATH_TOKENS['?'].count);
+    weights = candidates.map(() => customTokenCounts ? (customTokenCounts['?'] ?? AMATH_TOKENS['?'].count) : AMATH_TOKENS['?'].count);
   } else if (tokenType === 'zero') {
     candidates = availablePool.filter(token => token === '0');
-    weights = candidates.map(() => AMATH_TOKENS['0'].count);
+    weights = candidates.map(() => customTokenCounts ? (customTokenCounts['0'] ?? AMATH_TOKENS['0'].count) : AMATH_TOKENS['0'].count);
   }
   
   return { tokens: candidates, weights };
@@ -1120,8 +1146,8 @@ function getWeightedPool(tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 
 /**
  * Pick token from pool using weighted random
  */
-const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', availablePool: AmathToken[], specificOperator?: '+' | '-' | '×' | '÷' | '+/-' | '×/÷'): AmathToken | null => {
-  const { tokens, weights } = getWeightedPool(tokenType, availablePool, specificOperator);
+const pickTokenFromPool = (tokenType: 'equals' | 'operator' | 'light' | 'heavy' | 'Blank' | 'zero', availablePool: AmathToken[], specificOperator?: '+' | '-' | '×' | '÷' | '+/-' | '×/÷', customTokenCounts?: Record<AmathToken, number>): AmathToken | null => {
+  const { tokens, weights } = getWeightedPool(tokenType, availablePool, specificOperator, customTokenCounts);
   
   if (tokens.length === 0) return null;
   
