@@ -14,6 +14,9 @@ import ProblemStats from './ProblemStats';
 import ExampleSolution from './ExampleSolution';
 import AnswerFeedback from './AnswerFeedback';
 import GenerateButton from './GenerateButton';
+import {sortTokenStringsByAmathOrder} from "@/app/lib/tokenSort";
+import type { SelectedTile } from "@/app/types/TileSelection";
+
 
 interface DisplayBoxProps {
   result: EquationAnagramResult | null;
@@ -63,12 +66,12 @@ export default function DisplayBox({
   
   // Tile reordering state - now with empty slots
   const [rackTiles, setRackTiles] = useState<(string | null)[]>([]);
-  const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(null);
+  const [selectedTile, setSelectedTile] = useState<SelectedTile>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   
   // Answer state - track individual tile pieces with unique IDs and their choices
-  const [answerTiles, setAnswerTiles] = useState<({value: string, sourceIndex: number, tileId: string, choiceSelection?: string} | null)[]>([]);
+  const [answerTiles, setAnswerTiles] = useState<({value: string, sourceIndex: number, tileId: string, choiceSelection?: string, isLocked?: boolean} | null)[]>([]);
   const [answerDragOverIndex, setAnswerDragOverIndex] = useState<number | null>(null);
   const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   const [answerFeedback, setAnswerFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null);
@@ -151,16 +154,61 @@ export default function DisplayBox({
     }
   }, [result, rackTiles, answerTiles]);
 
+  // Scroll offset state for lock mode
+  const MAX_ANSWER_LENGTH = 15;
+
   // Initialize rack tiles when result changes
   React.useEffect(() => {
     if (result) {
       setIsInitializing(true);
-      setRackTiles([...result.elements]);
-      setSelectedTileIndex(null);
-      // Initialize answer boxes with same length as tiles
-      setAnswerTiles(new Array(result.elements.length).fill(null));
+      
+      // Handle lock mode
+      if (result.lockPositions && result.lockPositions.length > 0) {
+        // In lock mode: rack has 8 tiles, answer has locked tiles
+        // answerTiles array has length = totalCount (number of generated tiles)
+        // Show exactly totalCount slots (no scrolling, no randomization)
+        const rackElements: (string | null)[] = [];
+        const answerElements: ({value: string, sourceIndex: number, tileId: string, choiceSelection?: string, isLocked?: boolean} | null)[] = new Array(result.elements.length).fill(null);
+        
+        // Separate elements into rack and locked answer
+        result.solutionTokens?.forEach((element, index) => {
+          if (result.lockPositions!.includes(index)) {
+            // This position is locked - place in answer at the same index as original
+            answerElements[index] = {
+              value: element,
+              sourceIndex: index,
+              tileId: generateTileId(index, element),
+              isLocked: true
+            };
+          } else {
+            // This goes to rack
+            rackElements.push(element);
+          }
+        });
+        
+        // Ensure rack has exactly 8 tiles (pad with null if needed)
+        while (rackElements.length < 8) {
+          rackElements.push(null);
+        }
+        while (rackElements.length > 8) {
+          rackElements.pop();
+        }
+        
+        setRackTiles(sortTokenStringsByAmathOrder(rackElements as string[]));
+        setAnswerTiles(answerElements);
+        
+        // Mark locked positions as used
+        const lockedIndices = new Set(result.lockPositions);
+        setUsedTileIndices(lockedIndices);
+      } else {
+        // Normal mode
+        setRackTiles([...result.elements]);
+        setAnswerTiles(new Array(result.elements.length).fill(null));
+      }
+      
+      setSelectedTile(null);
       setAnswerFeedback(null);
-      setUsedTileIndices(new Set());
+      
       // Clean up all drag states manually
       setTimeout(() => {
         setDraggedIndex(null);
@@ -188,7 +236,7 @@ export default function DisplayBox({
       
       return () => clearTimeout(timeoutId);
     }
-  }, [rackTiles, answerTiles, result, isInitializing]);
+  }, [rackTiles, answerTiles, result, isInitializing, validateTileIntegrity]);
 
   // Clean up CSS variables when popup is closed
   React.useEffect(() => {
@@ -222,176 +270,174 @@ export default function DisplayBox({
 
   // Handle tile click for reordering or placing in answer - only select actual tiles
   const handleTileClick = (clickedIndex: number) => {
-    // Prevent clicking while dragging
     if (draggedIndex !== null) return;
-    
+  
     const clickedTile = rackTiles[clickedIndex];
-    if (!clickedTile) return; // Can't select empty slots - this is the key fix
-    
-    if (selectedTileIndex === null) {
-      // First click - select tile
-      setSelectedTileIndex(clickedIndex);
-      // Clear any feedback messages
+    if (!clickedTile) return;
+  
+    // ถ้ายังไม่เลือกอะไร หรือเลือกจาก answer อยู่ -> เลือก rack ตัวนี้
+    if (selectedTile === null || selectedTile.source !== 'rack') {
+      setSelectedTile({ source: 'rack', index: clickedIndex });
       setAnswerFeedback(null);
-    } else if (selectedTileIndex === clickedIndex) {
-      // Click same tile - deselect
-      setSelectedTileIndex(null);
-    } else {
-      // Second click - swap positions if clicking another tile with content
-      const selectedTile = rackTiles[selectedTileIndex];
-      if (selectedTile) {
-        const newRackTiles = [...rackTiles];
-        
-        // Swap tiles
-        newRackTiles[selectedTileIndex] = clickedTile;
-        newRackTiles[clickedIndex] = selectedTile;
-        
-        setRackTiles(newRackTiles);
-      }
-      setSelectedTileIndex(null);
-      
-      // Clear any feedback messages
-      setAnswerFeedback(null);
+      return;
     }
+  
+    // ตอนนี้ selectedTile เป็น rack แน่นอน
+    const selectedIndex = selectedTile.index;
+  
+    if (selectedIndex === clickedIndex) {
+      setSelectedTile(null);
+      return;
+    }
+  
+    // swap rack <-> rack
+    const selectedValue = rackTiles[selectedIndex];
+    if (!selectedValue) {
+      setSelectedTile(null);
+      return;
+    }
+  
+    const newRack = [...rackTiles];
+    newRack[selectedIndex] = clickedTile;
+    newRack[clickedIndex] = selectedValue;
+  
+    setRackTiles(newRack);
+    setSelectedTile(null);
+    setAnswerFeedback(null);
   };
+  
 
   // Handle answer box click when tile is selected
   const handleAnswerBoxClick = (answerIndex: number) => {
-    if (selectedTileIndex === null) return;
-    
-    const draggedElement = rackTiles[selectedTileIndex];
-    if (!draggedElement) return; // Skip if no element at this index
-    
+    if (!selectedTile || selectedTile.source !== 'rack') return;
+  
+    const rackIndex = selectedTile.index;
+    const draggedElement = rackTiles[rackIndex];
+    if (!draggedElement) return;
+  
     const newAnswerTiles = [...answerTiles];
     const newRackTiles = [...rackTiles];
     const newUsedIndices = new Set(usedTileIndices);
-    
-    // Check if there's already a tile at the target position
+  
     const existingTile = newAnswerTiles[answerIndex];
-    
+  
+    // ห้ามทับ locked
+    if (existingTile?.isLocked) return;
+  
     if (existingTile) {
-      // Swap: move existing tile back to its original rack position and place new tile
-      newRackTiles[existingTile.sourceIndex] = existingTile.value;
+      // เอา existing กลับ rack ช่องว่าง
+      const emptyRackIndex = newRackTiles.findIndex(t => t === null);
+      if (emptyRackIndex !== -1) newRackTiles[emptyRackIndex] = existingTile.value;
+  
       newUsedIndices.delete(existingTile.sourceIndex);
-      newAnswerTiles[answerIndex] = { 
-        value: draggedElement, 
-        sourceIndex: selectedTileIndex,
-        tileId: generateTileId(selectedTileIndex, draggedElement)
+  
+      // วางตัวใหม่ลง answer
+      newAnswerTiles[answerIndex] = {
+        value: draggedElement,
+        sourceIndex: rackIndex,
+        tileId: generateTileId(rackIndex, draggedElement),
       };
-      newRackTiles[selectedTileIndex] = null; // Create empty slot in rack
-      newUsedIndices.add(selectedTileIndex);
+  
+      newRackTiles[rackIndex] = null;
+      newUsedIndices.add(rackIndex);
     } else {
-      // Empty slot - normal placement
-      // Check if this tile is already used elsewhere in answer
-      const currentIndex = newAnswerTiles.findIndex(tile => tile?.sourceIndex === selectedTileIndex);
-      if (currentIndex !== -1) {
-        // Remove from current position
-        newAnswerTiles[currentIndex] = null;
-      }
+      // ถ้าตัวเดียวกันอยู่ที่ช่องอื่นใน answer ให้ย้าย
+      const currentIndex = newAnswerTiles.findIndex(
+        (t) => !!t && !t.isLocked && t.sourceIndex === rackIndex
+      );
+      if (currentIndex !== -1) newAnswerTiles[currentIndex] = null;
       
-      // Place selected tile at new position
-      newAnswerTiles[answerIndex] = { 
-        value: draggedElement, 
-        sourceIndex: selectedTileIndex,
-        tileId: generateTileId(selectedTileIndex, draggedElement)
+  
+      newAnswerTiles[answerIndex] = {
+        value: draggedElement,
+        sourceIndex: rackIndex,
+        tileId: generateTileId(rackIndex, draggedElement),
       };
-      newRackTiles[selectedTileIndex] = null; // Remove from rack
-      newUsedIndices.add(selectedTileIndex);
+  
+      newRackTiles[rackIndex] = null;
+      newUsedIndices.add(rackIndex);
     }
-    
+  
     setRackTiles(newRackTiles);
-    
     setAnswerTiles(newAnswerTiles);
     setUsedTileIndices(newUsedIndices);
-    setSelectedTileIndex(null);
-    
-    // Clear feedback state
+    setSelectedTile(null);
     setAnswerFeedback(null);
   };
+  
 
   // Handle answer tile click for selection
   const handleAnswerTileClick = (answerIndex: number) => {
     const tile = answerTiles[answerIndex];
     if (!tile) return;
-    
-    if (selectedTileIndex === null) {
-      // Select this answer tile (mark it as selected using its source index)
-      setSelectedTileIndex(tile.sourceIndex);
+    if (tile.isLocked) return;
+  
+    // ถ้ายังไม่เลือกอะไร หรือเลือกจาก rack -> เลือก answer ตัวนี้
+    if (selectedTile === null || selectedTile.source !== 'answer') {
+      setSelectedTile({ source: 'answer', index: answerIndex });
       setAnswerFeedback(null);
-    } else if (selectedTileIndex === tile.sourceIndex) {
-      // Deselect if clicking the same tile
-      setSelectedTileIndex(null);
-    } else {
-      // Different tile selected - handle movement/swap
-      const selectedElement = rackTiles[selectedTileIndex];
-      if (!selectedElement) return; // Skip if no element at this index
-      
-      const newAnswerTiles = [...answerTiles];
-      const newUsedIndices = new Set(usedTileIndices);
-      
-      // Check if selected tile is from rack or answer
-      const selectedTileCurrentAnswerIndex = newAnswerTiles.findIndex(t => t?.sourceIndex === selectedTileIndex);
-      
-      if (selectedTileCurrentAnswerIndex !== -1) {
-        // Selected tile is from answer - swap positions (no rack changes needed)
-        const tempTile = newAnswerTiles[answerIndex];
-        newAnswerTiles[answerIndex] = newAnswerTiles[selectedTileCurrentAnswerIndex];
-        newAnswerTiles[selectedTileCurrentAnswerIndex] = tempTile;
-        // No rack tiles or usedTileIndices changes needed for answer-to-answer swap
-      } else {
-        // Selected tile is from rack - place it here and move existing tile back to rack (sync with drag & drop)
-        const newRackTiles = [...rackTiles];
-        newRackTiles[tile.sourceIndex] = tile.value;
-        newUsedIndices.delete(tile.sourceIndex);
-        newAnswerTiles[answerIndex] = { 
-          value: selectedElement, 
-          sourceIndex: selectedTileIndex,
-          tileId: generateTileId(selectedTileIndex, selectedElement)
-        };
-        newRackTiles[selectedTileIndex] = null; // Create empty slot in rack
-        newUsedIndices.add(selectedTileIndex);
-        setRackTiles(newRackTiles);
-      }
-      
-      setAnswerTiles(newAnswerTiles);
-      setUsedTileIndices(newUsedIndices);
-      setSelectedTileIndex(null);
-      setAnswerFeedback(null);
+      return;
     }
+  
+    // ตอนนี้ selectedTile เป็น answer แน่นอน
+    const selectedAnswerIndex = selectedTile.index;
+  
+    if (selectedAnswerIndex === answerIndex) {
+      setSelectedTile(null);
+      return;
+    }
+  
+    // ✅ swap answer <-> answer (ง่ายและตรงที่สุด)
+    const newAnswer = [...answerTiles];
+    const temp = newAnswer[answerIndex];
+    newAnswer[answerIndex] = newAnswer[selectedAnswerIndex];
+    newAnswer[selectedAnswerIndex] = temp;
+  
+    setAnswerTiles(newAnswer);
+    setSelectedTile(null);
+    setAnswerFeedback(null);
   };
+  
 
   // Handle rack slot click for placing tiles back
   const handleRackSlotClick = (rackIndex: number) => {
-    if (selectedTileIndex === null || rackTiles[rackIndex]) return; // Only allow placing in empty slots
-    
-    const newRackTiles = [...rackTiles];
-    const newAnswerTiles = [...answerTiles];
-    const newUsedIndices = new Set(usedTileIndices);
-    
-    // Check if selected tile is from answer
-    const selectedTileInAnswer = newAnswerTiles.find(tile => tile?.sourceIndex === selectedTileIndex);
-    
-    if (selectedTileInAnswer) {
-      // Move tile from answer back to rack
-      const answerIndex = newAnswerTiles.findIndex(tile => tile?.sourceIndex === selectedTileIndex);
-      if (answerIndex !== -1) {
-        newAnswerTiles[answerIndex] = null;
-        newRackTiles[rackIndex] = selectedTileInAnswer.value;
-        newUsedIndices.delete(selectedTileIndex);
-      }
-    } else if (rackTiles[selectedTileIndex]) {
-      // Move tile within rack
-      const selectedElement = rackTiles[selectedTileIndex];
-      newRackTiles[selectedTileIndex] = null;
-      newRackTiles[rackIndex] = selectedElement;
+    if (!selectedTile) return;
+    if (rackTiles[rackIndex]) return; // วางได้เฉพาะช่องว่าง
+  
+    const newRack = [...rackTiles];
+    const newAnswer = [...answerTiles];
+    const newUsed = new Set(usedTileIndices);
+  
+    if (selectedTile.source === 'answer') {
+      const ansIndex = selectedTile.index;
+      const moving = newAnswer[ansIndex];
+      if (!moving || moving.isLocked) return;
+  
+      newAnswer[ansIndex] = null;
+      newRack[rackIndex] = moving.value;
+      newUsed.delete(moving.sourceIndex);
+  
+      setRackTiles(newRack);
+      setAnswerTiles(newAnswer);
+      setUsedTileIndices(newUsed);
+      setSelectedTile(null);
+      setAnswerFeedback(null);
+      return;
     }
-    
-    setRackTiles(newRackTiles);
-    setAnswerTiles(newAnswerTiles);
-    setUsedTileIndices(newUsedIndices);
-    setSelectedTileIndex(null);
+  
+    // source === 'rack' -> move tile within rack into empty slot
+    const from = selectedTile.index;
+    const val = newRack[from];
+    if (!val) return;
+  
+    newRack[from] = null;
+    newRack[rackIndex] = val;
+  
+    setRackTiles(newRack);
+    setSelectedTile(null);
     setAnswerFeedback(null);
   };
+  
 
   // Handle drag drop to rack slots
   const handleRackSlotDrop = (e: React.DragEvent, rackIndex: number) => {
@@ -539,7 +585,7 @@ export default function DisplayBox({
   const resetOrder = () => {
     if (result) {
       setRackTiles([...result.elements]);
-      setSelectedTileIndex(null);
+      setSelectedTile(null);
       setAnswerFeedback(null);
       // Clear all choice selections when resetting
       clearAllChoiceSelections();
@@ -595,11 +641,13 @@ export default function DisplayBox({
       // Empty slot - normal placement (same as click)
       const newRackTiles = [...rackTiles];
       // Check if this tile is already used elsewhere in answer
-      const currentIndex = newAnswerTiles.findIndex(tile => tile?.sourceIndex === draggedIndex);
+      const currentIndex = newAnswerTiles.findIndex(
+        (tile) => !!tile && !tile.isLocked && tile.sourceIndex === draggedIndex
+      );
       if (currentIndex !== -1) {
-        // Remove from current position
         newAnswerTiles[currentIndex] = null;
       }
+      
       
       // Place dragged tile at new position
       newAnswerTiles[dropIndex] = { 
@@ -628,13 +676,21 @@ export default function DisplayBox({
   // Clear answer box and return tile to rack
   const clearAnswerBox = (index: number) => {
     const newAnswerTiles = [...answerTiles];
-    const newRackTiles = [...rackTiles];
     const tileToRemove = newAnswerTiles[index];
+    
+    // Don't allow clearing locked tiles
+    if (tileToRemove?.isLocked) return;
+    
     newAnswerTiles[index] = null;
     
     if (tileToRemove) {
-      // Return tile to its original rack position, creating visible empty slot effect
-      newRackTiles[tileToRemove.sourceIndex] = tileToRemove.value;
+      const newRackTiles = [...rackTiles];
+      // Find an empty slot in rack to return the tile
+      const emptyRackIndex = newRackTiles.findIndex(t => t === null);
+      if (emptyRackIndex !== -1) {
+        newRackTiles[emptyRackIndex] = tileToRemove.value;
+      }
+      setRackTiles(newRackTiles);
       setUsedTileIndices(prev => {
         const newSet = new Set(prev);
         newSet.delete(tileToRemove.sourceIndex);
@@ -643,7 +699,6 @@ export default function DisplayBox({
     }
     
     setAnswerTiles(newAnswerTiles);
-    setRackTiles(newRackTiles);
     
     // Clear feedback when modifying answer
     setAnswerFeedback(null);
@@ -673,7 +728,7 @@ export default function DisplayBox({
     const tokens: {token: string, index: number, tileId: string}[] = [];
     
     answerTiles.forEach((tile, index) => {
-      if (tile && (tile.value === '+/-' || tile.value === '×/÷' || tile.value === '?')) {
+      if (tile && !tile.isLocked && (tile.value === '+/-' || tile.value === '×/÷' || tile.value === '?')) {
         tokens.push({ 
           token: tile.value, 
           index,
@@ -815,6 +870,7 @@ export default function DisplayBox({
 
   // Finalize equation with user choices
   const finalizeEquation = () => {
+    // Always use answerTiles length (which equals totalCount in lock mode)
     return answerTiles.map(tile => {
       if (!tile) return '';
       
@@ -832,6 +888,9 @@ export default function DisplayBox({
   const hasAllChoicesSelected = () => {
     return answerTiles.every(tile => {
       if (!tile) return true; // Empty slots don't need choices
+      
+      // Locked tiles don't need choice selection
+      if (tile.isLocked) return true;
       
       // If it's a choice token, it must have a choice selection
       if (tile.value === '+/-' || tile.value === '×/÷' || tile.value === '?') {
@@ -1006,16 +1065,16 @@ export default function DisplayBox({
        
        const tileCountBox = document.createElement('div');
       //  tileCountBox.style.backgroundColor = '#fef3c7';
-tileCountBox.style.color = '#166534';
-tileCountBox.style.borderRadius = '16px';
-tileCountBox.style.fontSize = '14px';
-tileCountBox.style.fontWeight = '500';
-tileCountBox.style.display = 'flex';
-tileCountBox.style.alignItems = 'center';
-tileCountBox.style.justifyContent = 'center';
-tileCountBox.style.minWidth = '80px';
-tileCountBox.style.height = '32px'; // ✅ เพิ่มความสูงให้กล่อง
-tileCountBox.style.boxSizing = 'border-box'; // ✅ ป้องกัน padding overflow
+        tileCountBox.style.color = '#166534';
+        tileCountBox.style.borderRadius = '16px';
+        tileCountBox.style.fontSize = '14px';
+        tileCountBox.style.fontWeight = '500';
+        tileCountBox.style.display = 'flex';
+        tileCountBox.style.alignItems = 'center';
+        tileCountBox.style.justifyContent = 'center';
+        tileCountBox.style.minWidth = '80px';
+        tileCountBox.style.height = '32px'; // ✅ เพิ่มความสูงให้กล่อง
+        tileCountBox.style.boxSizing = 'border-box'; // ✅ ป้องกัน padding overflow
        tileCountBox.textContent = `${result.elements.length} tiles`;
        
        titleSection.appendChild(title);
@@ -1158,7 +1217,7 @@ mainText.style.textAlign = 'center';
             <div ref={problemSetRef}>
               <TileRack
                 displayElements={displayElements}
-                selectedTileIndex={selectedTileIndex}
+                selectedTile={selectedTile}
                 draggedIndex={draggedIndex}
                 dragOverIndex={dragOverIndex}
                 usedTileIndices={usedTileIndices}
@@ -1187,7 +1246,7 @@ mainText.style.textAlign = 'center';
             {/* Answer Area */}
             <AnswerArea
               answerTiles={answerTiles}
-              selectedTileIndex={selectedTileIndex}
+              selectedTile={selectedTile}
               answerDragOverIndex={answerDragOverIndex}
               answerDropTarget={answerDropTarget}
               answerDraggedIndex={answerDraggedIndex}
@@ -1219,6 +1278,11 @@ mainText.style.textAlign = 'center';
               setAnswerDropTarget={setAnswerDropTarget}
               rackTilesCount={rackTiles.filter(tile => tile !== null).length}
               totalTilesCount={result?.elements.length || 0}
+              lockMode={!!result?.lockPositions && result.lockPositions.length > 0}
+              scrollOffset={0}
+              onScrollOffsetChange={() => {}}
+              maxAnswerLength={MAX_ANSWER_LENGTH}
+              lockPositions={result?.lockPositions || []}
             />
 
             {/* Answer Feedback */}

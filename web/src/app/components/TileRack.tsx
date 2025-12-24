@@ -1,15 +1,17 @@
 import React from 'react';
 import Tile from './Tile';
 import EmptySlot from './EmptySlot';
+import type { SelectedTile } from '@/app/types/TileSelection';
 
 interface TileRackProps {
   displayElements: (string | null)[];
-  selectedTileIndex: number | null;
+  selectedTile: SelectedTile;
   draggedIndex: number | null;
   dragOverIndex: number | null;
   usedTileIndices: Set<number>;
   choiceSelections: {[key: string]: string};
   showChoicePopup: boolean;
+
   onTileClick: (index: number) => void;
   onDragStart: (e: React.DragEvent, index: number) => void;
   onDragEnd: () => void;
@@ -23,7 +25,7 @@ interface TileRackProps {
 
 export default function TileRack({
   displayElements,
-  selectedTileIndex,
+  selectedTile,
   draggedIndex,
   dragOverIndex,
   choiceSelections,
@@ -38,6 +40,9 @@ export default function TileRack({
   onRackSlotDrop,
   setDragOverIndex,
 }: TileRackProps) {
+  const selectedRackIndex =
+    selectedTile?.source === 'rack' ? selectedTile.index : null;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -45,12 +50,11 @@ export default function TileRack({
           🧮 Problem Set
         </h3>
       </div>
-      
-      {/* Tile rack: single-row with responsive tile size - no scrolling needed */}
+
       <div
         className={`
           flex items-center justify-center gap-[var(--tile-gap)] p-3 sm:p-4
-          bg-[var(--brand-accent-light)] rounded-lg shadow-lg 
+          bg-[var(--brand-accent-light)] rounded-lg shadow-lg
           border-2 border-[var(--brand-secondary)]
           relative flex-wrap
           ${showChoicePopup ? 'blur-sm opacity-60' : ''}
@@ -61,10 +65,10 @@ export default function TileRack({
         onDrop={onRackDrop}
       >
         {displayElements.map((element, index) => {
-          const isSelected = selectedTileIndex === index && !!element;
+          const isSelected = selectedRackIndex === index && !!element;
           const isDragging = draggedIndex === index;
           const isDragOver = dragOverIndex === index && draggedIndex !== null && draggedIndex !== index;
-          
+
           return element ? (
             <Tile
               key={`rack-${index}`}
@@ -87,7 +91,7 @@ export default function TileRack({
               slotType="rack"
               isDragOver={isDragOver}
               onClick={() => {
-                if (selectedTileIndex !== null && displayElements[selectedTileIndex]) {
+                if (selectedRackIndex !== null && displayElements[selectedRackIndex]) {
                   onRackSlotClick(index);
                 }
               }}

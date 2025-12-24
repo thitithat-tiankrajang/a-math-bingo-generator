@@ -2,7 +2,7 @@
 import type { EquationAnagramOptions, EquationAnagramResult, AmathToken, AmathTokenInfo, EquationElement } from '@/app/types/EquationAnagram';
 import { Fraction, compareFractions } from './fractionUtil';
 import { isHeavyNumber, getElementType } from './tokenUtil';
-import { evaluateExpressionAsFraction } from './expressionUtil';
+import { evaluateExpressionAsFraction, tokenizeExpression } from './expressionUtil';
 
 export const AMATH_TOKENS: Record<AmathToken, AmathTokenInfo> = {
   '0': { token: '0', count: 4, type: 'lightNumber', point: 1 },
@@ -53,6 +53,45 @@ function createTokenPool(customTokenCounts?: Record<AmathToken, number>): AmathT
 }
 
 /**
+ * Generate non-adjacent lock positions
+ * @param totalLength Total length of the equation
+ * @param lockCount Number of positions to lock
+ * @returns Array of lock positions (0-indexed)
+ */
+function generateNonAdjacentLockPositions(totalLength: number, lockCount: number): number[] {
+  if (lockCount === 0) return [];
+  if (lockCount >= totalLength) {
+    // If lock count is too high, return all positions
+    return Array.from({ length: totalLength }, (_, i) => i);
+  }
+  
+  const positions: number[] = [];
+  const available = Array.from({ length: totalLength }, (_, i) => i);
+  
+  while (positions.length < lockCount && available.length > 0) {
+    // Randomly select a position
+    const randomIndex = Math.floor(Math.random() * available.length);
+    const selectedPos = available[randomIndex];
+    
+    positions.push(selectedPos);
+    
+    // Remove selected position and adjacent positions from available
+    const toRemove = new Set<number>([selectedPos]);
+    if (selectedPos > 0) toRemove.add(selectedPos - 1);
+    if (selectedPos < totalLength - 1) toRemove.add(selectedPos + 1);
+    
+    // Filter out removed positions
+    for (let i = available.length - 1; i >= 0; i--) {
+      if (toRemove.has(available[i])) {
+        available.splice(i, 1);
+      }
+    }
+  }
+  
+  return positions.sort((a, b) => a - b);
+}
+
+/**
  * Generate DS Equation Anagram problem based on options
  */
 export async function generateEquationAnagram(options: EquationAnagramOptions, customTokenCounts?: Record<AmathToken, number>): Promise<EquationAnagramResult> {
@@ -67,13 +106,76 @@ export async function generateEquationAnagram(options: EquationAnagramOptions, c
   while (attempts < maxAttempts) {
     try {
       const tokens = generateTokensBasedOnOptions(options, customTokenCounts);
-      const equations = findValidEquations(tokens, Math.max(options.equalsCount, 1));
+      let solutionTiles: string[] | undefined;
+      const equations = findValidEquations(tokens, Math.max(options.equalsCount, 1),
+        (eq, tiles) => {
+        // เอาเฉพาะคำตอบแรกก็พอ
+        if (!solutionTiles) solutionTiles = tiles;
+      });
       
       if (equations.length > 0) {
+        // Reorder elements to match the solution equation order so lock positions follow solution slots
+        const equationTokens = tokenizeExpression(equations[0]);
+        console.log(equations)
+        const elements = tokens.map(t => t.originalToken);
+
+        const reorderElementsBySolution = () => {
+          if (!equationTokens || equationTokens.length === 0) return elements;
+
+          const used = new Array(elements.length).fill(false);
+          const result: string[] = [];
+
+          // 1) Map each equation token to the first unused matching element
+          for (const tok of equationTokens) {
+            let found = -1;
+            for (let i = 0; i < elements.length; i++) {
+              if (!used[i] && elements[i] === tok) {
+                found = i;
+                break;
+              }
+            }
+            if (found !== -1) {
+              used[found] = true;
+              result.push(elements[found]);
+            } else {
+              // If no match, keep the token itself (keeps order aligned to solution)
+              result.push(tok);
+            }
+          }
+
+          // 2) Append any leftover unused elements to keep counts
+          for (let i = 0; i < elements.length; i++) {
+            if (!used[i]) result.push(elements[i]);
+          }
+
+          // 3) Ensure length matches the original elements length
+          if (result.length > elements.length) {
+            return result.slice(0, elements.length);
+          }
+          if (result.length < elements.length) {
+            // Pad with remaining elements (unlikely)
+            for (let i = 0; i < elements.length && result.length < elements.length; i++) {
+              if (!used[i]) result.push(elements[i]);
+            }
+          }
+          return result;
+        };
+
+        const orderedElements = reorderElementsBySolution();
+        let lockPositions: number[] | undefined;
+        
+        // Handle lock mode - generate lock positions based on solution equation order (non-adjacent)
+        if (options.lockMode && options.lockCount !== undefined && options.lockCount > 0) {
+          const lockCount = options.lockCount;
+          lockPositions = generateNonAdjacentLockPositions(orderedElements.length, lockCount);
+        }
+        console.log(solutionTiles)
         return {
-          elements: tokens.map(t => t.originalToken),
+          elements: orderedElements,
           sampleEquation: equations[0],
-          possibleEquations: equations.slice(0, 10)
+          possibleEquations: equations.slice(0, 10),
+          lockPositions,
+          solutionTokens: solutionTiles,
         };
       }
     } catch (error) {
@@ -488,7 +590,7 @@ function generateTokensDeterministic(options: EquationAnagramOptions, customToke
 /**
  * Structure-first backtracking equation finder (replaces permutation-based search)
  */
-function findValidEquations(tokens: EquationElement[], equalsCount: number): string[] {
+function findValidEquations(tokens: EquationElement[], equalsCount: number, onFound?: (eq: string, parts: string[]) => void): string[] {
   const MAX_RESULTS = 10;
   const requiredEquals = Math.max(equalsCount, 1);
   const results = new Set<string>();
@@ -522,6 +624,7 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
 
   type Phase = 'start' | 'afterNumber' | 'afterOperator' | 'afterEquals';
   const equationParts: string[] = [];
+  const tileParts: string[] = [];
 
   function consume(token: string) { counts[token] = (counts[token] || 0) - 1; }
   function unconsume(token: string) { counts[token] = (counts[token] || 0) + 1; }
@@ -536,7 +639,10 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
   function yieldIfValid(eq: string, usedEquals: number) {
     if (usedEquals !== requiredEquals) return;
     try {
-      if (isValidEquationByRules(eq, requiredEquals)) results.add(eq);
+      if (isValidEquationByRules(eq, requiredEquals)) {
+        results.add(eq);
+        onFound?.(eq, tileParts.slice());
+      }
     } catch { /* ignore */ }
   }
 
@@ -562,7 +668,9 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
     for (const h of HEAVY_NUMBERS) {
       if ((counts[h] || 0) > 0) {
         equationParts.push(h); consume(h);
+        tileParts.push(h);
         dfs('afterNumber', usedEquals);
+        tileParts.pop();
         unconsume(h); equationParts.pop();
         if (results.size >= MAX_RESULTS) return;
       }
@@ -572,7 +680,9 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
       if ((counts['?'] || 0) > 0) {
         // Use a blank to represent this heavy
         consume('?'); equationParts.push(h);
+        tileParts.push(h);
         dfs('afterNumber', usedEquals);
+        tileParts.pop();
         equationParts.pop(); unconsume('?');
         if (results.size >= MAX_RESULTS) return;
       }
@@ -582,13 +692,17 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
     if (zeroAllowed && ((counts['0'] || 0) > 0 || (counts['?'] || 0) > 0)) {
       if ((counts['0'] || 0) > 0) {
         equationParts.push('0'); consume('0');
+        tileParts.push('0');
         dfs('afterNumber', usedEquals);
+        tileParts.pop();
         unconsume('0'); equationParts.pop();
       }
       if (results.size >= MAX_RESULTS) return;
       if ((counts['?'] || 0) > 0) {
         equationParts.push('0'); consume('?');
+        tileParts.push('?');
         dfs('afterNumber', usedEquals);
+        tileParts.pop();
         unconsume('?'); equationParts.pop();
       }
       if (results.size >= MAX_RESULTS) return;
@@ -603,22 +717,26 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
         // direct digit
         if ((counts[d] || 0) > 0) {
           digits.push(d); consume(d);
+          tileParts.push(d);
           const num = digits.join('');
           equationParts.push(num);
           dfs('afterNumber', usedEquals);
           equationParts.pop();
           addDigit();
+          tileParts.pop();
           unconsume(d); digits.pop();
           if (results.size >= MAX_RESULTS) return;
         }
         // blank as digit
         if ((counts['?'] || 0) > 0) {
           digits.push(d); consume('?');
+          tileParts.push('?');
           const num = digits.join('');
           equationParts.push(num);
           dfs('afterNumber', usedEquals);
           equationParts.pop();
           addDigit();
+          tileParts.pop();
           unconsume('?'); digits.pop();
           if (results.size >= MAX_RESULTS) return;
         }
@@ -640,111 +758,152 @@ function findValidEquations(tokens: EquationElement[], equalsCount: number): str
     }
 
     switch (phase) {
-      case 'start': { 
+      case 'start': {
         // Try unary minus at start (e.g., -1-2=-4+1)
         const tryUnaryAtStart = () => {
           // direct '-'
           if ((counts['-'] || 0) > 0) {
             equationParts.push('-'); consume('-');
+            tileParts.push('-');
             if (canStartNumber(false)) buildNumber(usedEquals, false);
+            tileParts.pop();
             unconsume('-'); equationParts.pop();
           }
-          // choice '+/-'
+    
+          // choice '+/-' used as '-'
           if ((counts['+/-'] || 0) > 0) {
             equationParts.push('-'); consume('+/-');
+            tileParts.push('+/-'); // token จริง
             if (canStartNumber(false)) buildNumber(usedEquals, false);
+            tileParts.pop();
             unconsume('+/-'); equationParts.pop();
           }
-          // blank as '-'
+    
+          // blank '?' used as '-'
           if ((counts['?'] || 0) > 0) {
             equationParts.push('-'); consume('?');
+            tileParts.push('?'); // token จริง
             if (canStartNumber(false)) buildNumber(usedEquals, false);
+            tileParts.pop();
             unconsume('?'); equationParts.pop();
           }
         };
+    
         tryUnaryAtStart();
         if (results.size >= MAX_RESULTS) return;
-        
+    
         // Also try starting with a number directly
         if (canStartNumber(true)) {
           buildNumber(usedEquals, true);
         }
         return;
       }
+    
       case 'afterNumber': {
         if (!hasAnyOperatorAvailable()) return;
+    
         // try equals
         if (usedEquals < requiredEquals) {
-          // '=' direct or via blank
+          // '=' direct
           if ((counts['='] || 0) > 0) {
             equationParts.push('='); consume('=');
+            tileParts.push('=');
             dfs('afterEquals', usedEquals + 1);
+            tileParts.pop();
             unconsume('='); equationParts.pop();
             if (results.size >= MAX_RESULTS) return;
           }
+    
+          // blank '?' used as '='
           if ((counts['?'] || 0) > 0) {
             equationParts.push('='); consume('?');
+            tileParts.push('?');
             dfs('afterEquals', usedEquals + 1);
+            tileParts.pop();
             unconsume('?'); equationParts.pop();
             if (results.size >= MAX_RESULTS) return;
           }
         }
+    
         // try binary operators (+,-,×,÷) via direct, choice or blank
         for (const op of OPS) {
-          // direct
+          // direct op
           if ((counts[op] || 0) > 0) {
             equationParts.push(op); consume(op);
+            tileParts.push(op);
             dfs('afterOperator', usedEquals);
+            tileParts.pop();
             unconsume(op); equationParts.pop();
             if (results.size >= MAX_RESULTS) return;
           }
-          // choice tokens
+    
+          // choice '+/-' used as '+' or '-'
           if ((op === '+' || op === '-') && (counts['+/-'] || 0) > 0) {
             equationParts.push(op); consume('+/-');
+            tileParts.push('+/-');
             dfs('afterOperator', usedEquals);
+            tileParts.pop();
             unconsume('+/-'); equationParts.pop();
             if (results.size >= MAX_RESULTS) return;
           }
+    
+          // choice '×/÷' used as '×' or '÷'
           if ((op === '×' || op === '÷') && (counts['×/÷'] || 0) > 0) {
             equationParts.push(op); consume('×/÷');
+            tileParts.push('×/÷');
             dfs('afterOperator', usedEquals);
+            tileParts.pop();
             unconsume('×/÷'); equationParts.pop();
             if (results.size >= MAX_RESULTS) return;
           }
-          // blank as operator
+    
+          // blank '?' used as op
           if ((counts['?'] || 0) > 0 && BLANK_REPLACEMENTS.includes(op)) {
             equationParts.push(op); consume('?');
+            tileParts.push('?');
             dfs('afterOperator', usedEquals);
+            tileParts.pop();
             unconsume('?'); equationParts.pop();
             if (results.size >= MAX_RESULTS) return;
           }
         }
+    
         return;
       }
+    
       case 'afterOperator': {
         if (!canStartNumber(true)) return;
         buildNumber(usedEquals, true);
         return;
       }
+    
       case 'afterEquals': {
         // optional unary minus before number: from '-', '+/-' or '?'
         const tryUnary = () => {
           // direct '-'
           if ((counts['-'] || 0) > 0) {
             equationParts.push('-'); consume('-');
+            tileParts.push('-');
             if (canStartNumber(false)) buildNumber(usedEquals, false);
+            tileParts.pop();
             unconsume('-'); equationParts.pop();
           }
-          // choice '+/-'
+    
+          // choice '+/-' used as '-'
           if ((counts['+/-'] || 0) > 0) {
             equationParts.push('-'); consume('+/-');
+            tileParts.push('+/-');
             if (canStartNumber(false)) buildNumber(usedEquals, false);
+            tileParts.pop();
             unconsume('+/-'); equationParts.pop();
           }
-          // blank as '-'
+    
+          // blank '?' used as '-'
           if ((counts['?'] || 0) > 0) {
             equationParts.push('-'); consume('?');
+            tileParts.push('?');
             if (canStartNumber(false)) buildNumber(usedEquals, false);
+            tileParts.pop();
             unconsume('?'); equationParts.pop();
           }
         };
@@ -959,10 +1118,20 @@ export function isValidEquationByRules(equation: string, equalsCount?: number): 
  * Validate EquationAnagram options
  */
 function validateEquationAnagramOptions(options: EquationAnagramOptions, customTokenCounts?: Record<AmathToken, number>): string | null {
-  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed, randomSettings } = options;
+  const { totalCount, operatorCount, equalsCount, heavyNumberCount, BlankCount, zeroCount, operatorMode, specificOperators, operatorFixed, randomSettings, lockMode, lockCount } = options;
   
-  if (totalCount < 8) {
-    return 'Total count must be at least 8.';
+  // Lock mode validation
+  if (lockMode) {
+    if (totalCount < 9 || totalCount > 15) {
+      return 'In lock mode, total count must be between 9 and 15.';
+    }
+    if (lockCount !== undefined && lockCount !== totalCount - 8) {
+      return `In lock mode, lock count must equal totalCount - 8 (${totalCount - 8}).`;
+    }
+  } else {
+    if (totalCount < 8) {
+      return 'Total count must be at least 8.';
+    }
   }
   
   // Validate random settings if enabled

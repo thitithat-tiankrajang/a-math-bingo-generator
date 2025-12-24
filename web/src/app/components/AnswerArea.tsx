@@ -1,18 +1,20 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Tile from './Tile';
 import EmptySlot from './EmptySlot';
 import ChildButton from '../ui/ChildButton';
+import { SelectedTile } from '../types/TileSelection';
 
 interface AnswerTile {
   value: string;
   sourceIndex: number;
   tileId: string;
   choiceSelection?: string;
+  isLocked?: boolean;
 }
 
 interface AnswerAreaProps {
   answerTiles: (AnswerTile | null)[];
-  selectedTileIndex: number | null;
+  selectedTile: SelectedTile
   answerDragOverIndex: number | null;
   answerDropTarget: number | null;
   answerDraggedIndex: number | null;
@@ -46,11 +48,17 @@ interface AnswerAreaProps {
   // Stats
   rackTilesCount: number;
   totalTilesCount: number;
+  // Lock mode props
+  lockMode?: boolean;
+  scrollOffset?: number;
+  onScrollOffsetChange?: (offset: number) => void;
+  maxAnswerLength?: number;
+  lockPositions?: number[]; // Original lock positions from result
 }
 
 export default function AnswerArea({
   answerTiles,
-  selectedTileIndex,
+  selectedTile,
   answerDragOverIndex,
   answerDropTarget,
   answerDraggedIndex,
@@ -81,7 +89,74 @@ export default function AnswerArea({
   setAnswerDropTarget,
   rackTilesCount,
   totalTilesCount,
+  lockMode = false,
+  scrollOffset = 0,
+  onScrollOffsetChange,
+  maxAnswerLength = 15,
+  lockPositions = [],
 }: AnswerAreaProps) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = { scrollOffset, onScrollOffsetChange, maxAnswerLength };
+  // Simple lock mode: show exactly totalTiles slots, lock positions according to lockPositions
+  // - answerTiles has length = totalCount (number of generated tiles)
+  // - Show exactly totalTiles slots (no scrolling, no empty slots)
+  // - Lock positions are direct: slotIndex = tileIndex (from lockPositions)
+  
+  // ✅ Lock by POSITION (slotIndex) not by tile identity
+  // Map: slotIndex -> tileIndex (original index in answerTiles array)
+  // In lock mode, slotIndex = tileIndex directly (no offset)
+  const [lockedSlotToTileIndex, setLockedSlotToTileIndex] = useState<Record<number, number>>({});
+  
+  // Create slots array - exactly totalTiles slots
+  const slots = useMemo(() => {
+    // Simple mode: show all tiles in order, lock positions according to lockPositions
+    return answerTiles.map((tile, index) => ({
+      tile,
+      actualIndex: index,
+      isVisible: true,
+      slotIndex: index,
+    }));
+  }, [answerTiles]);
+
+  const handleAnswerClick = (index: number, isLocked: boolean) => {
+    if (isLocked) return;
+  
+    // ถ้ากำลังเลือก tile จาก rack -> คลิกที่ answer = วาง
+    if (selectedTile?.source === 'rack') {
+      onAnswerBoxClick(index);
+      return;
+    }
+  
+    // ไม่ได้เลือกจาก rack -> ใช้ behavior เดิม (select/swap ใน answer)
+    onAnswerTileClick(index);
+  };
+  
+  
+  
+  // Initialize locked positions based on lockPositions prop
+  // lockPositions are tile indices (original indices in answerTiles array)
+  // In simple mode: slotIndex = tileIndex directly (no offset, no scrolling)
+  useEffect(() => {
+    if (!lockMode || !lockPositions || lockPositions.length === 0) {
+      setLockedSlotToTileIndex({});
+      return;
+    }
+  
+    // Build lock mapping: slotIndex -> tileIndex
+    // In simple mode, slotIndex = tileIndex directly
+    const next: Record<number, number> = {};
+    
+    for (const tileIndex of lockPositions) {
+      if (tileIndex >= 0 && tileIndex < answerTiles.length) {
+        // Direct mapping: slotIndex = tileIndex
+        next[tileIndex] = tileIndex;
+      }
+    }
+  
+    setLockedSlotToTileIndex(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockMode, lockPositions?.join(','), answerTiles.length]);
+  
   return (
     <div className="space-y-4" id="answer-section">
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${showChoicePopup ? '' : ''}`}>
@@ -133,6 +208,7 @@ export default function AnswerArea({
         </div>
       </div>
       
+      
       {/* Answer Boxes - single row with responsive tile size - no scrolling needed */}
       <div 
         className={`
@@ -160,156 +236,162 @@ export default function AnswerArea({
           setAnswerDropTarget(null);
         }}
       >
-        {answerTiles.map((tile, index) => {
-          const isDragOver = answerDragOverIndex === index;
-          const isHighlighted = currentHighlightIndex === index;
-          const isDropTarget = answerDropTarget === index;
-          const isDragging = answerDraggedIndex === index;
-          
-          return (
-            <div
-              key={index}
-              data-answer-box
-              draggable={tile !== null}
-              onDragStart={tile ? (e) => {
-                onAnswerDragStart(e, index);
-              } : undefined}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Check if this is internal drag (from answer to answer)
-                if (answerDraggedIndex !== null) {
-                  // Internal drag (within answer area)
-                  onAnswerInternalDragOver(e, index);
-                } else {
-                  // External drag (from rack to answer)
-                  if (tile) {
-                    onAnswerInternalDragOver(e, index);
-                  } else {
-                    onAnswerDragOver(e, index);
-                  }
-                }
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Check if this is internal drag
-                if (answerDraggedIndex !== null) {
-                  onAnswerInternalDragLeave();
-                } else {
-                  if (tile) {
-                    onAnswerInternalDragLeave();
-                  } else {
-                    onAnswerDragLeave();
-                  }
-                }
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Check if this is internal drag
-                if (answerDraggedIndex !== null) {
-                  // Internal drop (within answer area)
-                  onAnswerInternalDrop(e, index);
-                } else {
-                  // External drop (from rack to answer)
-                  if (tile) {
-                    onAnswerInternalDrop(e, index);
-                  } else {
-                    onAnswerDrop(e, index);
-                  }
-                }
-              }}
-              onDragEnd={() => {
-                onAnswerDragEnd();
-              }}
-            >
-              {tile ? (
-                <Tile
-                  element={tile.value}
-                  index={index}
-                  sourceType="answer"
-                  isSelected={selectedTileIndex === tile.sourceIndex}
-                  isDragging={isDragging}
-                  isDragOver={isDragOver || (isDropTarget && answerDraggedIndex !== null)}
-                  isHighlighted={isHighlighted}
-                  choiceSelections={{[`${tile.value}_${index}`]: tile.choiceSelection || ''}}
-                  onClick={() => onAnswerTileClick(index)}
-                  onClear={() => onClearAnswerBox(index)}
-                  className={`
-                    ${isDragOver 
-                      ? 'ring-4 ring-purple-500 ring-opacity-80 scale-105 bg-purple-300 shadow-lg' 
-                      : ''
-                    }
-                    ${isDropTarget && answerDraggedIndex !== null && answerDraggedIndex !== index
-                      ? 'ring-4 ring-blue-500 ring-opacity-90 bg-gradient-to-br from-blue-200 to-blue-300 border-blue-600 scale-110 z-10 shadow-xl'
-                      : ''
-                    }
-                    ${isDragging
-                      ? 'opacity-60 scale-95 shadow-2xl border-2 border-red-500 z-20 rotate-2'
-                      : ''
-                    }
-                  `}
-                />
-              ) : (
-                <EmptySlot
-                  index={index}
-                  slotType="answer"
-                  isDragOver={isDragOver}
-                  isDropTarget={isDropTarget && answerDraggedIndex !== null}
-                  onClick={() => {
-                    if (selectedTileIndex !== null) {
-                      onAnswerBoxClick(index);
-                    }
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Check if this is internal drag (from answer to answer)
-                    if (answerDraggedIndex !== null) {
-                      onAnswerInternalDragOver(e, index);
-                    } else {
-                      onAnswerDragOver(e, index);
-                    }
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Check if this is internal drag
-                    if (answerDraggedIndex !== null) {
-                      onAnswerInternalDragLeave();
-                    } else {
-                      onAnswerDragLeave();
-                    }
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Check if this is internal drag
-                    if (answerDraggedIndex !== null) {
-                      onAnswerInternalDrop(e, index);
-                    } else {
-                      onAnswerDrop(e, index);
-                    }
-                  }}
-                  className={`
-                    ${isDragOver 
-                      ? 'ring-4 ring-purple-500 ring-opacity-80 scale-105 bg-purple-300 shadow-lg' 
-                      : ''
-                    }
-                    ${isDragOver
-                      ? 'border-green-400 bg-gradient-to-br from-green-100 to-green-200'
-                      : ''
-                    }
-                  `}
-                />
-              )}
-            </div>
-          );
-        })}
+        {slots.map((slot, slotIndex) => {
+  const { tile, actualIndex, isVisible } = slot;
+
+  if (!isVisible && actualIndex === -1) return null;
+
+  // locked by position
+  const isLocked = lockMode && lockedSlotToTileIndex[slotIndex] === actualIndex;
+
+   // ✅ locked: never show selection/highlight effects
+  const isDragOver = !isLocked && answerDragOverIndex === actualIndex;
+  const isHighlighted = !isLocked && currentHighlightIndex === actualIndex;
+  const isDropTarget = !isLocked && answerDropTarget === actualIndex;
+
+  // isDragging จะคงไว้ก็ได้ แต่ถ้าต้องการตัดด้วยก็ทำ !isLocked เช่นกัน
+  const isDragging = answerDraggedIndex === actualIndex;
+
+  // ✅ when locked -> treat like "background", so no interactions
+  const canInteract = !!tile && !isLocked && isVisible;
+  const selectedAnswerIndex = selectedTile?.source === 'answer' ? selectedTile.index : null;
+  return (
+    <div
+      key={lockMode ? `slot-${slotIndex}` : actualIndex}
+      data-answer-box
+      draggable={canInteract}
+      onDragStart={
+        canInteract
+          ? (e) => onAnswerDragStart(e, actualIndex)
+          : undefined
+      }
+      onDragOver={(e) => {
+        if (!isVisible || actualIndex === -1) return;
+
+        // ✅ ignore ALL drag hover when locked
+        if (isLocked) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (answerDraggedIndex !== null) {
+          onAnswerInternalDragOver(e, actualIndex);
+        } else {
+          if (tile) onAnswerInternalDragOver(e, actualIndex);
+          else onAnswerDragOver(e, actualIndex);
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!isVisible || actualIndex === -1) return;
+
+        if (isLocked) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (answerDraggedIndex !== null) onAnswerInternalDragLeave();
+        else {
+          if (tile) onAnswerInternalDragLeave();
+          else onAnswerDragLeave();
+        }
+      }}
+      onDrop={(e) => {
+        if (!isVisible || actualIndex === -1) return;
+
+        // ✅ locked: don't accept drops / swaps
+        if (isLocked) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (answerDraggedIndex !== null) {
+          onAnswerInternalDrop(e, actualIndex);
+        } else {
+          if (tile) onAnswerInternalDrop(e, actualIndex);
+          else onAnswerDrop(e, actualIndex);
+        }
+      }}
+      onDragEnd={canInteract ? onAnswerDragEnd : undefined}
+      // ✅ locked should not be clickable/selectable
+      onClick={isLocked ? undefined : undefined}
+      className={isLocked ? 'cursor-default' : undefined}
+    >
+      {tile ? (
+        isLocked ? (
+          // ✅ Render as "background" (not Tile component)
+          <div
+            className={`
+              flex items-center justify-center
+              w-[var(--tile-size)] h-[var(--tile-size)]
+              rounded-xl
+              border-4 border-gray-300
+              bg-gray-100
+              text-gray-600
+              font-bold
+              select-none
+              pointer-events-none
+            `}
+            aria-label={`locked-${tile.value}`}
+          >
+            {tile.value}
+          </div>
+        ) : (
+          <Tile
+            element={tile.value}
+            index={actualIndex}
+            sourceType="answer"
+            isSelected={!isLocked && selectedAnswerIndex === actualIndex}
+            isDragging={isDragging}
+            isDragOver={isDragOver || (isDropTarget && answerDraggedIndex !== null)}
+            isHighlighted={isHighlighted}
+            choiceSelections={{ [`${tile.value}_${actualIndex}`]: tile.choiceSelection || '' }}
+            onClick={() => handleAnswerClick(actualIndex, isLocked)}
+            onClear={() => onClearAnswerBox(actualIndex)}
+            className={`
+              ${isDragOver ? 'ring-4 ring-purple-500 ring-opacity-80 scale-105 bg-purple-300 shadow-lg' : ''}
+              ${isDropTarget && answerDraggedIndex !== null && answerDraggedIndex !== actualIndex
+                ? 'ring-4 ring-blue-500 ring-opacity-90 bg-gradient-to-br from-blue-200 to-blue-300 border-blue-600 scale-110 z-10 shadow-xl'
+                : ''
+              }
+              ${isDragging ? 'opacity-60 scale-95 shadow-2xl border-2 border-red-500 z-20 rotate-2' : ''}
+            `}
+          />
+        )
+      ) : (
+        <EmptySlot
+          index={actualIndex}
+          slotType="answer"
+          isDragOver={isDragOver}
+          isDropTarget={isDropTarget && answerDraggedIndex !== null}
+          onClick={() => handleAnswerClick(actualIndex, isLocked)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (answerDraggedIndex !== null) onAnswerInternalDragOver(e, actualIndex);
+            else onAnswerDragOver(e, actualIndex);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (answerDraggedIndex !== null) onAnswerInternalDragLeave();
+            else onAnswerDragLeave();
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (answerDraggedIndex !== null) onAnswerInternalDrop(e, actualIndex);
+            else onAnswerDrop(e, actualIndex);
+          }}
+          className={`
+            ${isDragOver ? 'ring-4 ring-purple-500 ring-opacity-80 scale-105 bg-purple-300 shadow-lg' : ''}
+            ${isDragOver ? 'border-green-400 bg-gradient-to-br from-green-100 to-green-200' : ''}
+          `}
+        />
+      )}
+    </div>
+  );
+})}
+
       </div>
       
       {/* Submit Section */}

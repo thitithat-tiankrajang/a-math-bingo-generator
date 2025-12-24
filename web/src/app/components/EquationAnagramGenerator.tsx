@@ -66,6 +66,8 @@ export default function EquationAnagramGenerator({
     heavyNumberCount: 0,
     BlankCount: 0,
     zeroCount: 0,
+    lockMode: false,
+    lockCount: 0,
     operatorFixed: {
       '+': null,
       '-': null,
@@ -486,7 +488,6 @@ export default function EquationAnagramGenerator({
         } catch { /* ignore */ }
       }
     }
-    // eslint-disable-next-line
   }, []);
 
   useEffect(() => {

@@ -73,7 +73,7 @@ export default function EmptySlot({
     if (slotType === 'answer') {
       return (
         <div className="text-[var(--brand-dark)] text-sm font-medium transition-all flex items-center justify-center">
-          <span>{index + 1}</span>
+          
         </div>
       );
     } else {

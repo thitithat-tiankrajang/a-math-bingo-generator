@@ -34,6 +34,9 @@ interface EquationAnagramOptions {
     blank: boolean;
     zero: boolean;
   };
+  // Lock mode settings
+  lockMode?: boolean;
+  lockCount?: number; // จำนวนตำแหน่งที่จะ lock (totalCount - 8)
 }
 
 interface OptionPanelProps {
@@ -112,6 +115,10 @@ export default function OptionPanel({
     blank: false,
     zero: false,
   };
+  
+  // Initialize lock mode
+  const lockMode = options.lockMode || false;
+  const lockCount = options.lockCount || 0;
 
   // Collapsible state for print/pdf modal
   const storageKey = setIndex !== undefined ? `bingo_option_set_show_${setIndex}` : undefined;
@@ -347,6 +354,107 @@ export default function OptionPanel({
       {/* Main Option UI */}
       {(!collapsible || showOptions) && (
         <>
+          {/* Lock Mode Toggle - Header Section */}
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-purple-900">
+                    Lock Position Mode
+                  </label>
+                  <span className="text-xs text-purple-700">
+                    Lock some tiles in answer area (Rack: 8 tiles, Answer: {lockMode ? (options.totalCount - 8) : 0} locked)
+                  </span>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={lockMode}
+                  onChange={(e) => {
+                    const newLockMode = e.target.checked;
+                    const newLockCount = newLockMode ? Math.max(1, options.totalCount - 8) : 0;
+                    onOptionsChange({
+                      ...options,
+                      lockMode: newLockMode,
+                      lockCount: newLockCount
+                    });
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+              </label>
+            </div>
+            
+            {/* Lock Count Selector - Only show when lock mode is enabled */}
+            {lockMode && (
+              <div className="mt-4 pt-4 border-t border-purple-200">
+                <label className="block text-sm font-medium text-purple-900 mb-2">
+                  Total Tiles (9-15) - Lock Count: {lockCount}
+                </label>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-200 hover:bg-purple-300 text-purple-900 font-bold text-sm sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md"
+                    onClick={() => {
+                      const newTotal = Math.max(9, options.totalCount - 1);
+                      const newLockCount = Math.max(1, newTotal - 8);
+                      onOptionsChange({
+                        ...options,
+                        totalCount: newTotal,
+                        lockCount: newLockCount
+                      });
+                    }}
+                    disabled={options.totalCount <= 9}
+                  >
+                    −
+                  </button>
+                  <InputNumberBox
+                    value={options.totalCount}
+                    onChange={(val: number | string) => {
+                      if (typeof val === 'number') {
+                        const newTotal = Math.max(9, Math.min(15, val));
+                        const newLockCount = Math.max(1, newTotal - 8);
+                        onOptionsChange({
+                          ...options,
+                          totalCount: newTotal,
+                          lockCount: newLockCount
+                        });
+                      }
+                    }}
+                    min={9}
+                    max={15}
+                    className="w-16 h-10 sm:w-20 sm:h-12 text-center px-1 sm:px-2 py-1 sm:py-2 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 text-lg sm:text-xl font-bold bg-white text-purple-900 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-purple-200 hover:bg-purple-300 text-purple-900 font-bold text-sm sm:text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md"
+                    onClick={() => {
+                      const newTotal = Math.min(15, options.totalCount + 1);
+                      const newLockCount = Math.max(1, newTotal - 8);
+                      onOptionsChange({
+                        ...options,
+                        totalCount: newTotal,
+                        lockCount: newLockCount
+                      });
+                    }}
+                    disabled={options.totalCount >= 15}
+                  >
+                    +
+                  </button>
+                </div>
+                <p className="text-xs text-purple-600 mt-2 text-center">
+                  Rack will have 8 tiles, {lockCount} tiles will be locked in answer area
+                </p>
+              </div>
+            )}
+          </div>
+          
           {/* Number of Questions Section - Always visible */}
           {typeof numQuestions === 'number' && onNumQuestionsChange && (
             <div className={`mb-6 ${variant === 'display' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4' : 'bg-blue-50 border border-blue-200 rounded-xl p-4'} w-full max-w-full overflow-x-auto`}>

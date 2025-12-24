@@ -52,6 +52,9 @@ export interface EquationAnagramOptions {
     blank: boolean;
     zero: boolean;
   };
+  // Lock mode: เมื่อเปิดใช้งาน จะ lock บางตำแหน่งใน answer
+  lockMode?: boolean;
+  lockCount?: number; // จำนวนตำแหน่งที่จะ lock (totalCount - 8)
 }
 
 export type OperatorSymbol = '+' | '-' | '×' | '÷' | '+/-' | '×/÷';
@@ -75,6 +78,8 @@ export interface EquationAnagramResult {
   elements: string[];           // ชุดตัวเลขและเครื่องหมายที่สร้างขึ้น
   sampleEquation?: string;      // ตัวอย่างสมการที่เป็นไปได้
   possibleEquations?: string[]; // สมการที่เป็นไปได้ทั้งหมด (ถ้าต้องการ)
+  lockPositions?: number[];     // ตำแหน่งที่ lock ใน answer (สำหรับ lock mode)
+  solutionTokens?: string[];
 }
 
 export type AmathToken = 
