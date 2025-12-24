@@ -147,7 +147,7 @@ export default function Tile({
         transition-all duration-300 ease-in-out flex-shrink-0
         ${getElementStyle(element)}
         ${isSelected 
-          ? "ring-4 ring-blue-400 ring-opacity-75 scale-110 z-10 shadow-lg bg-blue-100 border-blue-400" 
+          ? "ring-2 ring-blue-400 ring-opacity-75 scale-110 z-10 shadow-lg bg-blue-100 border-blue-400" 
           : ""
         }
         ${isDragging 
@@ -155,7 +155,7 @@ export default function Tile({
           : ""
         }
         ${isDragOver 
-          ? "ring-4 ring-green-400 ring-opacity-75 scale-105 bg-green-50" 
+          ? "ring-2 ring-green-400 ring-opacity-75 scale-105 bg-green-50" 
           : ""
         }
         ${isUsedInAnswer && sourceType === 'rack'
@@ -164,7 +164,7 @@ export default function Tile({
         }
         ${isSelected ? "animate-pulse" : ""}
         ${isHighlighted 
-          ? 'ring-8 ring-yellow-400 ring-opacity-100 scale-125 z-40 shadow-2xl shadow-yellow-500/50 animate-pulse bg-gradient-to-br from-yellow-100 to-yellow-200 border-yellow-500' 
+          ? 'ring-4 ring-yellow-400 ring-opacity-100 scale-125 z-40 shadow-2xl shadow-yellow-500/50 animate-pulse bg-gradient-to-br from-yellow-100 to-yellow-200 border-yellow-500' 
           : ''
         }
         ${className}

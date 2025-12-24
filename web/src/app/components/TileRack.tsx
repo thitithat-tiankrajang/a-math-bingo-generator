@@ -54,6 +54,7 @@ export default function TileRack({
           border-2 border-[var(--brand-secondary)]
           relative flex-wrap
           ${showChoicePopup ? 'blur-sm opacity-60' : ''}
+          [&_*]:transition-none [&_*]:duration-0 [&_*]:animate-none
         `}
         onDragOver={onRackDragOver}
         onDragLeave={onRackDragLeave}
