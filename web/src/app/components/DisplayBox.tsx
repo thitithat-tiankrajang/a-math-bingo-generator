@@ -90,13 +90,11 @@ export default function DisplayBox({
 
   // Helper function to clean up all drag states
   const cleanupDragStates = () => {
-    setTimeout(() => {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      setAnswerDraggedIndex(null);
-      setAnswerDropTarget(null);
-      setAnswerDragOverIndex(null);
-    }, 0);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setAnswerDraggedIndex(null);
+    setAnswerDropTarget(null);
+    setAnswerDragOverIndex(null);
   };
 
   // Helper function to generate unique tile ID
@@ -445,7 +443,7 @@ export default function DisplayBox({
     e.dataTransfer.setData('application/json', JSON.stringify({ type: 'tile', index }));
     
     // Set dragged index immediately for visual feedback
-    setTimeout(() => setDraggedIndex(index), 0);
+    setDraggedIndex(index);
   };
 
   const handleDragEnd = () => {
@@ -728,7 +726,7 @@ export default function DisplayBox({
     e.dataTransfer.setData('application/json', JSON.stringify({ type: 'answer-tile', index }));
     
     // Set dragged index with timeout for better state management
-    setTimeout(() => setAnswerDraggedIndex(index), 0);
+    setAnswerDraggedIndex(index);
   };
 
   const handleAnswerInternalDragOver = (e: React.DragEvent, index: number) => {
@@ -812,9 +810,7 @@ export default function DisplayBox({
     ));
     
     // Auto move to next step after selection
-    setTimeout(() => {
-      nextChoiceStep();
-    }, 300);
+    nextChoiceStep();
   };
 
   // Finalize equation with user choices
