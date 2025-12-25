@@ -64,6 +64,32 @@ export default function DisplayBox({
   activeAssignment,
   onSubmitAnswer,
 }: DisplayBoxProps) {
+  // =================== FULLSCREEN FEATURE ===================
+  const displayBoxRef = React.useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleFsChange = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(!!fsEl);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+  const enterFullscreen = () => {
+    const el = displayBoxRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+  };
+  const exitFullscreen = () => {
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+  };
   // Assignment submission state
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   
@@ -1213,8 +1239,9 @@ export default function DisplayBox({
     }
   };
 
-  return (
-    <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[var(--brand-secondary)]">
+  // Render content (used in both normal and fullscreen modes)
+  const renderContent = () => (
+    <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold text-[var(--brand-dark)]">
@@ -1350,6 +1377,38 @@ export default function DisplayBox({
           <EmptyState />
         )}
       </div>
+    </>
+  );
+
+  return (
+    <div ref={displayBoxRef} className={`bg-white rounded-lg shadow-xl border-2 border-[var(--brand-secondary)] relative transition-all ${isFullscreen ? 'z-[1000] fixed inset-0 !rounded-none !shadow-none bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-y-auto' : 'p-6'}`}>
+      {/* FULLSCREEN MODE */}
+      {isFullscreen ? (
+        <div className="min-h-full w-full flex items-center justify-center p-4 sm:p-6 md:p-8 lg:p-12">
+          <div className="w-full max-w-7xl">
+            {/* Exit Full Screen Button (fixed top right) */}
+            <button onClick={exitFullscreen} title="ออกจากโหมดเต็มจอ"
+              className="fixed right-4 top-4 z-[1020] px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-bold shadow-2xl hover:bg-red-700 transition-all hover:scale-105 flex items-center gap-2 border-2 border-white/20">
+              <span className="text-lg">✕</span> <span className="hidden sm:inline">ปิดเต็มจอ</span>
+            </button>
+            
+            {/* Content wrapper with nice spacing and borders */}
+            <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 border-4 border-[var(--brand-secondary)] mx-auto">
+              {renderContent()}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* NORMAL MODE */
+        <>
+          {/* Full Screen Button (absolute top right) */}
+          <button onClick={enterFullscreen} title="ขยายเต็มจอ"
+            className="absolute right-4 top-4 z-[1010] px-3 py-2 rounded-lg bg-[var(--brand-secondary)] text-white text-sm font-semibold shadow hover:bg-[var(--brand-dark)] transition-all hover:scale-105 flex items-center gap-1.5">
+            <span className="text-base">⛶</span> <span className="hidden sm:inline">Full screen</span>
+          </button>
+          {renderContent()}
+        </>
+      )}
     </div>
   );
 }
