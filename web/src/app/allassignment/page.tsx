@@ -65,19 +65,19 @@ export default function AllAssignmentPage() {
 
       const normalized: CreateAssignmentData = {
         ...data,
-        optionSets: (data.optionSets ?? []).map((set: OptionSet) => {
-          const o = (set?.options ?? {}) as EquationAnagramOptions;
+        optionSets: (data.optionSets ?? []).map((set: any) => {
+          const o = (set?.options ?? {}) as any;
         
           const totalCount = Number(o.totalCount ?? 8);
         
           // ดึงจากหลายแหล่ง + รองรับหลายชื่อ + รองรับตัวเล็กทั้งหมด
           const rawLockMode =
-            o.lockMode ??
-            o.isLockPos ?? o.islockpos ??
-            o.isLockPosition ?? o.islockposition ??
-            o.lockPositionMode ?? o.lockpositionmode ??
-            o.posLockMode ?? o.poslockmode ??
-            set.isLockPos ?? set.islockpos ??
+            (o as any).lockMode ??
+            (o as any).isLockPos ?? (o as any).islockpos ??
+            (o as any).isLockPosition ?? (o as any).islockposition ??
+            (o as any).lockPositionMode ?? (o as any).lockpositionmode ??
+            (o as any).posLockMode ?? (o as any).poslockmode ??
+            (set as any).isLockPos ?? (set as any).islockpos ??
             false;
         
           // ถ้า rawLockMode เป็น string 'true'/'false' ให้แปลงให้ถูก
@@ -123,7 +123,7 @@ export default function AllAssignmentPage() {
   
       // แนะนำมาก: debug ดู payload ก่อนยิง (จะเห็น lockMode/lockCount แน่ ๆ)
       console.log("📦 createAssignment payload:", JSON.stringify(normalized, null, 2));
-      console.log("📦 createAssignment optionSets lockMode check:", normalized.optionSets?.map((s) => ({
+      console.log("📦 createAssignment optionSets lockMode check:", normalized.optionSets?.map((s: any) => ({
         lockMode: s.options?.lockMode,
         isLockPos: s.options?.isLockPos,
         lockCount: s.options?.lockCount,
@@ -897,8 +897,8 @@ function CreateAssignmentModal({
   
     if (formData.title.trim() && formData.description.trim() && formData.dueDate && selectedStudents.length > 0) {
   
-      const normalizedOptionSets = optionSets.map((set) => {
-        const o = (set?.options ?? {}) as EquationAnagramOptions;
+      const normalizedOptionSets = optionSets.map((set: any) => {
+        const o = (set?.options ?? {}) as any;
         const totalCount = Number(o.totalCount ?? 8);
         
         // ✅ Normalize lock mode: support both lockMode and isLockPos (and various aliases)
@@ -939,14 +939,14 @@ function CreateAssignmentModal({
         };
       });
       console.log("🧪 optionSets before submit:", optionSets);
-      console.log("🧪 lock flags:", optionSets.map((s: UIOptionSet) => ({
+      console.log("🧪 lock flags:", optionSets.map(s => ({
         lockMode: (s as any).options?.lockMode,
         isLockPos: (s as any).options?.isLockPos,
         totalCount: (s as any).options?.totalCount,
         lockCount: (s as any).options?.lockCount,
       })));
       console.log("✅ normalizedOptionSets after normalization:", normalizedOptionSets);
-      console.log("✅ normalizedOptionSets lockMode values:", normalizedOptionSets.map((s: UIOptionSet) => ({
+      console.log("✅ normalizedOptionSets lockMode values:", normalizedOptionSets.map(s => ({
         lockMode: (s as any).options?.lockMode,
         isLockPos: (s as any).options?.isLockPos,
         lockCount: (s as any).options?.lockCount,
@@ -957,7 +957,7 @@ function CreateAssignmentModal({
         totalQuestions: normalizedOptionSets.reduce((sum, s) => sum + (s.numQuestions || 0), 0),
         dueDate: formData.dueDate,
         studentIds: selectedStudents,
-        optionSets: normalizedOptionSets as OptionSet[]
+        optionSets: normalizedOptionSets as any
       });
     }
   };
