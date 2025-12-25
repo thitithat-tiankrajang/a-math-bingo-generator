@@ -1,14 +1,14 @@
 // src/components/EquationAnagramGenerator.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { generateEquationAnagram } from "@/app/lib/equationAnagramLogic";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { generateEquationAnagram, AMATH_TOKENS } from "@/app/lib/equationAnagramLogic";
 import type {
   EquationAnagramOptions,
   EquationAnagramResult,
 } from "@/app/types/EquationAnagram";
 import { jsPDF } from "jspdf";
-import { CheckCircle, Lightbulb } from 'lucide-react';
+import { CheckCircle, Lightbulb } from "lucide-react";
 import HeaderSection from "./HeaderSection";
 import ConfigSection from "./ConfigSection";
 import DisplaySection from "./DisplaySection";
@@ -19,14 +19,19 @@ import Button from "../ui/Button";
 import type { OptionSet } from "../types/EquationAnagram";
 import OptionSetsSummary from "./OptionSetsSummary";
 import { useUndoRedo } from "@/app/contexts/UndoRedoContext";
-import TokenCountConfigPanel from './TokenCountConfigPanel';
-import { AMATH_TOKENS } from '@/app/lib/equationAnagramLogic';
+import TokenCountConfigPanel from "./TokenCountConfigPanel";
 import type { AmathToken, AmathTokenInfo } from "../types/EquationAnagram";
-
+import type { LockedPos } from "@/app/lib/assignmentService";
 
 interface EquationAnagramGeneratorProps {
   assignmentMode?: boolean;
-  onSendAnswer?: (questionText: string, answerText: string) => Promise<void>;
+
+  onSendAnswer?: (
+    questionText: string,
+    answerText: string,
+    listPosLock?: LockedPos[] | null
+  ) => Promise<void>;
+
   activeAssignment?: {
     id: string;
     studentProgress?: {
@@ -39,44 +44,76 @@ interface EquationAnagramGeneratorProps {
       currentQuestionElements?: string[] | null;
     };
   } | null;
-  // When in assignment mode, enforced options from current option set
+
   enforcedOptions?: EquationAnagramOptions;
+
   // Pre-generated elements to lock question (from backend persistence)
   presetElements?: string[] | null;
-  // Callback to persist generated elements to backend if not present
-  onPersistElements?: (elements: string[]) => void | Promise<void>;
+
+  presetSolutionTokens?: string[] | null;
+
+  presetListPosLock?: LockedPos[] | null;
+
+  onPersistElements?: (
+    elements: string[],
+    listPosLock?: LockedPos[] | null,
+    solutionTokens?: string[] | null
+  ) => void | Promise<void>;
 }
 
-export default function EquationAnagramGenerator({ 
-  assignmentMode = false, 
+type EquationAnagramResultWithLock = EquationAnagramResult & {
+  listPosLock?: LockedPos[] | null;
+};
+
+function extractListPosLock(x: unknown): LockedPos[] | null {
+  if (!x || typeof x !== "object") return null;
+  const maybe = (x as { listPosLock?: unknown }).listPosLock;
+  if (!Array.isArray(maybe)) return null;
+
+  const ok = maybe.every((it) => {
+    if (!it || typeof it !== "object") return false;
+    const obj = it as Record<string, unknown>;
+    return typeof obj.pos === "number" && "value" in obj;
+  });
+
+  return ok ? (maybe as LockedPos[]) : null;
+}
+
+export default function EquationAnagramGenerator({
+  assignmentMode = false,
   onSendAnswer,
   activeAssignment,
   enforcedOptions,
   presetElements: presetElementsProp,
+  presetSolutionTokens: presetSolutionTokensProp,
+  presetListPosLock: presetListPosLockProp,
   onPersistElements,
 }: EquationAnagramGeneratorProps = {}) {
   const { setUndoRedoHandler, clearUndoRedoHandler } = useUndoRedo();
-  
+
   // Main page state (for DisplayBox only)
-  const defaultOptions: EquationAnagramOptions = useMemo(() => ({
-    totalCount: 8,
-    operatorMode: "random",
-    operatorCount: 2,
-    equalsCount: 1,
-    heavyNumberCount: 0,
-    BlankCount: 0,
-    zeroCount: 0,
-    lockMode: false,
-    lockCount: 0,
-    operatorFixed: {
-      '+': null,
-      '-': null,
-      '×': null,
-      '÷': null,
-      '+/-': null,
-      '×/÷': null
-    }
-  }), []);
+  const defaultOptions: EquationAnagramOptions = useMemo(
+    () => ({
+      totalCount: 8,
+      operatorMode: "random",
+      operatorCount: 2,
+      equalsCount: 1,
+      heavyNumberCount: 0,
+      BlankCount: 0,
+      zeroCount: 0,
+      lockMode: false,
+      lockCount: 0,
+      operatorFixed: {
+        "+": null,
+        "-": null,
+        "×": null,
+        "÷": null,
+        "+/-": null,
+        "×/÷": null,
+      },
+    }),
+    []
+  );
 
   // Hydration guard
   const [hydrated, setHydrated] = useState(false);
@@ -87,72 +124,98 @@ export default function EquationAnagramGenerator({
   const [optionSets, setOptionSets] = useState<OptionSet[]>([
     { options: { ...defaultOptions }, numQuestions: 3 },
   ]);
-  const [results, setResults] = useState<EquationAnagramResult[]>([]);
+  const [results, setResults] = useState<EquationAnagramResultWithLock[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+
   // Undo/Redo stacks
-  const [history, setHistory] = useState<{results: EquationAnagramResult[], currentIndex: number}[]>([]);
-  const [future, setFuture] = useState<{results: EquationAnagramResult[], currentIndex: number}[]>([]);
+  const [history, setHistory] = useState<
+    { results: EquationAnagramResultWithLock[]; currentIndex: number }[]
+  >([]);
+  const [future, setFuture] = useState<
+    { results: EquationAnagramResultWithLock[]; currentIndex: number }[]
+  >([]);
+
   const [showOptionModal, setShowOptionModal] = useState(false);
   const [printText, setPrintText] = useState("");
   const [solutionText, setSolutionText] = useState("");
   const [showSolution, setShowSolution] = useState(true);
   const [showExampleSolution, setShowExampleSolution] = useState(true);
   const [fontLoaded, setFontLoaded] = useState(false);
-  
+
   // Assignment mode states
-  const [assignmentQuestion, setAssignmentQuestion] = useState<string>('');
-  const [assignmentAnswer, setAssignmentAnswer] = useState<string>('');
+  const [assignmentQuestion, setAssignmentQuestion] = useState<string>("");
+  const [assignmentAnswer, setAssignmentAnswer] = useState<string>("");
   const [submittingAnswer, setSubmittingAnswer] = useState<boolean>(false);
-  const [lastValidEquation, setLastValidEquation] = useState<string>('');
+  const [lastValidEquation, setLastValidEquation] = useState<string>("");
   const [lastSubmissionAt, setLastSubmissionAt] = useState<number>(0);
   const [presetElements, setPresetElements] = useState<string[] | null>(null);
+
+  // ✅ lock positions for current question
+  const [currentListPosLock, setCurrentListPosLock] =
+    useState<LockedPos[] | null>(null);
 
   // ---- Tile Token Count State ----
   const getDefaultTokenCounts = () => {
     const obj = {} as Record<AmathToken, number>;
-    (Object.entries(AMATH_TOKENS) as [AmathToken, AmathTokenInfo][]).forEach(([token, info]) => {
-      obj[token] = info.count;
-    });
+    (Object.entries(AMATH_TOKENS) as [AmathToken, AmathTokenInfo][]).forEach(
+      ([token, info]) => {
+        obj[token] = info.count;
+      }
+    );
     return obj;
   };
-  const [tokenCounts, setTokenCounts] = useState<Record<AmathToken, number>>(getDefaultTokenCounts());
+  const [tokenCounts, setTokenCounts] = useState<Record<AmathToken, number>>(
+    getDefaultTokenCounts()
+  );
   const handleResetTokenCounts = () => setTokenCounts(getDefaultTokenCounts());
 
   // Undo: restore previous state from history
   const handleUndo = useCallback(() => {
     if (history.length === 0) return;
     const prev = history[history.length - 1];
-    setFuture(f => [{ results: [...results], currentIndex }, ...f]);
+    setFuture((f) => [{ results: [...results], currentIndex }, ...f]);
     setResults(prev.results);
     setCurrentIndex(prev.currentIndex);
-    setHistory(h => h.slice(0, h.length - 1));
+    setHistory((h) => h.slice(0, h.length - 1));
   }, [history, results, currentIndex]);
 
   // Redo: restore next state from future
   const handleRedo = useCallback(() => {
     if (future.length === 0) return;
     const next = future[0];
-    setHistory(h => [...h, { results: [...results], currentIndex }]);
+    setHistory((h) => [...h, { results: [...results], currentIndex }]);
     setResults(next.results);
     setCurrentIndex(next.currentIndex);
-    setFuture(f => f.slice(1));
+    setFuture((f) => f.slice(1));
   }, [future, results, currentIndex]);
 
   // Set up undo/redo handlers
   useEffect(() => {
-    setUndoRedoHandler(
-      handleUndo,
-      handleRedo,
-      history.length > 0,
-      future.length > 0
-    );
+    setUndoRedoHandler(handleUndo, handleRedo, history.length > 0, future.length > 0);
 
-    // Cleanup on unmount
     return () => {
       clearUndoRedoHandler();
     };
-  }, [history.length, future.length, setUndoRedoHandler, clearUndoRedoHandler, handleUndo, handleRedo]);
+  }, [
+    history.length,
+    future.length,
+    setUndoRedoHandler,
+    clearUndoRedoHandler,
+    handleUndo,
+    handleRedo,
+  ]);
+
+  // Helper function to convert ArrayBuffer to base64
+  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
 
   // Load Thai font on component mount
   useEffect(() => {
@@ -162,7 +225,6 @@ export default function EquationAnagramGenerator({
         const fontArrayBuffer = await response.arrayBuffer();
         const fontBase64 = arrayBufferToBase64(fontArrayBuffer);
 
-        // Store font in global variable for later use
         (window as unknown as { thaiFont?: string }).thaiFont = fontBase64;
         setFontLoaded(true);
       } catch (error) {
@@ -183,15 +245,12 @@ export default function EquationAnagramGenerator({
           setOptions(JSON.parse(storedOptions));
         } catch {}
       }
-      const storedNumQuestions = window.sessionStorage.getItem(
-        "bingo_num_questions"
-      );
+      const storedNumQuestions = window.sessionStorage.getItem("bingo_num_questions");
       if (storedNumQuestions) {
         const n = parseInt(storedNumQuestions, 10);
         if (!isNaN(n) && n > 0 && n <= 100) setNumQuestions(n);
       }
-      const storedOptionSets =
-        window.sessionStorage.getItem("bingo_option_sets");
+      const storedOptionSets = window.sessionStorage.getItem("bingo_option_sets");
       if (storedOptionSets) {
         try {
           setOptionSets(JSON.parse(storedOptionSets));
@@ -207,107 +266,486 @@ export default function EquationAnagramGenerator({
       window.sessionStorage.setItem("bingo_options", JSON.stringify(options));
     }
   }, [options, hydrated]);
+
   useEffect(() => {
     if (typeof window !== "undefined" && hydrated) {
-      window.sessionStorage.setItem(
-        "bingo_num_questions",
-        numQuestions.toString()
-      );
+      window.sessionStorage.setItem("bingo_num_questions", numQuestions.toString());
     }
   }, [numQuestions, hydrated]);
+
   useEffect(() => {
     if (typeof window !== "undefined" && hydrated) {
-      window.sessionStorage.setItem(
-        "bingo_option_sets",
-        JSON.stringify(optionSets)
-      );
+      window.sessionStorage.setItem("bingo_option_sets", JSON.stringify(optionSets));
     }
   }, [optionSets, hydrated]);
 
-  // In assignment mode, sync preset elements from props or activeAssignment if available
+  // ✅ sync preset elements + lock positions from props in assignment mode
   useEffect(() => {
     if (!assignmentMode) return;
+
+    // ✅ Only update if values actually changed (prevent unnecessary re-renders)
+    const currentElementsKey = presetElementsProp?.join(',') || '';
+    const storedElementsKey = presetElements?.join(',') || '';
+    
     if (presetElementsProp && presetElementsProp.length > 0) {
-      setPresetElements(presetElementsProp);
-      return;
+      if (currentElementsKey !== storedElementsKey) {
+        setPresetElements(presetElementsProp);
+      }
+    } else if (activeAssignment?.studentProgress?.currentQuestionElements) {
+      const dbElementsKey = activeAssignment.studentProgress.currentQuestionElements.join(',');
+      if (dbElementsKey !== storedElementsKey) {
+        setPresetElements(activeAssignment.studentProgress.currentQuestionElements);
+      }
     }
-    if (activeAssignment?.studentProgress?.currentQuestionElements) {
-      setPresetElements(activeAssignment.studentProgress.currentQuestionElements);
+
+    // ✅ Only update lock positions if they actually changed
+    const currentLockPosKey = presetListPosLockProp 
+      ? JSON.stringify(presetListPosLockProp.sort((a, b) => a.pos - b.pos))
+      : null;
+    const storedLockPosKey = currentListPosLock
+      ? JSON.stringify(currentListPosLock.sort((a, b) => a.pos - b.pos))
+      : null;
+    
+    if (presetListPosLockProp && presetListPosLockProp.length > 0) {
+      if (currentLockPosKey !== storedLockPosKey) {
+        setCurrentListPosLock(presetListPosLockProp);
+      }
     }
-  }, [assignmentMode, presetElementsProp, activeAssignment?.studentProgress?.currentQuestionElements]);
+  }, [
+    assignmentMode,
+    presetElementsProp,
+    presetListPosLockProp,
+    activeAssignment?.studentProgress?.currentQuestionElements,
+    presetElements,
+    currentListPosLock,
+  ]);
+
+  // ✅ Track if we've already persisted to prevent infinite loops
+  const hasPersistedRef = useRef(false);
+  const persistedElementsRef = useRef<string | null>(null);
+  const persistedLockPosRef = useRef<string | null>(null);
+  const lastSubmissionRef = useRef<number | null>(null);
+  const lastPresetElementsRef = useRef<string | null>(null);
+  const isGeneratingRef = useRef(false); // ✅ Prevent multiple simultaneous generations
+  const lastGeneratedKeyRef = useRef<string | null>(null); // ✅ Track what we've already generated
+
+  useEffect(() => {
+    if (lastSubmissionAt !== lastSubmissionRef.current) {
+      hasPersistedRef.current = false;
+      persistedElementsRef.current = null;
+      persistedLockPosRef.current = null;
+      lastPresetElementsRef.current = null;
+      lastSubmissionRef.current = lastSubmissionAt;
+      lastGeneratedKeyRef.current = null; // ✅ Reset generation key on new submission
+    }
+  }, [lastSubmissionAt]);
 
   // In assignment mode, use enforcedOptions to generate a single problem and regenerate after each submission
+  // ---- DB Trust Guard ----
+  // เราจะเชื่อ DB (ไม่ generate/set อะไรใหม่) ถ้ามีครบ 3 อย่าง (elements, solutionTokens, lock)
+  const isTrustedDb = !!(
+    presetElementsProp && presetElementsProp.length > 0 &&
+    presetSolutionTokensProp && presetSolutionTokensProp.length > 0 &&
+    presetListPosLockProp && presetListPosLockProp.length > 0
+  );
+
   useEffect(() => {
+    // ----- TRUST DB PATH -----
+    if (assignmentMode && isTrustedDb) {
+      setResults([
+        {
+          elements: presetElementsProp,
+          solutionTokens: presetSolutionTokensProp,
+          lockPositions: presetListPosLockProp.map(lp => lp.pos),
+          listPosLock: presetListPosLockProp,
+          sampleEquation: '',
+          possibleEquations: [],
+        }
+      ]);
+      setCurrentListPosLock(presetListPosLockProp);
+      return;
+    }
+    // ---- NORMAL GENERATE PATH ----
+
     const generateForAssignment = async () => {
       if (!assignmentMode) return;
       if (!enforcedOptions) return;
+      
+      // ✅ Prevent multiple simultaneous generations
+      if (isGeneratingRef.current) {
+        console.log('⏸️ Generation already in progress, skipping...');
+        return;
+      }
+
       setIsGenerating(true);
+      isGeneratingRef.current = true;
       try {
-        // Merge with defaults to ensure all required fields are present
+        const eo = enforcedOptions as unknown as Record<string, unknown>;
+
+        const normalizedLockMode =
+          (eo.lockMode as boolean | undefined) ??
+          (eo.isLockPos as boolean | undefined) ??
+          false;
+
+        const totalCount = Number(enforcedOptions.totalCount ?? eo.totalCount ?? 8);
+
+        const rawLockCount =
+          (eo.lockCount as number | undefined) ??
+          (eo.posLockCount as number | undefined) ??
+          (eo.lockPosCount as number | undefined) ??
+          undefined;
+
+        const normalizedLockCount = normalizedLockMode
+          ? Math.max(0, totalCount - 8)
+          : (rawLockCount ?? 0);
+
         const mergedOptions: EquationAnagramOptions = {
           ...defaultOptions,
           ...enforcedOptions,
+          lockMode: normalizedLockMode,
+          lockCount: normalizedLockCount,
+          totalCount,
           operatorFixed: {
-            '+': null,
-            '-': null,
-            '×': null,
-            '÷': null,
-            '+/-': null,
-            '×/÷': null,
-            ...(enforcedOptions.operatorFixed || {})
-          }
+            "+": null,
+            "-": null,
+            "×": null,
+            "÷": null,
+            "+/-": null,
+            "×/÷": null,
+            ...(enforcedOptions.operatorFixed || {}),
+          },
         };
+
+        // ✅ CASE A: use preset elements (from backend), also keep lock positions
+        // ✅ IMPORTANT: ถ้ามีข้อมูลใน DB แล้ว (presetElements, presetSolutionTokens, presetListPosLock) 
+        // ให้ใช้ข้อมูลเดิม ไม่ต้อง generate ใหม่
         if (presetElements && presetElements.length > 0) {
-          // Use preset elements from backend persistence, but compute solutions so ExampleSolution can show in assignment mode
-          try {
-            const { findAllPossibleEquations } = await import('@/app/lib/equationAnagramLogic');
-            const equations = findAllPossibleEquations(presetElements as unknown as string[]);
-            setResults([{ 
-              elements: presetElements, 
-              sampleEquation: equations[0] || '', 
-              possibleEquations: equations 
-            }]);
-          } catch {
-            setResults([{ elements: presetElements, sampleEquation: '', possibleEquations: [] }]);
+          // ✅ Create a unique key for this preset to prevent duplicate generation
+          const presetKey = JSON.stringify({
+            elements: presetElements.join(','),
+            solutionTokens: presetSolutionTokensProp?.join(',') || '',
+            lockPos: presetListPosLockProp ? JSON.stringify(presetListPosLockProp.sort((a, b) => a.pos - b.pos)) : ''
+          });
+          
+          // ✅ Skip if we've already generated this exact preset
+          if (lastGeneratedKeyRef.current === presetKey) {
+            console.log('✅ Already generated this preset, skipping...');
+            setIsGenerating(false);
+            isGeneratingRef.current = false;
+            return;
           }
-        } else {
-          const generated = await generateEquationAnagram(mergedOptions);
-          setResults([generated]);
-          // Persist to backend so refresh won't change
-          if (onPersistElements) {
+          
+          lastGeneratedKeyRef.current = presetKey;
+          
+          const lockPosToUse = currentListPosLock ?? presetListPosLockProp ?? null;
+
+          let allElements = presetElements as unknown as string[];
+          if (lockPosToUse && lockPosToUse.length > 0) {
             try {
-              await onPersistElements(generated.elements as unknown as string[]);
+              const { findAllPossibleEquations } = await import("@/app/lib/equationAnagramLogic");
+              const { tokenizeExpression } = await import("@/app/lib/expressionUtil");
+
+              const lockedValues = lockPosToUse.map((lp) => lp.value);
+              const combinedForEquation = [
+                ...(presetElements as unknown as string[]),
+                ...lockedValues,
+              ];
+              const equations = findAllPossibleEquations(combinedForEquation);
+
+              if (equations.length > 0) {
+                const tokens = tokenizeExpression(equations[0]);
+                if (tokens && tokens.length > 0) {
+                  allElements = tokens;
+                }
+              }
             } catch (e) {
-              console.error('Persist current elements failed:', e);
-              // Continue without persistence - not critical
+              console.error("Error extracting listPosLock:", e);
+              const lockedValues = lockPosToUse.map((lp) => lp.value);
+              allElements = [
+                ...(presetElements as unknown as string[]),
+                ...lockedValues,
+              ];
             }
           }
-          setPresetElements(generated.elements as unknown as string[]);
+
+          const rackElementsKey = presetElements.join(",");
+          const lockPosKey = lockPosToUse
+            ? JSON.stringify(lockPosToUse.sort((a, b) => a.pos - b.pos))
+            : "null";
+
+          const hasPresetLockPos =
+            presetListPosLockProp && presetListPosLockProp.length > 0;
+          const presetLockPosKey = hasPresetLockPos
+            ? JSON.stringify(presetListPosLockProp.sort((a, b) => a.pos - b.pos))
+            : "null";
+          const lockPosAlreadyInDB = hasPresetLockPos && presetLockPosKey === lockPosKey;
+
+          const elementsAlreadyInDB = persistedElementsRef.current === rackElementsKey;
+          const dataAlreadyInDB =
+            elementsAlreadyInDB &&
+            (lockPosAlreadyInDB || !lockPosToUse || lockPosToUse.length === 0);
+
+          if (dataAlreadyInDB) {
+            hasPersistedRef.current = true;
+            persistedElementsRef.current = rackElementsKey;
+            persistedLockPosRef.current = lockPosKey;
+            lastPresetElementsRef.current = rackElementsKey;
+          }
+
+          const presetElementsChanged = lastPresetElementsRef.current !== rackElementsKey;
+
+          const shouldPersistElements =
+            !dataAlreadyInDB &&
+            (presetElementsChanged ||
+              !hasPersistedRef.current ||
+              persistedElementsRef.current !== rackElementsKey);
+
+          const shouldPersistLockPos =
+            !dataAlreadyInDB &&
+            lockPosToUse &&
+            lockPosToUse.length > 0 &&
+            !lockPosAlreadyInDB &&
+            (presetElementsChanged ||
+              presetLockPosKey !== lockPosKey ||
+              persistedLockPosRef.current === null ||
+              persistedLockPosRef.current !== lockPosKey ||
+              !hasPersistedRef.current ||
+              persistedElementsRef.current !== rackElementsKey ||
+              (hasPersistedRef.current &&
+                persistedElementsRef.current === rackElementsKey &&
+                persistedLockPosRef.current === null));
+
+          const shouldPersist = shouldPersistElements || shouldPersistLockPos;
+
+          try {
+            const { findAllPossibleEquations } = await import("@/app/lib/equationAnagramLogic");
+            const equations = findAllPossibleEquations(allElements as unknown as string[]);
+
+            // ✅ ใช้ presetSolutionTokens ถ้ามี (จาก DB) ไม่งั้น generate ใหม่
+            let solutionTokens: string[] | undefined = presetSolutionTokensProp && presetSolutionTokensProp.length > 0
+              ? presetSolutionTokensProp
+              : undefined;
+            
+            if (!solutionTokens) {
+              if (equations.length > 0) {
+                const { tokenizeExpression } = await import("@/app/lib/expressionUtil");
+                const tokens = tokenizeExpression(equations[0]);
+                solutionTokens = tokens && tokens.length > 0 ? tokens : undefined;
+                if (!solutionTokens || solutionTokens.length === 0) {
+                  solutionTokens = allElements;
+                }
+              } else {
+                solutionTokens = allElements;
+              }
+            }
+
+            const lockPositions = lockPosToUse ? lockPosToUse.map((lp) => lp.pos) : undefined;
+
+            const r: EquationAnagramResultWithLock = {
+              elements: allElements,
+              sampleEquation: equations[0] || "",
+              possibleEquations: equations,
+              listPosLock: lockPosToUse,
+              lockPositions,
+              solutionTokens,
+            };
+            setResults([r]);
+
+            // ✅ Persist (NO MORE subtract locked indices)
+            if (onPersistElements && shouldPersist) {
+              try {
+                // Persist "presetElements" directly (still keep sort+slice to 8)
+                const { sortTokenStringsByAmathOrder } = await import("@/app/lib/tokenSort");
+                const sorted = sortTokenStringsByAmathOrder(
+                  (presetElements as unknown as string[]) ?? []
+                );
+                const elementsForDB = sorted.slice(0, 8);
+
+                await onPersistElements(elementsForDB, lockPosToUse, solutionTokens);
+
+                hasPersistedRef.current = true;
+                persistedElementsRef.current = rackElementsKey;
+                persistedLockPosRef.current = lockPosKey;
+                lastPresetElementsRef.current = rackElementsKey;
+              } catch (e) {
+                console.error("Persist preset elements failed:", e);
+              }
+            }
+          } catch {
+            const lockPositions = lockPosToUse ? lockPosToUse.map((lp) => lp.pos) : undefined;
+
+            // ✅ ใช้ presetSolutionTokens ถ้ามี (จาก DB) ไม่งั้น generate ใหม่
+            let solutionTokens: string[] | undefined = presetSolutionTokensProp && presetSolutionTokensProp.length > 0
+              ? presetSolutionTokensProp
+              : undefined;
+            
+            if (!solutionTokens) {
+              try {
+                const { findAllPossibleEquations } = await import("@/app/lib/equationAnagramLogic");
+                const { tokenizeExpression } = await import("@/app/lib/expressionUtil");
+                const equations = findAllPossibleEquations(presetElements as unknown as string[]);
+                if (equations.length > 0) {
+                  const tokens = tokenizeExpression(equations[0]);
+                  solutionTokens = tokens && tokens.length > 0 ? tokens : undefined;
+                }
+              } catch {}
+            }
+
+            const r: EquationAnagramResultWithLock = {
+              elements: presetElements,
+              sampleEquation: "",
+              possibleEquations: [],
+              listPosLock: lockPosToUse,
+              lockPositions,
+              solutionTokens,
+            };
+            setResults([r]);
+
+            const elementsKey = presetElements.join(",");
+            const lockPosKey2 = lockPosToUse
+              ? JSON.stringify(lockPosToUse.sort((a, b) => a.pos - b.pos))
+              : "null";
+
+            const shouldPersistElements2 =
+              !hasPersistedRef.current || persistedElementsRef.current !== elementsKey;
+            const shouldPersistLockPos2 =
+              !!lockPosToUse &&
+              (persistedLockPosRef.current === null ||
+                persistedLockPosRef.current !== lockPosKey2);
+            const shouldPersist2 = shouldPersistElements2 || shouldPersistLockPos2;
+
+            if (onPersistElements && shouldPersist2) {
+              try {
+                const { sortTokenStringsByAmathOrder } = await import("@/app/lib/tokenSort");
+                const sorted = sortTokenStringsByAmathOrder(
+                  (presetElements as unknown as string[]) ?? []
+                );
+                const elementsForDB = sorted.slice(0, 8);
+
+                await onPersistElements(elementsForDB, lockPosToUse, solutionTokens);
+
+                hasPersistedRef.current = true;
+                persistedElementsRef.current = elementsKey;
+                persistedLockPosRef.current = lockPosKey2;
+                lastPresetElementsRef.current = elementsKey;
+              } catch (e) {
+                console.error("Persist preset elements failed (error case):", e);
+              }
+            }
+          }
+        } else {
+          // ✅ CASE B: generate new
+          // ✅ Create a key for this generation to prevent duplicates
+          const generationKey = JSON.stringify({
+            options: mergedOptions,
+            timestamp: Date.now()
+          });
+          
+          // ✅ Skip if we've already generated with these exact options recently
+          if (lastGeneratedKeyRef.current === generationKey) {
+            console.log('✅ Already generated with these options, skipping...');
+            setIsGenerating(false);
+            isGeneratingRef.current = false;
+            return;
+          }
+          
+          lastGeneratedKeyRef.current = generationKey;
+          
+          const generated = await generateEquationAnagram(mergedOptions);
+
+          let lockFromGen: LockedPos[] | null = null;
+
+          if (generated.lockPositions && generated.lockPositions.length > 0) {
+            const solutionTokens = generated.solutionTokens;
+
+            if (solutionTokens && solutionTokens.length > 0) {
+              lockFromGen = generated.lockPositions
+                .map((solutionIndex: number) => {
+                  const value = solutionTokens[solutionIndex] || "";
+                  return { pos: solutionIndex, value };
+                })
+                .filter((lp: LockedPos) => lp.value !== "");
+            } else {
+              lockFromGen = generated.lockPositions
+                .map((pos: number) => {
+                  const value = generated.elements[pos] || "";
+                  return { pos, value };
+                })
+                .filter((lp: LockedPos) => lp.value !== "");
+            }
+          } else {
+            lockFromGen = extractListPosLock(generated);
+          }
+
+          setCurrentListPosLock(lockFromGen);
+
+          const lockPositions = lockFromGen
+            ? lockFromGen.map((lp) => lp.pos)
+            : generated.lockPositions;
+
+          const r: EquationAnagramResultWithLock = {
+            ...generated,
+            listPosLock: lockFromGen,
+            lockPositions,
+          };
+          setResults([r]);
+
+          // ✅ Persist to backend (NO MORE subtract locked indices)
+          const generatedElements = (generated as EquationAnagramResultWithLock)
+            .elements as unknown as string[];
+          const elementsKey = generatedElements.join(",");
+          const lockPosKey = lockFromGen
+            ? JSON.stringify(lockFromGen.sort((a, b) => a.pos - b.pos))
+            : "null";
+
+          const shouldPersistElements =
+            !hasPersistedRef.current || persistedElementsRef.current !== elementsKey;
+          const shouldPersistLockPos =
+            !!lockFromGen &&
+            (persistedLockPosRef.current === null ||
+              persistedLockPosRef.current !== lockPosKey);
+          const shouldPersist = shouldPersistElements || shouldPersistLockPos;
+
+          if (onPersistElements && shouldPersist) {
+            try {
+              const { sortTokenStringsByAmathOrder } = await import("@/app/lib/tokenSort");
+              const sorted = sortTokenStringsByAmathOrder(generatedElements);
+              const elementsForDB = sorted.slice(0, 8);
+              
+              // ✅ เก็บ solutionTokens จาก generated result
+              const solutionTokensForDB = generated.solutionTokens && generated.solutionTokens.length > 0
+                ? generated.solutionTokens
+                : undefined;
+
+              await onPersistElements(elementsForDB, lockFromGen, solutionTokensForDB);
+
+              hasPersistedRef.current = true;
+              persistedElementsRef.current = elementsKey;
+              persistedLockPosRef.current = lockPosKey;
+            } catch (e) {
+              console.error("❌ Persist current elements failed:", e);
+            }
+          }
+
+          setPresetElements(
+            (generated as EquationAnagramResultWithLock).elements as unknown as string[]
+          );
         }
+
         setCurrentIndex(0);
       } catch (error) {
-        console.error('Error generating assignment problem:', error);
+        console.error("Error generating assignment problem:", error);
       } finally {
         setIsGenerating(false);
+        isGeneratingRef.current = false;
       }
     };
-    
-    // Only trigger generation if we're in assignment mode AND have enforced options
+
     if (assignmentMode && enforcedOptions) {
       generateForAssignment();
     }
-  }, [assignmentMode, enforcedOptions, lastSubmissionAt, defaultOptions, presetElements, onPersistElements]);
-
-  // Helper function to convert ArrayBuffer to base64
-  const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-    let binary = "";
-    const bytes = new Uint8Array(buffer);
-    const len = bytes.byteLength;
-    for (let i = 0; i < len; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignmentMode, enforcedOptions, lastSubmissionAt, presetElementsProp, presetSolutionTokensProp, presetListPosLockProp]);
 
   // Function to add Thai font to jsPDF
   const addThaiFont = (doc: jsPDF) => {
@@ -331,7 +769,6 @@ export default function EquationAnagramGenerator({
     try {
       doc.setFont("THSarabunNew", style);
     } catch {
-      // Fallback to helvetica if Thai font fails
       doc.setFont("helvetica", style === "bold" ? "bold" : "normal");
     }
   };
@@ -339,9 +776,8 @@ export default function EquationAnagramGenerator({
   // Event handlers
   const handleShowSolutionChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setShowSolution(e.target.checked);
-  const handleShowExampleSolutionChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => setShowExampleSolution(e.target.checked);
+  const handleShowExampleSolutionChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setShowExampleSolution(e.target.checked);
 
   // Handlers for main page
   const handleNumQuestionsChange = (value: string) => {
@@ -353,15 +789,10 @@ export default function EquationAnagramGenerator({
 
   // Handlers for popup optionSets
   const handleAddOptionSet = () => {
-    setOptionSets((prev) => [
-      ...prev,
-      { options: { ...defaultOptions }, numQuestions: 3 },
-    ]);
+    setOptionSets((prev) => [...prev, { options: { ...defaultOptions }, numQuestions: 3 }]);
   };
   const handleRemoveOptionSet = (idx: number) => {
-    setOptionSets((prev) =>
-      prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev
-    );
+    setOptionSets((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
   };
 
   // Generate multiple problems and store in results (main page)
@@ -369,20 +800,18 @@ export default function EquationAnagramGenerator({
     setIsGenerating(true);
     try {
       if (results.length > 0) {
-        setHistory(prev => [...prev, { results: [...results], currentIndex }]);
-        setFuture([]); // Clear redo stack on new generate
+        setHistory((prev) => [...prev, { results: [...results], currentIndex }]);
+        setFuture([]);
       }
       const generatedResults: EquationAnagramResult[] = [];
       for (let i = 0; i < numQuestions; i++) {
         const generated = await generateEquationAnagram(options, tokenCounts);
         generatedResults.push(generated);
       }
-      setResults(generatedResults);
+      setResults(generatedResults as EquationAnagramResultWithLock[]);
       setCurrentIndex(0);
     } catch (error) {
-      alert(
-        `Error: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
+      alert(`Error: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsGenerating(false);
     }
@@ -398,13 +827,14 @@ export default function EquationAnagramGenerator({
       for (let setIdx = 0; setIdx < optionSets.length; setIdx++) {
         const set = optionSets[setIdx];
         const genOptions = { ...set.options };
-        // ไม่ต้องใช้ completeOperatorCounts เพราะเราใช้ operatorFixed แล้ว
         for (let i = 0; i < set.numQuestions; i++) {
           const generated = await generateEquationAnagram(genOptions);
-          problemLines.push(`${globalIndex}) ${generated.elements.join(", ")}`);
+          problemLines.push(
+            `${globalIndex}) ${(generated as EquationAnagramResultWithLock).elements.join(", ")}`
+          );
           solutionLines.push(
             showSolution
-              ? `${globalIndex}) ${generated.sampleEquation || "-"}`
+              ? `${globalIndex}) ${(generated as EquationAnagramResultWithLock).sampleEquation || "-"}`
               : `${globalIndex}) -`
           );
           globalIndex++;
@@ -414,9 +844,7 @@ export default function EquationAnagramGenerator({
       setSolutionText(solutionLines.join("\n"));
       setShowOptionModal(true);
     } catch (error) {
-      alert(
-        "Error: " + (error instanceof Error ? error.message : "Unknown error")
-      );
+      alert("Error: " + (error instanceof Error ? error.message : "Unknown error"));
     } finally {
       setIsGenerating(false);
     }
@@ -432,44 +860,55 @@ export default function EquationAnagramGenerator({
     setShowOptionModal(false);
   };
 
-  // Handle assignment answer submission
+  // ✅ manual assignment submission includes lock
   const handleSendAssignmentAnswer = async () => {
     if (!onSendAnswer || !assignmentQuestion.trim() || !assignmentAnswer.trim()) return;
-    
+
     try {
       setSubmittingAnswer(true);
-      await onSendAnswer(assignmentQuestion.trim(), assignmentAnswer.trim());
-      
-      // Clear form after successful submission
-      setAssignmentQuestion('');
-      setAssignmentAnswer('');
-      setLastValidEquation('');
+      await onSendAnswer(
+        assignmentQuestion.trim(),
+        assignmentAnswer.trim(),
+        currentListPosLock ?? presetListPosLockProp ?? null
+      );
+
+      setAssignmentQuestion("");
+      setAssignmentAnswer("");
+      setLastValidEquation("");
     } catch (error) {
-      console.error('Error sending assignment answer:', error);
+      console.error("Error sending assignment answer:", error);
     } finally {
       setSubmittingAnswer(false);
     }
   };
 
-  // Handle valid equation from DisplayBox in assignment mode
+  // ✅ auto-submit from valid equation includes lock
   const handleValidEquation = async (equation: string) => {
     if (!assignmentMode) return;
+
     setLastValidEquation(equation);
     setAssignmentAnswer(equation);
 
-    // Auto-submit when equation is valid
     if (!onSendAnswer) return;
     if (submittingAnswer) return;
+
     try {
       setSubmittingAnswer(true);
-      const current = results[currentIndex];
-      const questionText = current ? current.elements.join(", ") : `Equation`;
-      await onSendAnswer(questionText, equation);
-      // Trigger regeneration for next problem
+      const current: EquationAnagramResultWithLock = results[currentIndex];
+      const questionText = current ? (current.elements || []).join(", ") : `Equation`;
+
+      await onSendAnswer(
+        questionText,
+        equation,
+        (current?.listPosLock as LockedPos[] | undefined) ??
+          currentListPosLock ??
+          presetListPosLockProp ??
+          null
+      );
+
       setLastSubmissionAt(Date.now());
-      // Auto-exit handled in play/page after refresh; no type-safe access needed here
     } catch (error) {
-      console.error('Auto submit answer failed:', error);
+      console.error("Auto submit answer failed:", error);
     } finally {
       setSubmittingAnswer(false);
     }
@@ -482,10 +921,10 @@ export default function EquationAnagramGenerator({
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          if(parsed && typeof parsed === 'object') {
+          if (parsed && typeof parsed === "object") {
             setTokenCounts((prev) => ({ ...prev, ...parsed }));
           }
-        } catch { /* ignore */ }
+        } catch {}
       }
     }
   }, []);
@@ -499,73 +938,69 @@ export default function EquationAnagramGenerator({
   if (!hydrated) return null;
 
   return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <HeaderSection />
-        <div className="space-y-6">
-          <DisplaySection
-            results={results}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-            currentIndex={currentIndex}
-            setCurrentIndex={setCurrentIndex}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            canUndo={history.length > 0}
-            canRedo={future.length > 0}
-            assignmentMode={assignmentMode}
-            onValidEquation={handleValidEquation}
-            activeAssignment={activeAssignment}
-            onSubmitAnswer={onSendAnswer}
-          />
-          {!assignmentMode && (
-            <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-              <div className="xl:col-span-3">
-                <ConfigSection
-                  options={options}
-                  setOptions={setOptions}
-                  numQuestions={numQuestions}
-                  setNumQuestions={setNumQuestions}
-                />
-              </div>
-              <div className="xl:col-span-2">
-                <ActionSection
-                  onGenerate={handleGenerate}
-                  isGenerating={isGenerating}
-                  options={options}
-                  numQuestions={numQuestions.toString()}
-                  onNumQuestionsChange={(e) =>
-                    handleNumQuestionsChange(e.target.value)
-                  }
-                  onNumQuestionsBlur={() => {}}
-                  onShowOptionModal={handleShowOptionModal}
-                  onPrintText={handlePrintText}
-                  showSolution={showSolution}
-                  onShowSolutionChange={handleShowSolutionChange}
-                  showExampleSolution={showExampleSolution}
-                  onShowExampleSolutionChange={handleShowExampleSolutionChange}
-                />
-              </div>
-            </div>
-          )}
-          {/* ------- NEW: Tile Token Counts Panel ------- */}
-          {!assignmentMode && (
-            <div>
-              <TokenCountConfigPanel
-                counts={tokenCounts}
-                onChange={setTokenCounts}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <HeaderSection />
+      <div className="space-y-6">
+        <DisplaySection
+          results={results}
+          onGenerate={handleGenerate}
+          isGenerating={isGenerating}
+          currentIndex={currentIndex}
+          setCurrentIndex={setCurrentIndex}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={history.length > 0}
+          canRedo={future.length > 0}
+          assignmentMode={assignmentMode}
+          onValidEquation={handleValidEquation}
+          activeAssignment={activeAssignment}
+          onSubmitAnswer={onSendAnswer}
+        />
+
+        {!assignmentMode && (
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+            <div className="xl:col-span-3">
+              <ConfigSection
+                options={options}
+                setOptions={setOptions}
+                numQuestions={numQuestions}
+                setNumQuestions={setNumQuestions}
               />
-              <div className="flex justify-end">
-                <button
-                  className="px-4 py-1 rounded bg-slate-200 text-slate-800 border border-slate-300 hover:bg-slate-300 shadow"
-                  onClick={handleResetTokenCounts}
-                  type="button"
-                >
-                  Reset to Default
-                </button>
-              </div>
             </div>
-          )}
-        </div>
+            <div className="xl:col-span-2">
+              <ActionSection
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+                options={options}
+                numQuestions={numQuestions.toString()}
+                onNumQuestionsChange={(e) => handleNumQuestionsChange(e.target.value)}
+                onNumQuestionsBlur={() => {}}
+                onShowOptionModal={handleShowOptionModal}
+                onPrintText={handlePrintText}
+                showSolution={showSolution}
+                onShowSolutionChange={handleShowSolutionChange}
+                showExampleSolution={showExampleSolution}
+                onShowExampleSolutionChange={handleShowExampleSolutionChange}
+              />
+            </div>
+          </div>
+        )}
+
+        {!assignmentMode && (
+          <div>
+            <TokenCountConfigPanel counts={tokenCounts} onChange={setTokenCounts} />
+            <div className="flex justify-end">
+              <button
+                className="px-4 py-1 rounded bg-slate-200 text-slate-800 border border-slate-300 hover:bg-slate-300 shadow"
+                onClick={handleResetTokenCounts}
+                type="button"
+              >
+                Reset to Default
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Enhanced Modal */}
       {!assignmentMode && showOptionModal && (
@@ -583,41 +1018,25 @@ export default function EquationAnagramGenerator({
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors text-gray-600 hover:text-gray-800"
                 onClick={handleCloseOptionModal}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
-              {/* Enhanced Summary */}
               <OptionSetsSummary optionSets={optionSets} />
 
-              {/* Enhanced OptionSetConfig components */}
               <OptionSetConfig
                 options={optionSets[0].options}
                 onOptionsChange={(opts) => {
                   setOptionSets((prev) =>
-                    prev.map((set, i) =>
-                      i === 0 ? { ...set, options: opts } : set
-                    )
+                    prev.map((set, i) => (i === 0 ? { ...set, options: opts } : set))
                   );
                 }}
                 numQuestions={optionSets[0].numQuestions}
                 onNumQuestionsChange={(num) => {
                   setOptionSets((prev) =>
-                    prev.map((set, i) =>
-                      i === 0 ? { ...set, numQuestions: num } : set
-                    )
+                    prev.map((set, i) => (i === 0 ? { ...set, numQuestions: num } : set))
                   );
                 }}
                 setLabel="Set 1"
@@ -630,45 +1049,32 @@ export default function EquationAnagramGenerator({
                   options={set.options}
                   onOptionsChange={(opts) =>
                     setOptionSets((prev) =>
-                      prev.map((s, i) =>
-                        i === idx + 1 ? { ...s, options: opts } : s
-                      )
+                      prev.map((s, i) => (i === idx + 1 ? { ...s, options: opts } : s))
                     )
                   }
                   numQuestions={set.numQuestions}
                   onNumQuestionsChange={(num) =>
                     setOptionSets((prev) =>
-                      prev.map((s, i) =>
-                        i === idx + 1 ? { ...s, numQuestions: num } : s
-                      )
+                      prev.map((s, i) => (i === idx + 1 ? { ...s, numQuestions: num } : s))
                     )
                   }
-                  onRemove={
-                    optionSets.length > 1
-                      ? () => handleRemoveOptionSet(idx + 1)
-                      : undefined
-                  }
+                  onRemove={optionSets.length > 1 ? () => handleRemoveOptionSet(idx + 1) : undefined}
                   setLabel={`Set ${idx + 2}`}
                   setIndex={idx + 1}
                 />
               ))}
-              <Button
-                color="white"
-                className="mt-2"
-                onClick={handleAddOptionSet}
-              >
+
+              <Button color="white" className="mt-2" onClick={handleAddOptionSet}>
                 + Add Option Set
               </Button>
-              {/* Reset Options Button */}
+
               <Button
                 color="white"
                 className="mt-4 border border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
                 onClick={() => {
-                  // Clear all relevant sessionStorage keys
                   window.sessionStorage.removeItem("bingo_options");
                   window.sessionStorage.removeItem("bingo_num_questions");
                   window.sessionStorage.removeItem("bingo_option_sets");
-                  // Remove all bingo_option_set_show_X keys
                   Object.keys(window.sessionStorage).forEach((key) => {
                     if (key.startsWith("bingo_option_set_show_")) {
                       window.sessionStorage.removeItem(key);
@@ -679,7 +1085,7 @@ export default function EquationAnagramGenerator({
               >
                 Reset Options
               </Button>
-              {/* Include Solutions toggle and Print Text Output button */}
+
               <div className="mb-6 mt-6">
                 <div className="bg-blue-50 rounded-xl p-4 border border-blue-200 mb-4">
                   <div className="flex items-center space-x-3">
@@ -712,12 +1118,12 @@ export default function EquationAnagramGenerator({
                         Include Solutions in Text Output
                       </label>
                       <p className="text-xs text-blue-700 mt-1">
-                        When enabled, solutions will be generated alongside
-                        problems
+                        When enabled, solutions will be generated alongside problems
                       </p>
                     </div>
                   </div>
                 </div>
+
                 <Button
                   color="orange"
                   className="w-full mb-2"
@@ -726,25 +1132,14 @@ export default function EquationAnagramGenerator({
                   loading={isGenerating}
                   loadingText="Generating..."
                   icon={
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                      />
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                   }
                 >
                   Generate Text Output
                 </Button>
-                
-                {/* Assignment Send Answer Button */}
+
                 {assignmentMode && (
                   <Button
                     onClick={handleSendAssignmentAnswer}
@@ -754,27 +1149,17 @@ export default function EquationAnagramGenerator({
                       submittingAnswer ? (
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                       ) : (
-                        <svg
-                          className="w-5 h-5 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                          />
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
                       )
                     }
                   >
-                    {submittingAnswer ? 'Sending...' : 'Send Answer to Assignment'}
+                    {submittingAnswer ? "Sending..." : "Send Answer to Assignment"}
                   </Button>
                 )}
               </div>
-              {/* PrintTextAreaSection (SplitTextAreas) */}
+
               {printText ? (
                 <PrintTextAreaSection
                   problemText={printText}
@@ -787,21 +1172,23 @@ export default function EquationAnagramGenerator({
                 <div>
                   <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
                     <p className="text-sm text-blue-800">
-                      <strong>Tip:</strong> These are your current settings for
-                      PDF/text generation. You can modify them here without
-                      affecting the main page configuration.
+                      <strong>Tip:</strong> These are your current settings for PDF/text generation. You can modify them here without affecting the main page configuration.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* Assignment Answer Form */}
               {assignmentMode && (
                 <div className="mt-6 bg-green-50 border border-green-200 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-green-900 mb-4">Assignment Answer Form</h3>
+                  <h3 className="text-lg font-semibold text-green-900 mb-4">
+                    Assignment Answer Form
+                  </h3>
                   <div className="space-y-4">
                     <div>
-                      <label htmlFor="assignmentQuestion" className="block text-sm font-medium text-green-800 mb-2">
+                      <label
+                        htmlFor="assignmentQuestion"
+                        className="block text-sm font-medium text-green-800 mb-2"
+                      >
                         Question/Problem Statement
                       </label>
                       <textarea
@@ -814,7 +1201,10 @@ export default function EquationAnagramGenerator({
                       />
                     </div>
                     <div>
-                      <label htmlFor="assignmentAnswer" className="block text-sm font-medium text-green-800 mb-2">
+                      <label
+                        htmlFor="assignmentAnswer"
+                        className="block text-sm font-medium text-green-800 mb-2"
+                      >
                         Your Answer/Solution
                       </label>
                       <textarea
@@ -828,13 +1218,15 @@ export default function EquationAnagramGenerator({
                       {lastValidEquation && (
                         <div className="mt-2 text-sm text-green-600">
                           <CheckCircle size={16} className="inline mr-1" />
-                          Valid equation detected: <span className="font-mono font-bold">{lastValidEquation}</span>
+                          Valid equation detected:{" "}
+                          <span className="font-mono font-bold">{lastValidEquation}</span>
                         </div>
                       )}
                     </div>
                     <div className="text-sm text-green-700">
                       <Lightbulb size={16} className="inline mr-1" />
-                      Tip: You can use the equation generator above to create problems, then copy/paste them into this form.
+                      Tip: You can use the equation generator above to create problems,
+                      then copy/paste them into this form.
                     </div>
                   </div>
                 </div>

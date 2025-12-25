@@ -164,17 +164,33 @@ export async function generateEquationAnagram(options: EquationAnagramOptions, c
         const orderedElements = reorderElementsBySolution();
         let lockPositions: number[] | undefined;
         
-        // Handle lock mode - generate lock positions based on solution equation order (non-adjacent)
+        // ✅ IMPORTANT: Handle lock mode - generate lock positions based on solutionTokens indices
+        // DisplayBox uses solutionTokens as sourceTokens, so lock positions must reference solutionTokens indices
         if (options.lockMode && options.lockCount !== undefined && options.lockCount > 0) {
           const lockCount = options.lockCount;
-          lockPositions = generateNonAdjacentLockPositions(orderedElements.length, lockCount);
+          
+          // ✅ Use solutionTokens length if available, otherwise use orderedElements length
+          // Lock positions should reference solutionTokens indices (which DisplayBox uses)
+          const targetLength = solutionTiles && solutionTiles.length > 0 
+            ? solutionTiles.length 
+            : orderedElements.length;
+          
+          lockPositions = generateNonAdjacentLockPositions(targetLength, lockCount);
+          
+          console.log("🔒 Generated lock positions for solutionTokens:", {
+            lockCount,
+            targetLength,
+            solutionTokensLength: solutionTiles?.length,
+            elementsLength: orderedElements.length,
+            lockPositions
+          });
         }
         console.log(solutionTiles)
         return {
           elements: orderedElements,
           sampleEquation: equations[0],
           possibleEquations: equations.slice(0, 10),
-          lockPositions,
+          lockPositions, // ✅ These are indices in solutionTokens array (or elements if no solutionTokens)
           solutionTokens: solutionTiles,
         };
       }
@@ -1125,8 +1141,13 @@ function validateEquationAnagramOptions(options: EquationAnagramOptions, customT
     if (totalCount < 9 || totalCount > 15) {
       return 'In lock mode, total count must be between 9 and 15.';
     }
-    if (lockCount !== undefined && lockCount !== totalCount - 8) {
-      return `In lock mode, lock count must equal totalCount - 8 (${totalCount - 8}).`;
+    // ✅ When lockMode is true, lockCount is required and must equal totalCount - 8
+    const expectedLockCount = totalCount - 8;
+    if (lockCount === undefined) {
+      return `In lock mode, lock count is required and must equal totalCount - 8 (${expectedLockCount}).`;
+    }
+    if (lockCount !== expectedLockCount) {
+      return `In lock mode, lock count must equal totalCount - 8 (expected ${expectedLockCount}, got ${lockCount}).`;
     }
   } else {
     if (totalCount < 8) {

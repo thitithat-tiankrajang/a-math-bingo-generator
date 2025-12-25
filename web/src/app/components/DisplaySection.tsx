@@ -1,9 +1,17 @@
 import React from 'react';
 import DisplayBox from './DisplayBox';
 import type { EquationAnagramResult } from '@/app/types/EquationAnagram';
+import type { LockedPos } from '@/app/lib/assignmentService';
+
+// ✅ Support result with lock positions from DB
+type DisplayResult = EquationAnagramResult & {
+  lockPositions?: number[];
+  solutionTokens?: string[];
+  listPosLock?: LockedPos[] | null;
+};
 
 interface DisplaySectionProps {
-  results: EquationAnagramResult[];
+  results: DisplayResult[];
   onGenerate?: () => void;
   isGenerating: boolean;
   currentIndex: number;
@@ -47,7 +55,7 @@ export default function DisplaySection({
     <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
       <DisplayBox 
         result={results.length > 0 ? results[currentIndex] : null}
-            onGenerate={assignmentMode ? undefined : onGenerate}
+        onGenerate={assignmentMode ? undefined : onGenerate}
         isGenerating={isGenerating}
         currentIndex={currentIndex}
         total={results.length}

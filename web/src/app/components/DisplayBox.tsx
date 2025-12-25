@@ -5,7 +5,6 @@ import ChoiceSelectionPopup from "./ChoiceSelectionPopup";
 import React from "react";
 import html2canvas from "html2canvas";
 import { Target } from 'lucide-react';
-// Import new components
 import EmptyState from './EmptyState';
 import TileRack from './TileRack';
 import AnswerArea from './AnswerArea';
@@ -17,9 +16,13 @@ import GenerateButton from './GenerateButton';
 import {sortTokenStringsByAmathOrder} from "@/app/lib/tokenSort";
 import type { SelectedTile } from "@/app/types/TileSelection";
 
-
+type DisplayResult = EquationAnagramResult & {
+  lockPositions?: number[];
+  solutionTokens?: string[];
+  listPosLock?: Array<{ pos: number; value: string }> | null; // ✅ Support LockedPos format from DB (read-only, for DisplayBox to use)
+};
 interface DisplayBoxProps {
-  result: EquationAnagramResult | null;
+  result: DisplayResult | null;
   onGenerate?: () => void;
   isGenerating?: boolean;
   currentIndex?: number;
@@ -88,6 +91,9 @@ export default function DisplayBox({
   const [answerDraggedIndex, setAnswerDraggedIndex] = useState<number | null>(null);
   const [answerDropTarget, setAnswerDropTarget] = useState<number | null>(null);
 
+  // Track if we're in initialization phase
+  const [isInitializing, setIsInitializing] = React.useState(false);
+
   // Ref for problem set container
   const problemSetRef = useRef<HTMLDivElement>(null);
 
@@ -129,101 +135,114 @@ export default function DisplayBox({
   const validateTileIntegrity = React.useCallback(() => {
     if (!result) return;
     
+    // ✅ Skip validation during initialization or if result is changing
+    if (isInitializing) return;
+    
     // Count tiles in rack (non-null values)
     const rackCount = rackTiles.filter(tile => tile !== null).length;
     
     // Count tiles in answer 
     const answerCount = answerTiles.filter(tile => tile !== null).length;
     
-    // Total should equal original count
-    const originalCount = result.elements.length;
+    // ✅ In lock mode, use solutionTokens length if available, otherwise use elements length
+    const originalCount = (result.solutionTokens && result.solutionTokens.length > 0)
+      ? result.solutionTokens.length
+      : result.elements.length;
+    
     const currentTotal = rackCount + answerCount;
     
     if (currentTotal !== originalCount) {
       console.warn(`⚠️ Tile count mismatch: Original=${originalCount}, Current=${currentTotal} (Rack=${rackCount}, Answer=${answerCount})`);
+      console.warn(`   Result elements: ${result.elements.length}, SolutionTokens: ${result.solutionTokens?.length || 0}`);
       
-      // Only auto-fix if the difference is significant (more than 1 tile missing/extra)
+      // Only auto-fix if the difference is significant (more than 2 tiles missing/extra)
+      // ✅ Increased threshold to prevent false positives during state transitions
       const difference = Math.abs(currentTotal - originalCount);
-      if (difference > 1) {
+      if (difference > 2) {
         console.error('❌ Critical tile count error - auto-resetting');
-        setRackTiles([...result.elements]);
-        setAnswerTiles(new Array(result.elements.length).fill(null));
+        // ✅ Use solutionTokens if available for lock mode, otherwise use elements
+        const sourceElements = (result.solutionTokens && result.solutionTokens.length > 0)
+          ? result.solutionTokens
+          : result.elements;
+        setRackTiles([...sourceElements]);
+        setAnswerTiles(new Array(sourceElements.length).fill(null));
         setUsedTileIndices(new Set());
         setAnswerFeedback({ type: 'error', message: '🔧 Tiles were automatically reset due to counting error.' });
       }
     }
-  }, [result, rackTiles, answerTiles]);
+  }, [result, rackTiles, answerTiles, isInitializing]);
 
   // Scroll offset state for lock mode
   const MAX_ANSWER_LENGTH = 15;
 
   // Initialize rack tiles when result changes
   React.useEffect(() => {
-    if (result) {
-      setIsInitializing(true);
-      
-      // Handle lock mode
-      if (result.lockPositions && result.lockPositions.length > 0) {
-        // In lock mode: rack has 8 tiles, answer has locked tiles
-        // answerTiles array has length = totalCount (number of generated tiles)
-        // Show exactly totalCount slots (no scrolling, no randomization)
-        const rackElements: (string | null)[] = [];
-        const answerElements: ({value: string, sourceIndex: number, tileId: string, choiceSelection?: string, isLocked?: boolean} | null)[] = new Array(result.elements.length).fill(null);
-        
-        // Separate elements into rack and locked answer
-        result.solutionTokens?.forEach((element, index) => {
-          if (result.lockPositions!.includes(index)) {
-            // This position is locked - place in answer at the same index as original
-            answerElements[index] = {
-              value: element,
-              sourceIndex: index,
-              tileId: generateTileId(index, element),
-              isLocked: true
-            };
-          } else {
-            // This goes to rack
-            rackElements.push(element);
-          }
-        });
-        
-        // Ensure rack has exactly 8 tiles (pad with null if needed)
-        while (rackElements.length < 8) {
-          rackElements.push(null);
+    if (!result) return;
+  
+    setIsInitializing(true);
+  
+    const lockPositions = result.lockPositions ?? [];
+    const hasLock = lockPositions.length > 0;
+  
+    if (hasLock) {
+      // ✅ ใช้ sourceTokens เป็นตัวอ้างอิง: ถ้ามี solutionTokens ใช้เลย ไม่งั้น fallback เป็น elements
+      const sourceTokens = (result.solutionTokens && result.solutionTokens.length > 0)
+        ? result.solutionTokens
+        : result.elements;
+  
+      const rackElements: (string | null)[] = [];
+      // ✅ Use sourceTokens length for answerElements array size (lock positions reference solutionTokens indices)
+      const answerElements: ({value: string, sourceIndex: number, tileId: string, choiceSelection?: string, isLocked?: boolean} | null)[]
+        = new Array(sourceTokens.length).fill(null);
+  
+      sourceTokens.forEach((token, index) => {
+        if (lockPositions.includes(index)) {
+          answerElements[index] = {
+            value: token,
+            sourceIndex: index,
+            tileId: generateTileId(index, token),
+            isLocked: true,
+          };
+        } else {
+          rackElements.push(token);
         }
-        while (rackElements.length > 8) {
-          rackElements.pop();
-        }
-        
-        setRackTiles(sortTokenStringsByAmathOrder(rackElements as string[]));
-        setAnswerTiles(answerElements);
-        
-        // Mark locked positions as used
-        const lockedIndices = new Set(result.lockPositions);
-        setUsedTileIndices(lockedIndices);
-      } else {
-        // Normal mode
-        setRackTiles([...result.elements]);
-        setAnswerTiles(new Array(result.elements.length).fill(null));
-      }
-      
-      setSelectedTile(null);
-      setAnswerFeedback(null);
-      
-      // Clean up all drag states manually
-      setTimeout(() => {
-        setDraggedIndex(null);
-        setDragOverIndex(null);
-        setAnswerDraggedIndex(null);
-        setAnswerDropTarget(null);
-        setAnswerDragOverIndex(null);
-        // Initialization is complete
-        setIsInitializing(false);
-      }, 200);
+      });
+  
+      // ✅ ทำให้ rack มี 8 ช่องเสมอ
+      while (rackElements.length < 8) rackElements.push(null);
+      if (rackElements.length > 8) rackElements.length = 8;
+  
+      // ✅ sort เฉพาะตัวที่ไม่ null แล้วค่อย pad null กลับ
+      const nonNull = rackElements.filter((t): t is string => t !== null);
+      const sortedNonNull = sortTokenStringsByAmathOrder(nonNull);
+      const paddedRack: (string | null)[] = [...sortedNonNull];
+      while (paddedRack.length < 8) paddedRack.push(null);
+  
+      setRackTiles(paddedRack);
+      setAnswerTiles(answerElements);
+  
+      // ✅ mark indices ที่ล็อกเป็น used
+      setUsedTileIndices(new Set(lockPositions));
+    } else {
+      // Normal mode
+      setRackTiles([...result.elements]);
+      setAnswerTiles(new Array(result.elements.length).fill(null));
+      setUsedTileIndices(new Set());
     }
+  
+    setSelectedTile(null);
+    setAnswerFeedback(null);
+  
+    // Clean up drag states
+    setTimeout(() => {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      setAnswerDraggedIndex(null);
+      setAnswerDropTarget(null);
+      setAnswerDragOverIndex(null);
+      setIsInitializing(false);
+    }, 200);
   }, [result]);
-
-  // Track if we're in initialization phase
-  const [isInitializing, setIsInitializing] = React.useState(false);
 
   // Add validation after each state change (but not during initialization)
   React.useEffect(() => {
@@ -1075,21 +1094,21 @@ export default function DisplayBox({
         tileCountBox.style.minWidth = '80px';
         tileCountBox.style.height = '32px'; // ✅ เพิ่มความสูงให้กล่อง
         tileCountBox.style.boxSizing = 'border-box'; // ✅ ป้องกัน padding overflow
-       tileCountBox.textContent = `${result.elements.length} tiles`;
-       
-       titleSection.appendChild(title);
-       titleSection.appendChild(tileCountBox);
+        tileCountBox.textContent = `${result.elements.length} tiles`;
+        
+        titleSection.appendChild(title);
+        titleSection.appendChild(tileCountBox);
       
-      // Create tiles container
-      const tilesContainer = document.createElement('div');
-      tilesContainer.style.display = 'flex';
-      tilesContainer.style.gap = '8px';
-      tilesContainer.style.justifyContent = 'center';
-      tilesContainer.style.alignItems = 'center';
-      tilesContainer.style.padding = '12px';
-      tilesContainer.style.background = '#fef3c7'; // amber background
-      tilesContainer.style.borderRadius = '8px';
-      tilesContainer.style.border = '2px solid #f59e0b';
+        // Create tiles container
+        const tilesContainer = document.createElement('div');
+        tilesContainer.style.display = 'flex';
+        tilesContainer.style.gap = '8px';
+        tilesContainer.style.justifyContent = 'center';
+        tilesContainer.style.alignItems = 'center';
+        tilesContainer.style.padding = '12px';
+        tilesContainer.style.background = '#fef3c7'; // amber background
+        tilesContainer.style.borderRadius = '8px';
+        tilesContainer.style.border = '2px solid #f59e0b';
       
              // Create tiles based on elements
        result.elements.forEach((element) => {
@@ -1121,22 +1140,22 @@ export default function DisplayBox({
          }
          
          // Add main element (centered)
-         const mainText = document.createElement('div');
-         mainText.textContent = element;
-         mainText.style.position = 'absolute';
-mainText.style.top = '-10px';
-mainText.style.left = '0';
-mainText.style.width = '100%';
-mainText.style.height = '100%';
-mainText.style.display = 'flex';
-mainText.style.alignItems = 'center';
-mainText.style.justifyContent = 'center';
+          const mainText = document.createElement('div');
+          mainText.textContent = element;
+          mainText.style.position = 'absolute';
+          mainText.style.top = '-10px';
+          mainText.style.left = '0';
+          mainText.style.width = '100%';
+          mainText.style.height = '100%';
+          mainText.style.display = 'flex';
+          mainText.style.alignItems = 'center';
+          mainText.style.justifyContent = 'center';
 
-mainText.style.fontSize = '26px';
-mainText.style.fontWeight = '500';
-mainText.style.textAlign = 'center';
-         tile.appendChild(mainText);
-         
+          mainText.style.fontSize = '26px';
+          mainText.style.fontWeight = '500';
+          mainText.style.textAlign = 'center';
+          tile.appendChild(mainText);
+          
          // Get point value from AMATH_TOKENS
          const getPointValue = (token: string): number => {
            const tokenInfo = {

@@ -61,15 +61,83 @@ export default function AllAssignmentPage() {
   const handleCreateAssignment = async (data: CreateAssignmentData) => {
     try {
       setCreating(true);
-      await assignmentService.createAssignment(data);
+      console.log("🧪 data.optionSets received:", data.optionSets);
+
+      const normalized: CreateAssignmentData = {
+        ...data,
+        optionSets: (data.optionSets ?? []).map((set: OptionSet) => {
+          const o = (set?.options ?? {}) as EquationAnagramOptions;
+        
+          const totalCount = Number(o.totalCount ?? 8);
+        
+          // ดึงจากหลายแหล่ง + รองรับหลายชื่อ + รองรับตัวเล็กทั้งหมด
+          const rawLockMode =
+            o.lockMode ??
+            o.isLockPos ?? o.islockpos ??
+            o.isLockPosition ?? o.islockposition ??
+            o.lockPositionMode ?? o.lockpositionmode ??
+            o.posLockMode ?? o.poslockmode ??
+            set.isLockPos ?? set.islockpos ??
+            false;
+        
+          // ถ้า rawLockMode เป็น string 'true'/'false' ให้แปลงให้ถูก
+          const lockMode =
+            typeof rawLockMode === "string"
+              ? rawLockMode.toLowerCase() === "true"
+              : Boolean(rawLockMode);
+        
+          const lockCount = lockMode ? Math.max(0, totalCount - 8) : 0;
+        
+          const normalizedOptions = {
+            ...o,
+        
+            // canonical
+            totalCount,
+            lockMode,
+            lockCount,
+        
+            // ✅ เก็บ alias ไว้ครบ ทั้งแบบ camel และตัวเล็ก
+            isLockPos: lockMode,
+            islockpos: lockMode,
+        
+            isLockPosition: lockMode,
+            islockposition: lockMode,
+        
+            posLockMode: lockMode,
+            poslockmode: lockMode,
+        
+            lockPositionCount: lockCount,
+            posLockCount: lockCount,
+          };
+        
+          return {
+            ...set,
+            // ✅ ถ้า field อยู่บน set ด้วย ก็เขียนทับให้ตรงกัน
+            isLockPos: lockMode,
+            islockpos: lockMode,
+        
+            options: normalizedOptions,
+          };
+        }),        
+      };
+  
+      // แนะนำมาก: debug ดู payload ก่อนยิง (จะเห็น lockMode/lockCount แน่ ๆ)
+      console.log("📦 createAssignment payload:", JSON.stringify(normalized, null, 2));
+      console.log("📦 createAssignment optionSets lockMode check:", normalized.optionSets?.map((s) => ({
+        lockMode: s.options?.lockMode,
+        isLockPos: s.options?.isLockPos,
+        lockCount: s.options?.lockCount,
+      })));
+  
+      await assignmentService.createAssignment(normalized);
       setShowCreateModal(false);
-      await loadAssignments(); // Reload assignments
+      await loadAssignments();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create assignment');
+      setError(err instanceof Error ? err.message : "Failed to create assignment");
     } finally {
       setCreating(false);
     }
-  };
+  };  
 
   const handleEditAssignment = async (assignment: Assignment) => {
     // TODO: Implement edit functionality
@@ -826,17 +894,74 @@ function CreateAssignmentModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+  
     if (formData.title.trim() && formData.description.trim() && formData.dueDate && selectedStudents.length > 0) {
+  
+      const normalizedOptionSets = optionSets.map((set) => {
+        const o = (set?.options ?? {}) as EquationAnagramOptions;
+        const totalCount = Number(o.totalCount ?? 8);
+        
+        // ✅ Normalize lock mode: support both lockMode and isLockPos (and various aliases)
+        const rawLockMode =
+          o.lockMode ??
+          o.isLockPos ??
+          o.islockpos ??
+          o.isLockPosition ??
+          o.islockposition ??
+          o.lockPositionMode ??
+          o.lockpositionmode ??
+          o.posLockMode ??
+          o.poslockmode ??
+          false;
+        
+        // Convert string 'true'/'false' to boolean if needed
+        const lockMode =
+          typeof rawLockMode === "string"
+            ? rawLockMode.toLowerCase() === "true"
+            : Boolean(rawLockMode);
+        
+        const lockCount = lockMode ? Math.max(0, totalCount - 8) : 0;
+  
+        return {
+          ...set,
+          options: {
+            ...o,
+            totalCount,
+            // ✅ Canonical fields
+            lockMode,
+            lockCount,
+            // ✅ Backend expects isLockPos
+            isLockPos: lockMode,
+            // ✅ Aliases for compatibility
+            posLockCount: lockCount,
+            lockPositionCount: lockCount,
+          },
+        };
+      });
+      console.log("🧪 optionSets before submit:", optionSets);
+      console.log("🧪 lock flags:", optionSets.map((s: UIOptionSet) => ({
+        lockMode: (s as any).options?.lockMode,
+        isLockPos: (s as any).options?.isLockPos,
+        totalCount: (s as any).options?.totalCount,
+        lockCount: (s as any).options?.lockCount,
+      })));
+      console.log("✅ normalizedOptionSets after normalization:", normalizedOptionSets);
+      console.log("✅ normalizedOptionSets lockMode values:", normalizedOptionSets.map((s: UIOptionSet) => ({
+        lockMode: (s as any).options?.lockMode,
+        isLockPos: (s as any).options?.isLockPos,
+        lockCount: (s as any).options?.lockCount,
+      })));
       onSubmit({
         title: formData.title.trim(),
         description: formData.description.trim(),
-        totalQuestions: optionSets.reduce((sum, s) => sum + (s.numQuestions || 0), 0),
+        totalQuestions: normalizedOptionSets.reduce((sum, s) => sum + (s.numQuestions || 0), 0),
         dueDate: formData.dueDate,
         studentIds: selectedStudents,
-        optionSets
+        optionSets: normalizedOptionSets as OptionSet[]
       });
     }
   };
+  
 
   const handleStudentToggle = (studentId: string) => {
     setSelectedStudents(prev => 

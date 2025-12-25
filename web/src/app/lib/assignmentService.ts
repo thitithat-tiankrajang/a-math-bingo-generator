@@ -1,5 +1,9 @@
 // Assignment service for handling API calls
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dasc-anagram-generator-jet.vercel.app';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'https://dasc-anagram-generator-jet.vercel.app';
+
+/** ✅ NEW: Locked position item */
+export type LockedPos = { pos: number; value: string };
 
 export interface Assignment {
   id: string;
@@ -39,6 +43,12 @@ export interface StudentProgress {
   answeredQuestions: number;
   remainingQuestions: number;
   currentQuestionElements?: string[] | null;
+
+  /** ✅ NEW: solution tokens for current generated question (persisted) */
+  currentQuestionSolutionTokens?: string[] | null;
+
+  /** ✅ NEW: lock positions for current generated question (persisted) */
+  currentQuestionListPosLock?: LockedPos[] | null;
 }
 
 export interface StudentAssignment {
@@ -53,6 +63,9 @@ export interface StudentAssignment {
   progressPercentage?: number;
   answeredQuestions?: number;
   remainingQuestions?: number;
+
+  /** ✅ NEW (optional): same as StudentProgress */
+  currentQuestionListPosLock?: LockedPos[] | null;
 }
 
 export interface Student {
@@ -76,6 +89,10 @@ export interface Answer {
 export interface OptionSet {
   options: {
     totalCount: number;
+    lockMode?: boolean;     // frontend canonical
+    lockCount?: number;     // must be totalCount - 8 when lockMode=true
+    isLockPos?: boolean;    // some code might use this name
+    posLockCount?: number;  // optional alias
     operatorMode: 'random' | 'specific';
     operatorCount: number;
     specificOperators?: {
@@ -95,12 +112,12 @@ export interface OptionSet {
       '÷': number;
     };
     operatorFixed?: {
-      '+': number|null;
-      '-': number|null;
-      '×': number|null;
-      '÷': number|null;
-      '+/-': number|null;
-      '×/÷': number|null;
+      '+': number | null;
+      '-': number | null;
+      '×': number | null;
+      '÷': number | null;
+      '+/-': number | null;
+      '×/÷': number | null;
     };
     equalsMode?: 'random' | 'specific';
     equalsMin?: number;
@@ -141,10 +158,14 @@ export interface AssignStudentsData {
   studentIds: string[];
 }
 
+/** ✅ UPDATED: allow listPosLock */
 export interface SubmitAnswerData {
   questionNumber: number;
   questionText: string;
   answerText: string;
+
+  /** ✅ NEW */
+  listPosLock?: LockedPos[] | null;
 }
 
 export interface CurrentOptionSetInfo {
@@ -154,6 +175,12 @@ export interface CurrentOptionSetInfo {
   shouldProgress: boolean;
   totalSets: number;
   currentQuestionElements?: string[] | null;
+
+  /** ✅ NEW: solution tokens for lock pos reference */
+  currentQuestionSolutionTokens?: string[] | null;
+
+  /** ✅ NEW */
+  currentQuestionListPosLock?: LockedPos[] | null;
 }
 
 class AssignmentService {
@@ -166,7 +193,12 @@ class AssignmentService {
   }
 
   // Student endpoints
-  async getStudentAssignments(studentId: string, status?: string, page = 1, limit = 10): Promise<{
+  async getStudentAssignments(
+    studentId: string,
+    status?: string,
+    page = 1,
+    limit = 10
+  ): Promise<{
     assignments: Assignment[];
     pagination: {
       currentPage: number;
@@ -181,9 +213,12 @@ class AssignmentService {
       ...(status && { status }),
     });
 
-    const response = await fetch(`${API_BASE_URL}/assignments/students/${studentId}/assignments?${params}`, {
-      headers: this.getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/assignments/students/${studentId}/assignments?${params}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -193,13 +228,19 @@ class AssignmentService {
     return response.json();
   }
 
-  async startAssignment(assignmentId: string, studentId: string): Promise<{ studentProgress: StudentProgress }> {
+  async startAssignment(
+    assignmentId: string,
+    studentId: string
+  ): Promise<{ studentProgress: StudentProgress }> {
     const headers = this.getAuthHeaders();
-    
-    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/start`, {
-      method: 'PATCH',
-      headers,
-    });
+
+    const response = await fetch(
+      `${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/start`,
+      {
+        method: 'PATCH',
+        headers,
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -209,12 +250,19 @@ class AssignmentService {
     return response.json();
   }
 
-  async submitAnswer(assignmentId: string, studentId: string, answerData: SubmitAnswerData): Promise<{ studentProgress: StudentProgress }> {
-    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/answers`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify(answerData),
-    });
+  async submitAnswer(
+    assignmentId: string,
+    studentId: string,
+    answerData: SubmitAnswerData
+  ): Promise<{ studentProgress: StudentProgress }> {
+    const response = await fetch(
+      `${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/answers`,
+      {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(answerData),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -224,16 +272,22 @@ class AssignmentService {
     return response.json();
   }
 
-  async getStudentAnswers(assignmentId: string, studentId: string): Promise<{
+  async getStudentAnswers(
+    assignmentId: string,
+    studentId: string
+  ): Promise<{
     studentId: string;
     assignmentId: string;
     totalQuestions: number;
     answers: Answer[];
     answeredCount: number;
   }> {
-    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/answers`, {
-      headers: this.getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/answers`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    );
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || 'Failed to get student answers');
@@ -242,7 +296,16 @@ class AssignmentService {
   }
 
   // Admin endpoints
-  async createAssignment(assignmentData: CreateAssignmentData): Promise<{ message: string; assignment: Assignment }> {
+  async createAssignment(
+    assignmentData: CreateAssignmentData
+  ): Promise<{ message: string; assignment: Assignment }> {
+    console.log("🚀 createAssignment input:", assignmentData.optionSets?.map(s => ({
+      lockMode: (s as OptionSet).options?.lockMode,
+      isLockPos: (s as OptionSet).options?.isLockPos,
+      lockCount: (s as OptionSet).options?.lockCount,
+      posLockCount: (s as OptionSet).options?.posLockCount,
+    })));
+    
     const response = await fetch(`${API_BASE_URL}/assignments`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -257,7 +320,11 @@ class AssignmentService {
     return response.json();
   }
 
-  async getAllAssignments(page = 1, limit = 10, search?: string): Promise<{
+  async getAllAssignments(
+    page = 1,
+    limit = 10,
+    search?: string
+  ): Promise<{
     assignments: Assignment[];
     pagination: {
       currentPage: number;
@@ -284,7 +351,9 @@ class AssignmentService {
     return response.json();
   }
 
-  async getAssignment(assignmentId: string): Promise<{ assignment: Assignment }> {
+  async getAssignment(
+    assignmentId: string
+  ): Promise<{ assignment: Assignment }> {
     const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
       headers: this.getAuthHeaders(),
     });
@@ -303,10 +372,16 @@ class AssignmentService {
     return response.assignment;
   }
 
-  async getStudentAssignment(studentId: string, assignmentId: string): Promise<{ assignment: Assignment }> {
-    const response = await fetch(`${API_BASE_URL}/assignments/students/${studentId}/assignments/${assignmentId}`, {
-      headers: this.getAuthHeaders(),
-    });
+  async getStudentAssignment(
+    studentId: string,
+    assignmentId: string
+  ): Promise<{ assignment: Assignment }> {
+    const response = await fetch(
+      `${API_BASE_URL}/assignments/students/${studentId}/assignments/${assignmentId}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -316,7 +391,10 @@ class AssignmentService {
     return response.json();
   }
 
-  async assignStudents(assignmentId: string, studentIds: string[]): Promise<{ assignment: Assignment }> {
+  async assignStudents(
+    assignmentId: string,
+    studentIds: string[]
+  ): Promise<{ assignment: Assignment }> {
     const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/assign`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
@@ -331,12 +409,19 @@ class AssignmentService {
     return response.json();
   }
 
-  async updateStudentStatus(assignmentId: string, studentId: string, status: string): Promise<{ studentProgress: StudentProgress }> {
-    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/status`, {
-      method: 'PATCH',
-      headers: this.getAuthHeaders(),
-      body: JSON.stringify({ status }),
-    });
+  async updateStudentStatus(
+    assignmentId: string,
+    studentId: string,
+    status: string
+  ): Promise<{ studentProgress: StudentProgress }> {
+    const response = await fetch(
+      `${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/status`,
+      {
+        method: 'PATCH',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -346,11 +431,14 @@ class AssignmentService {
     return response.json();
   }
 
-  async updateAssignment(assignmentId: string, updateData: {
-    title?: string;
-    description?: string;
-    studentIds?: string[];
-  }): Promise<{ message: string; assignment: Assignment }> {
+  async updateAssignment(
+    assignmentId: string,
+    updateData: {
+      title?: string;
+      description?: string;
+      studentIds?: string[];
+    }
+  ): Promise<{ message: string; assignment: Assignment }> {
     const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
       method: 'PATCH',
       headers: this.getAuthHeaders(),
@@ -365,7 +453,9 @@ class AssignmentService {
     return response.json();
   }
 
-  async deleteAssignment(assignmentId: string): Promise<{ message: string }> {
+  async deleteAssignment(
+    assignmentId: string
+  ): Promise<{ message: string }> {
     const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
       method: 'DELETE',
       headers: this.getAuthHeaders(),
@@ -380,7 +470,11 @@ class AssignmentService {
   }
 
   // Utility method to get students for assignment
-  async getStudents(status?: string, page = 1, limit = 50): Promise<{
+  async getStudents(
+    status?: string,
+    page = 1,
+    limit = 50
+  ): Promise<{
     students: Array<{
       id: string;
       username: string;
@@ -403,9 +497,12 @@ class AssignmentService {
       ...(status && { status }),
     });
 
-    const response = await fetch(`${API_BASE_URL}/auth/admin/students?${params}`, {
-      headers: this.getAuthHeaders(),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/auth/admin/students?${params}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -475,23 +572,29 @@ class AssignmentService {
     };
   }> {
     console.log('🚀 getAssignmentsByRole called with:', { user, status, page, limit, search });
-    
+
     // If user is admin, get all assignments created by them
     if (user.role === 'admin') {
       console.log('📋 Admin user - calling getAllAssignments');
       return this.getAllAssignments(page, limit, search);
     }
-    
+
     // If user is student, get assignments assigned to them
     console.log('🎓 Student user - calling getStudentAssignments with ID:', user.id);
     return this.getStudentAssignments(user.id, status, page, limit);
   }
 
   // Get current option set for a student in an assignment
-  async getCurrentOptionSet(assignmentId: string, studentId: string): Promise<CurrentOptionSetInfo> {
-    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/current-set`, {
-      headers: this.getAuthHeaders(),
-    });
+  async getCurrentOptionSet(
+    assignmentId: string,
+    studentId: string
+  ): Promise<CurrentOptionSetInfo> {
+    const response = await fetch(
+      `${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/current-set`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.json();
@@ -502,24 +605,49 @@ class AssignmentService {
   }
 
   // Persist current generated question elements (idempotent; only sets if empty)
-  async setCurrentQuestionElements(assignmentId: string, studentId: string, elements: string[]): Promise<{ currentQuestionElements: string[] }>{
+  /** ✅ UPDATED: accept solutionTokens and listPosLock */
+  async setCurrentQuestionElements(
+    assignmentId: string,
+    studentId: string,
+    elements: string[],
+    listPosLock?: LockedPos[] | null,
+    solutionTokens?: string[] | null
+  ): Promise<{ currentQuestionElements: string[]; currentQuestionSolutionTokens?: string[] | null; currentQuestionListPosLock?: LockedPos[] | null }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/current-question`, {
-        method: 'PATCH',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({ elements })
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/assignments/${assignmentId}/students/${studentId}/current-question`,
+        {
+          method: 'PATCH',
+          headers: this.getAuthHeaders(),
+          body: JSON.stringify({
+            elements,
+            ...(listPosLock ? { listPosLock } : {}),
+            ...(solutionTokens ? { solutionTokens } : {}),
+          }),
+        }
+      );
       if (!response.ok) {
         const error = await response.json();
-        console.warn('Failed to set current question elements:', error.message || 'Unknown error');
+        console.warn(
+          'Failed to set current question elements:',
+          error.message || 'Unknown error'
+        );
         // Return a mock response instead of throwing
-        return { currentQuestionElements: elements };
+        return {
+          currentQuestionElements: elements,
+          currentQuestionSolutionTokens: solutionTokens ?? null,
+          currentQuestionListPosLock: listPosLock ?? null,
+        };
       }
       return response.json();
     } catch (error) {
       console.warn('Error setting current question elements:', error);
       // Return a mock response instead of throwing
-      return { currentQuestionElements: elements };
+      return {
+        currentQuestionElements: elements,
+        currentQuestionSolutionTokens: solutionTokens ?? null,
+        currentQuestionListPosLock: listPosLock ?? null,
+      };
     }
   }
 }

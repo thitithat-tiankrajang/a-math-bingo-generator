@@ -93,7 +93,8 @@ export default function AnswerArea({
   scrollOffset = 0,
   onScrollOffsetChange,
   maxAnswerLength = 15,
-  lockPositions = [],
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  lockPositions = [], // ✅ Not used - AnswerArea uses answerTiles.isLocked instead (values from DB)
 }: AnswerAreaProps) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _ = { scrollOffset, onScrollOffsetChange, maxAnswerLength };
@@ -133,29 +134,33 @@ export default function AnswerArea({
   
   
   
-  // Initialize locked positions based on lockPositions prop
-  // lockPositions are tile indices (original indices in answerTiles array)
-  // In simple mode: slotIndex = tileIndex directly (no offset, no scrolling)
+  // ✅ Initialize locked positions based on answerTiles (which already have isLocked flag from DisplayBox)
+  // DisplayBox sets isLocked=true and value from DB (listPosLock) on answerTiles
+  // So we can use answerTiles directly to determine locked positions
   useEffect(() => {
-    if (!lockMode || !lockPositions || lockPositions.length === 0) {
+    if (!lockMode) {
       setLockedSlotToTileIndex({});
       return;
     }
   
-    // Build lock mapping: slotIndex -> tileIndex
-    // In simple mode, slotIndex = tileIndex directly
+    // ✅ Build lock mapping from answerTiles that have isLocked=true
+    // This ensures we use the exact values from DB (listPosLock)
     const next: Record<number, number> = {};
     
-    for (const tileIndex of lockPositions) {
-      if (tileIndex >= 0 && tileIndex < answerTiles.length) {
+    answerTiles.forEach((tile, index) => {
+      if (tile?.isLocked) {
         // Direct mapping: slotIndex = tileIndex
-        next[tileIndex] = tileIndex;
+        next[index] = index;
       }
-    }
+    });
   
     setLockedSlotToTileIndex(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lockMode, lockPositions?.join(','), answerTiles.length]);
+    console.log("🔒 AnswerArea: Initialized locked positions from answerTiles:", {
+      lockedCount: Object.keys(next).length,
+      lockedIndices: Object.keys(next).map(Number),
+      answerTilesLocked: answerTiles.filter(t => t?.isLocked).map((t, i) => ({ index: i, value: t?.value }))
+    });
+  }, [lockMode, answerTiles]);
   
   return (
     <div className="space-y-4" id="answer-section">
