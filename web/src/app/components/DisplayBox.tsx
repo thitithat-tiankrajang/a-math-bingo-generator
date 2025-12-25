@@ -15,6 +15,7 @@ import AnswerFeedback from './AnswerFeedback';
 import GenerateButton from './GenerateButton';
 import {sortTokenStringsByAmathOrder} from "@/app/lib/tokenSort";
 import type { SelectedTile } from "@/app/types/TileSelection";
+import type { TilePiece } from "@/app/types/TilePiece";
 
 type DisplayResult = EquationAnagramResult & {
   lockPositions?: number[];
@@ -48,6 +49,65 @@ interface DisplayBoxProps {
   onSubmitAnswer?: (questionText: string, answerText: string) => Promise<void>;
 }
 
+// ---------- Shared helpers (module-scope, stable across renders) ----------
+const generateTileId = (sourceIndex: number) => `tile_${sourceIndex}`;
+
+// sort TilePiece[] by AMATH token order, while preserving identity for duplicates
+function sortTilePiecesByAmathOrder(tiles: TilePiece[]): TilePiece[] {
+  const buckets = new Map<string, TilePiece[]>();
+  for (const t of tiles) {
+    const arr = buckets.get(t.value) ?? [];
+    arr.push(t);
+    buckets.set(t.value, arr);
+  }
+  const sortedValues = sortTokenStringsByAmathOrder(tiles.map(t => t.value));
+  return sortedValues.map(v => {
+    const arr = buckets.get(v);
+    const next = arr?.shift();
+    if (!next) throw new Error(`Missing tile bucket for value "${v}"`);
+    return next;
+  });
+}
+
+function buildInitialStateFromResult(r: DisplayResult) {
+  const lockPositions = r.lockPositions ?? [];
+  const hasLock = lockPositions.length > 0;
+
+  // ✅ IMPORTANT: only use solutionTokens when lock mode is active (lockPositions reference solutionTokens)
+  const sourceTokens = hasLock
+    ? ((r.solutionTokens && r.solutionTokens.length > 0) ? r.solutionTokens : r.elements)
+    : r.elements;
+
+  const sourceTiles: TilePiece[] = sourceTokens.map((value, index) => ({
+    value,
+    tileId: generateTileId(index),
+  }));
+
+  // Normal mode: always sort the rack (per request) and show full length (no pad)
+  if (!hasLock) {
+    return {
+      rack: sortTilePiecesByAmathOrder(sourceTiles) as (TilePiece | null)[],
+      answer: new Array(sourceTiles.length).fill(null) as (TilePiece | null)[],
+    };
+  }
+
+  // Lock mode: locked tiles go directly into answer; rack is the remaining 8 tiles, sorted + padded
+  const rackNonNull: TilePiece[] = [];
+  const answer: (TilePiece | null)[] = new Array(sourceTiles.length).fill(null);
+
+  sourceTiles.forEach((tile, index) => {
+    if (lockPositions.includes(index)) answer[index] = { ...tile, isLocked: true };
+    else rackNonNull.push(tile);
+  });
+
+  const sortedRack = sortTilePiecesByAmathOrder(rackNonNull);
+  const rack: (TilePiece | null)[] = [...sortedRack];
+  while (rack.length < 8) rack.push(null);
+  if (rack.length > 8) rack.length = 8;
+
+  return { rack, answer };
+}
+
 export default function DisplayBox({
   result,
   onGenerate,
@@ -70,7 +130,8 @@ export default function DisplayBox({
 
   React.useEffect(() => {
     const handleFsChange = () => {
-      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      const d = document as Document & { webkitFullscreenElement?: Element };
+      const fsEl = document.fullscreenElement || d.webkitFullscreenElement;
       setIsFullscreen(!!fsEl);
     };
     document.addEventListener('fullscreenchange', handleFsChange);
@@ -83,32 +144,32 @@ export default function DisplayBox({
   const enterFullscreen = () => {
     const el = displayBoxRef.current;
     if (!el) return;
+    const webkitEl = el as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> | void };
     if (el.requestFullscreen) el.requestFullscreen();
-    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+    else if (webkitEl.webkitRequestFullscreen) webkitEl.webkitRequestFullscreen();
   };
   const exitFullscreen = () => {
+    const d = document as Document & { webkitExitFullscreen?: () => Promise<void> | void };
     if (document.exitFullscreen) document.exitFullscreen();
-    else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+    else if (d.webkitExitFullscreen) d.webkitExitFullscreen();
   };
   // Assignment submission state
   const [isSubmittingAnswer, setIsSubmittingAnswer] = useState(false);
   
   // Tile reordering state - now with empty slots
-  const [rackTiles, setRackTiles] = useState<(string | null)[]>([]);
+  const [rackTiles, setRackTiles] = useState<(TilePiece | null)[]>([]);
   const [selectedTile, setSelectedTile] = useState<SelectedTile>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   
   // Answer state - track individual tile pieces with unique IDs and their choices
-  const [answerTiles, setAnswerTiles] = useState<({value: string, sourceIndex: number, tileId: string, choiceSelection?: string, isLocked?: boolean} | null)[]>([]);
+  const [answerTiles, setAnswerTiles] = useState<(TilePiece | null)[]>([]);
   const [answerDragOverIndex, setAnswerDragOverIndex] = useState<number | null>(null);
   const [isCheckingAnswer, setIsCheckingAnswer] = useState(false);
   const [answerFeedback, setAnswerFeedback] = useState<{type: 'success' | 'error', message: string} | null>(null);
-  const [usedTileIndices, setUsedTileIndices] = useState<Set<number>>(new Set());
   
   // Choice selection popup state
   const [showChoicePopup, setShowChoicePopup] = useState(false);
-  const [choiceSelections, setChoiceSelections] = useState<{[key: string]: string}>({});
   const [currentChoiceStep, setCurrentChoiceStep] = useState(0);
   const [choiceTokens, setChoiceTokens] = useState<{token: string, index: number, tileId: string}[]>([]);
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState<number | null>(null);
@@ -130,11 +191,6 @@ export default function DisplayBox({
     setAnswerDraggedIndex(null);
     setAnswerDropTarget(null);
     setAnswerDragOverIndex(null);
-  };
-
-  // Helper function to generate unique tile ID
-  const generateTileId = (sourceIndex: number, value: string) => {
-    return `tile_${sourceIndex}_${value}_${Date.now()}`;
   };
 
   // Update focused tile position in CSS variables
@@ -170,9 +226,10 @@ export default function DisplayBox({
     // Count tiles in answer 
     const answerCount = answerTiles.filter(tile => tile !== null).length;
     
+    const hasLock = (result.lockPositions ?? []).length > 0;
     // ✅ In lock mode, use solutionTokens length if available, otherwise use elements length
-    const originalCount = (result.solutionTokens && result.solutionTokens.length > 0)
-      ? result.solutionTokens.length
+    const originalCount = hasLock
+      ? ((result.solutionTokens && result.solutionTokens.length > 0) ? result.solutionTokens.length : result.elements.length)
       : result.elements.length;
     
     const currentTotal = rackCount + answerCount;
@@ -186,13 +243,9 @@ export default function DisplayBox({
       const difference = Math.abs(currentTotal - originalCount);
       if (difference > 2) {
         console.error('❌ Critical tile count error - auto-resetting');
-        // ✅ Use solutionTokens if available for lock mode, otherwise use elements
-        const sourceElements = (result.solutionTokens && result.solutionTokens.length > 0)
-          ? result.solutionTokens
-          : result.elements;
-        setRackTiles([...sourceElements]);
-        setAnswerTiles(new Array(sourceElements.length).fill(null));
-        setUsedTileIndices(new Set());
+        const { rack, answer } = buildInitialStateFromResult(result);
+        setRackTiles(rack);
+        setAnswerTiles(answer);
         setAnswerFeedback({ type: 'error', message: '🔧 Tiles were automatically reset due to counting error.' });
       }
     }
@@ -206,55 +259,10 @@ export default function DisplayBox({
     if (!result) return;
   
     setIsInitializing(true);
-  
-    const lockPositions = result.lockPositions ?? [];
-    const hasLock = lockPositions.length > 0;
-  
-    if (hasLock) {
-      // ✅ ใช้ sourceTokens เป็นตัวอ้างอิง: ถ้ามี solutionTokens ใช้เลย ไม่งั้น fallback เป็น elements
-      const sourceTokens = (result.solutionTokens && result.solutionTokens.length > 0)
-        ? result.solutionTokens
-        : result.elements;
-  
-      const rackElements: (string | null)[] = [];
-      // ✅ Use sourceTokens length for answerElements array size (lock positions reference solutionTokens indices)
-      const answerElements: ({value: string, sourceIndex: number, tileId: string, choiceSelection?: string, isLocked?: boolean} | null)[]
-        = new Array(sourceTokens.length).fill(null);
-  
-      sourceTokens.forEach((token, index) => {
-        if (lockPositions.includes(index)) {
-          answerElements[index] = {
-            value: token,
-            sourceIndex: index,
-            tileId: generateTileId(index, token),
-            isLocked: true,
-          };
-        } else {
-          rackElements.push(token);
-        }
-      });
-  
-      // ✅ ทำให้ rack มี 8 ช่องเสมอ
-      while (rackElements.length < 8) rackElements.push(null);
-      if (rackElements.length > 8) rackElements.length = 8;
-  
-      // ✅ sort เฉพาะตัวที่ไม่ null แล้วค่อย pad null กลับ
-      const nonNull = rackElements.filter((t): t is string => t !== null);
-      const sortedNonNull = sortTokenStringsByAmathOrder(nonNull);
-      const paddedRack: (string | null)[] = [...sortedNonNull];
-      while (paddedRack.length < 8) paddedRack.push(null);
-  
-      setRackTiles(paddedRack);
-      setAnswerTiles(answerElements);
-  
-      // ✅ mark indices ที่ล็อกเป็น used
-      setUsedTileIndices(new Set(lockPositions));
-    } else {
-      // Normal mode
-      setRackTiles([...result.elements]);
-      setAnswerTiles(new Array(result.elements.length).fill(null));
-      setUsedTileIndices(new Set());
-    }
+
+    const { rack, answer } = buildInitialStateFromResult(result);
+    setRackTiles(rack);
+    setAnswerTiles(answer);
   
     setSelectedTile(null);
     setAnswerFeedback(null);
@@ -319,6 +327,25 @@ export default function DisplayBox({
   
     const clickedTile = rackTiles[clickedIndex];
     if (!clickedTile) return;
+
+    // ✅ If selecting an answer tile, clicking a rack tile should swap (answer <-> rack)
+    if (selectedTile?.source === 'answer') {
+      const answerIndex = selectedTile.index;
+      const answerTile = answerTiles[answerIndex];
+      if (!answerTile || answerTile.isLocked) return;
+
+      const newRack = [...rackTiles];
+      const newAnswer = [...answerTiles];
+
+      newRack[clickedIndex] = { ...answerTile };
+      newAnswer[answerIndex] = { ...clickedTile };
+
+      setRackTiles(newRack);
+      setAnswerTiles(newAnswer);
+      setSelectedTile(null);
+      setAnswerFeedback(null);
+      return;
+    }
   
     // ถ้ายังไม่เลือกอะไร หรือเลือกจาก answer อยู่ -> เลือก rack ตัวนี้
     if (selectedTile === null || selectedTile.source !== 'rack') {
@@ -362,7 +389,6 @@ export default function DisplayBox({
   
     const newAnswerTiles = [...answerTiles];
     const newRackTiles = [...rackTiles];
-    const newUsedIndices = new Set(usedTileIndices);
   
     const existingTile = newAnswerTiles[answerIndex];
   
@@ -370,42 +396,22 @@ export default function DisplayBox({
     if (existingTile?.isLocked) return;
   
     if (existingTile) {
-      // เอา existing กลับ rack ช่องว่าง
-      const emptyRackIndex = newRackTiles.findIndex(t => t === null);
-      if (emptyRackIndex !== -1) newRackTiles[emptyRackIndex] = existingTile.value;
-  
-      newUsedIndices.delete(existingTile.sourceIndex);
-  
-      // วางตัวใหม่ลง answer
-      newAnswerTiles[answerIndex] = {
-        value: draggedElement,
-        sourceIndex: rackIndex,
-        tileId: generateTileId(rackIndex, draggedElement),
-      };
-  
-      newRackTiles[rackIndex] = null;
-      newUsedIndices.add(rackIndex);
+      // ✅ swap rackTile -> answer, and return existing answer tile to the rack slot we just freed
+      newAnswerTiles[answerIndex] = { ...draggedElement };
+      newRackTiles[rackIndex] = { ...existingTile, isLocked: false };
     } else {
-      // ถ้าตัวเดียวกันอยู่ที่ช่องอื่นใน answer ให้ย้าย
+      // ถ้า tileId เดียวกันอยู่ที่ช่องอื่นใน answer ให้ย้าย (ป้องกัน duplicate โดยไม่ผูกกับ index)
       const currentIndex = newAnswerTiles.findIndex(
-        (t) => !!t && !t.isLocked && t.sourceIndex === rackIndex
+        (t) => !!t && !t.isLocked && t.tileId === draggedElement.tileId
       );
       if (currentIndex !== -1) newAnswerTiles[currentIndex] = null;
       
-  
-      newAnswerTiles[answerIndex] = {
-        value: draggedElement,
-        sourceIndex: rackIndex,
-        tileId: generateTileId(rackIndex, draggedElement),
-      };
-  
+      newAnswerTiles[answerIndex] = { ...draggedElement };
       newRackTiles[rackIndex] = null;
-      newUsedIndices.add(rackIndex);
     }
   
     setRackTiles(newRackTiles);
     setAnswerTiles(newAnswerTiles);
-    setUsedTileIndices(newUsedIndices);
     setSelectedTile(null);
     setAnswerFeedback(null);
   };
@@ -414,30 +420,42 @@ export default function DisplayBox({
   // Handle answer tile click for selection
   const handleAnswerTileClick = (answerIndex: number) => {
     const tile = answerTiles[answerIndex];
-    if (!tile) return;
-    if (tile.isLocked) return;
-  
-    // ถ้ายังไม่เลือกอะไร หรือเลือกจาก rack -> เลือก answer ตัวนี้
+    if (tile?.isLocked) return;
+
+    // ถ้ายังไม่เลือกอะไร หรือเลือกจาก rack -> เลือก answer ตัวนี้ (ต้องมี tile จริง)
     if (selectedTile === null || selectedTile.source !== 'answer') {
+      if (!tile) return;
       setSelectedTile({ source: 'answer', index: answerIndex });
       setAnswerFeedback(null);
       return;
     }
-  
+
     // ตอนนี้ selectedTile เป็น answer แน่นอน
     const selectedAnswerIndex = selectedTile.index;
-  
+
     if (selectedAnswerIndex === answerIndex) {
       setSelectedTile(null);
       return;
     }
-  
-    // ✅ swap answer <-> answer (ง่ายและตรงที่สุด)
+
+    const moving = answerTiles[selectedAnswerIndex];
+    if (!moving || moving.isLocked) {
+      setSelectedTile(null);
+      return;
+    }
+
     const newAnswer = [...answerTiles];
-    const temp = newAnswer[answerIndex];
-    newAnswer[answerIndex] = newAnswer[selectedAnswerIndex];
-    newAnswer[selectedAnswerIndex] = temp;
-  
+
+    if (tile) {
+      // ✅ swap answer <-> answer (ทั้งสองตำแหน่งมี tile)
+      newAnswer[answerIndex] = moving;
+      newAnswer[selectedAnswerIndex] = tile;
+    } else {
+      // ✅ move answer tile -> empty slot
+      newAnswer[selectedAnswerIndex] = null;
+      newAnswer[answerIndex] = moving;
+    }
+
     setAnswerTiles(newAnswer);
     setSelectedTile(null);
     setAnswerFeedback(null);
@@ -451,7 +469,6 @@ export default function DisplayBox({
   
     const newRack = [...rackTiles];
     const newAnswer = [...answerTiles];
-    const newUsed = new Set(usedTileIndices);
   
     if (selectedTile.source === 'answer') {
       const ansIndex = selectedTile.index;
@@ -459,12 +476,10 @@ export default function DisplayBox({
       if (!moving || moving.isLocked) return;
   
       newAnswer[ansIndex] = null;
-      newRack[rackIndex] = moving.value;
-      newUsed.delete(moving.sourceIndex);
+      newRack[rackIndex] = { ...moving };
   
       setRackTiles(newRack);
       setAnswerTiles(newAnswer);
-      setUsedTileIndices(newUsed);
       setSelectedTile(null);
       setAnswerFeedback(null);
       return;
@@ -487,23 +502,22 @@ export default function DisplayBox({
   // Handle drag drop to rack slots
   const handleRackSlotDrop = (e: React.DragEvent, rackIndex: number) => {
     e.preventDefault();
-    
-    if (rackTiles[rackIndex]) return; // Only allow dropping in empty slots
+    // allow drop even if occupied (swap) when dragging from answer
     
     const newRackTiles = [...rackTiles];
     const newAnswerTiles = [...answerTiles];
-    const newUsedIndices = new Set(usedTileIndices);
     
     // Check if dragged from answer (answerDraggedIndex) or rack (draggedIndex)
     if (answerDraggedIndex !== null) {
       // Dragged from answer to rack
       const answerTile = answerTiles[answerDraggedIndex];
-      if (answerTile) {
-        newAnswerTiles[answerDraggedIndex] = null;
-        newRackTiles[rackIndex] = answerTile.value;
-        newUsedIndices.delete(answerTile.sourceIndex);
+      if (answerTile && !answerTile.isLocked) {
+        const rackExisting = newRackTiles[rackIndex];
+        newAnswerTiles[answerDraggedIndex] = rackExisting ? { ...rackExisting } : null;
+        newRackTiles[rackIndex] = { ...answerTile, isLocked: false };
       }
     } else if (draggedIndex !== null) {
+      if (rackTiles[rackIndex]) return; // rack->rack slot drop only allowed into empty slot
       // Dragged from rack to rack (rearrange)
       const draggedElement = rackTiles[draggedIndex];
       if (draggedElement) {
@@ -514,7 +528,6 @@ export default function DisplayBox({
     
     setRackTiles(newRackTiles);
     setAnswerTiles(newAnswerTiles);
-    setUsedTileIndices(newUsedIndices);
     
     // Clean up drag states
     setTimeout(() => {
@@ -529,6 +542,7 @@ export default function DisplayBox({
 
   // Drag and Drop handlers with improved stability
   const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (!rackTiles[index]) return;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index.toString());
     e.dataTransfer.setData('application/json', JSON.stringify({ type: 'tile', index }));
@@ -545,8 +559,7 @@ export default function DisplayBox({
   const handleRackDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    
-    if (draggedIndex === null) return;
+    if (draggedIndex === null && answerDraggedIndex === null) return;
 
     // Get rack container and mouse position
     const rackContainer = e.currentTarget as HTMLElement;
@@ -592,6 +605,35 @@ export default function DisplayBox({
   const handleRackDrop = (e: React.DragEvent) => {
     e.preventDefault();
     
+    // ✅ Answer -> Rack swap by dragging over a rack tile
+    if (answerDraggedIndex !== null && dragOverIndex !== null) {
+      const ansTile = answerTiles[answerDraggedIndex];
+      if (!ansTile || ansTile.isLocked) {
+        setTimeout(() => {
+          setAnswerDraggedIndex(null);
+          setDragOverIndex(null);
+        }, 0);
+        return;
+      }
+
+      const rackTile = rackTiles[dragOverIndex];
+      const newRack = [...rackTiles];
+      const newAnswer = [...answerTiles];
+
+      newRack[dragOverIndex] = { ...ansTile, isLocked: false };
+      newAnswer[answerDraggedIndex] = rackTile ? { ...rackTile } : null;
+
+      setRackTiles(newRack);
+      setAnswerTiles(newAnswer);
+
+      setTimeout(() => {
+        setAnswerDraggedIndex(null);
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+      }, 0);
+      return;
+    }
+
     if (draggedIndex === null || dragOverIndex === null) {
       setTimeout(() => setDragOverIndex(null), 0);
       return;
@@ -629,14 +671,12 @@ export default function DisplayBox({
   // Reset to original order and clear choices
   const resetOrder = () => {
     if (result) {
-      setRackTiles([...result.elements]);
+      const { rack, answer } = buildInitialStateFromResult(result);
+      setRackTiles(rack);
       setSelectedTile(null);
       setAnswerFeedback(null);
-      // Clear all choice selections when resetting
-      clearAllChoiceSelections();
-      // Reset answer tiles and used indices
-      setAnswerTiles(new Array(result.elements.length).fill(null));
-      setUsedTileIndices(new Set());
+      // Clear all choice selections when resetting + reset answers
+      setAnswerTiles(answer.map(t => (t ? { ...t, choiceSelection: undefined } : null)));
       // Clean up all drag states
       cleanupDragStates();
     }
@@ -664,30 +704,22 @@ export default function DisplayBox({
     const draggedElement = rackTiles[draggedIndex];
     if (!draggedElement) return;
     const newAnswerTiles = [...answerTiles];
-    const newUsedIndices = new Set(usedTileIndices);
     
     // Check if there's already a tile at the drop position
     const existingTile = newAnswerTiles[dropIndex];
     
     if (existingTile) {
-      // Swap: move existing tile back to its original rack position and place new tile (same as click)
       const newRackTiles = [...rackTiles];
-      newRackTiles[existingTile.sourceIndex] = existingTile.value;
-      newUsedIndices.delete(existingTile.sourceIndex);
-      newAnswerTiles[dropIndex] = { 
-        value: draggedElement, 
-        sourceIndex: draggedIndex,
-        tileId: generateTileId(draggedIndex, draggedElement)
-      };
-      newRackTiles[draggedIndex] = null; // Create empty slot in rack
-      newUsedIndices.add(draggedIndex);
+      // ✅ Swap: put existing answer tile into the rack slot we just freed (draggedIndex)
+      newAnswerTiles[dropIndex] = { ...draggedElement };
+      newRackTiles[draggedIndex] = { ...existingTile, isLocked: false };
       setRackTiles(newRackTiles);
     } else {
       // Empty slot - normal placement (same as click)
       const newRackTiles = [...rackTiles];
-      // Check if this tile is already used elsewhere in answer
+      // Check if this tile is already used elsewhere in answer (by tileId)
       const currentIndex = newAnswerTiles.findIndex(
-        (tile) => !!tile && !tile.isLocked && tile.sourceIndex === draggedIndex
+        (tile) => !!tile && !tile.isLocked && tile.tileId === draggedElement.tileId
       );
       if (currentIndex !== -1) {
         newAnswerTiles[currentIndex] = null;
@@ -695,18 +727,12 @@ export default function DisplayBox({
       
       
       // Place dragged tile at new position
-      newAnswerTiles[dropIndex] = { 
-        value: draggedElement, 
-        sourceIndex: draggedIndex,
-        tileId: generateTileId(draggedIndex, draggedElement)
-      };
+      newAnswerTiles[dropIndex] = { ...draggedElement };
       newRackTiles[draggedIndex] = null; // Create empty slot in rack
-      newUsedIndices.add(draggedIndex);
       setRackTiles(newRackTiles);
     }
     
     setAnswerTiles(newAnswerTiles);
-    setUsedTileIndices(newUsedIndices);
     
     // Clear feedback state
     setAnswerFeedback(null);
@@ -718,46 +744,14 @@ export default function DisplayBox({
     }, 0);
   };
 
-  // Clear answer box and return tile to rack
-  const clearAnswerBox = (index: number) => {
-    const newAnswerTiles = [...answerTiles];
-    const tileToRemove = newAnswerTiles[index];
-    
-    // Don't allow clearing locked tiles
-    if (tileToRemove?.isLocked) return;
-    
-    newAnswerTiles[index] = null;
-    
-    if (tileToRemove) {
-      const newRackTiles = [...rackTiles];
-      // Find an empty slot in rack to return the tile
-      const emptyRackIndex = newRackTiles.findIndex(t => t === null);
-      if (emptyRackIndex !== -1) {
-        newRackTiles[emptyRackIndex] = tileToRemove.value;
-      }
-      setRackTiles(newRackTiles);
-      setUsedTileIndices(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(tileToRemove.sourceIndex);
-        return newSet;
-      });
-    }
-    
-    setAnswerTiles(newAnswerTiles);
-    
-    // Clear feedback when modifying answer
-    setAnswerFeedback(null);
-  };
-
   // Clear all answer boxes and restore rack to original state
   const clearAllAnswers = () => {
     if (result) {
-      // Restore rack to original layout with all tiles
-      setRackTiles([...result.elements]);
+      const { rack, answer } = buildInitialStateFromResult(result);
+      setRackTiles(rack);
+      setAnswerTiles(answer.map(t => (t ? { ...t, choiceSelection: undefined } : null)));
     }
-    setAnswerTiles(new Array(rackTiles.length).fill(null));
     setAnswerFeedback(null);
-    setUsedTileIndices(new Set());
     
     // Clean up any remaining drag states
     cleanupDragStates();
@@ -813,9 +807,9 @@ export default function DisplayBox({
     setCurrentHighlightIndex(null);
   };
 
-  // Clear all choice selections (for reset button or select operator button)
+  // Clear all choice selections on tiles (for reset button or select operator button)
   const clearAllChoiceSelections = () => {
-    setChoiceSelections({});
+    setAnswerTiles(prev => prev.map(t => (t ? { ...t, choiceSelection: undefined } : null)));
     resetChoiceProcess();
   };
 
@@ -893,14 +887,7 @@ export default function DisplayBox({
 
   // Handle choice selection
   const handleChoiceSelection = (token: string, choice: string) => {
-    // สร้าง key ที่ unique สำหรับแต่ละ tile ตาม tileId
     const currentTokenData = choiceTokens[currentChoiceStep];
-    const uniqueKey = `${token}_${currentTokenData.tileId}`;
-    
-    setChoiceSelections(prev => ({
-      ...prev,
-      [uniqueKey]: choice
-    }));
     
     // Update the specific tile with its choice
     setAnswerTiles(prev => prev.map(tile => 
@@ -994,7 +981,10 @@ export default function DisplayBox({
 
     // Check if all tiles are used - compare against original tile count
     const usedTiles = answerTiles.filter(tile => tile !== null);
-    const originalTileCount = result?.elements.length || 0;
+    const hasLock = !!result?.lockPositions && result.lockPositions.length > 0;
+    const originalTileCount = hasLock
+      ? ((result?.solutionTokens && result.solutionTokens.length > 0) ? result.solutionTokens.length : (result?.elements.length || 0))
+      : (result?.elements.length || 0);
     
     if (usedTiles.length !== originalTileCount) {
       setAnswerFeedback({
@@ -1028,7 +1018,9 @@ export default function DisplayBox({
 
     // Only do strict tile validation if no choice tokens
     const sortedUsedValues = [...usedTiles].map(tile => tile.value).sort();
-    const sortedOriginalValues = [...(result?.elements || [])].sort();
+    const sortedOriginalValues = hasLock
+      ? [...((result?.solutionTokens && result.solutionTokens.length > 0) ? result.solutionTokens : (result?.elements || []))].sort()
+      : [...(result?.elements || [])].sort();
     
     const allTilesUsed = sortedUsedValues.length === sortedOriginalValues.length && 
       sortedUsedValues.every((value, index) => value === sortedOriginalValues[index]);
@@ -1080,6 +1072,10 @@ export default function DisplayBox({
     if (!problemSetRef.current || !result) return;
 
     try {
+      const hasLock = (result.lockPositions ?? []).length > 0;
+      const sourceTokens = hasLock
+        ? ((result.solutionTokens && result.solutionTokens.length > 0) ? result.solutionTokens : result.elements)
+        : result.elements;
       // Create a clean container from scratch
       const tempContainer = document.createElement('div');
       tempContainer.style.position = 'absolute';
@@ -1120,7 +1116,7 @@ export default function DisplayBox({
         tileCountBox.style.minWidth = '80px';
         tileCountBox.style.height = '32px'; // ✅ เพิ่มความสูงให้กล่อง
         tileCountBox.style.boxSizing = 'border-box'; // ✅ ป้องกัน padding overflow
-        tileCountBox.textContent = `${result.elements.length} tiles`;
+        tileCountBox.textContent = `${sourceTokens.length} tiles`;
         
         titleSection.appendChild(title);
         titleSection.appendChild(tileCountBox);
@@ -1137,7 +1133,7 @@ export default function DisplayBox({
         tilesContainer.style.border = '2px solid #f59e0b';
       
              // Create tiles based on elements
-       result.elements.forEach((element) => {
+       sourceTokens.forEach((element) => {
          const tile = document.createElement('div');
          tile.style.width = '80px';
          tile.style.height = '80px';
@@ -1266,8 +1262,6 @@ export default function DisplayBox({
                 selectedTile={selectedTile}
                 draggedIndex={draggedIndex}
                 dragOverIndex={dragOverIndex}
-                usedTileIndices={usedTileIndices}
-                choiceSelections={choiceSelections}
                 showChoicePopup={showChoicePopup}
                 onTileClick={handleTileClick}
                 onDragStart={handleDragStart}
@@ -1297,13 +1291,11 @@ export default function DisplayBox({
               answerDropTarget={answerDropTarget}
               answerDraggedIndex={answerDraggedIndex}
               currentHighlightIndex={currentHighlightIndex}
-              choiceSelections={choiceSelections}
               isCheckingAnswer={isCheckingAnswer}
               showChoicePopup={showChoicePopup}
               hasAllChoicesSelected={hasAllChoicesSelected}
               onAnswerTileClick={handleAnswerTileClick}
               onAnswerBoxClick={handleAnswerBoxClick}
-              onClearAnswerBox={clearAnswerBox}
               onSubmitAnswer={submitAnswer}
               onValidateEquationWithChoices={validateEquationWithChoices}
               onResetOrder={resetOrder}
@@ -1323,7 +1315,13 @@ export default function DisplayBox({
               onAnswerDragEnd={handleAnswerDragEnd}
               setAnswerDropTarget={setAnswerDropTarget}
               rackTilesCount={rackTiles.filter(tile => tile !== null).length}
-              totalTilesCount={result?.elements.length || 0}
+              totalTilesCount={(() => {
+                const hasLock = !!result?.lockPositions && result.lockPositions.length > 0;
+                if (!hasLock) return result?.elements.length || 0;
+                return (result?.solutionTokens && result.solutionTokens.length > 0)
+                  ? result.solutionTokens.length
+                  : (result?.elements.length || 0);
+              })()}
               lockMode={!!result?.lockPositions && result.lockPositions.length > 0}
               scrollOffset={0}
               onScrollOffsetChange={() => {}}

@@ -3,29 +3,21 @@ import Tile from './Tile';
 import EmptySlot from './EmptySlot';
 import ChildButton from '../ui/ChildButton';
 import { SelectedTile } from '../types/TileSelection';
-
-interface AnswerTile {
-  value: string;
-  sourceIndex: number;
-  tileId: string;
-  choiceSelection?: string;
-  isLocked?: boolean;
-}
+import type { TilePiece } from '@/app/types/TilePiece';
 
 interface AnswerAreaProps {
-  answerTiles: (AnswerTile | null)[];
+  answerTiles: (TilePiece | null)[];
   selectedTile: SelectedTile
   answerDragOverIndex: number | null;
   answerDropTarget: number | null;
   answerDraggedIndex: number | null;
   currentHighlightIndex: number | null;
-  choiceSelections: {[key: string]: string};
   isCheckingAnswer: boolean;
   showChoicePopup: boolean;
   hasAllChoicesSelected: () => boolean;
   onAnswerTileClick: (index: number) => void;
   onAnswerBoxClick: (index: number) => void;
-  onClearAnswerBox: (index: number) => void;
+  onClearAnswerBox?: (index: number) => void;
   onSubmitAnswer: () => void;
   onValidateEquationWithChoices: () => void;
   onResetOrder: () => void;
@@ -68,7 +60,6 @@ export default function AnswerArea({
   hasAllChoicesSelected,
   onAnswerTileClick,
   onAnswerBoxClick,
-  onClearAnswerBox,
   onSubmitAnswer,
   onValidateEquationWithChoices,
   onResetOrder,
@@ -326,13 +317,16 @@ export default function AnswerArea({
           // ✅ Render as "background" (not Tile component)
           <div
             className={`
+              relative aspect-square
+              min-w-[var(--tile-size)] w-[var(--tile-size)] h-[var(--tile-size)]
+              text-[calc(var(--tile-size)*0.35)]
               flex items-center justify-center
-              w-[var(--tile-size)] h-[var(--tile-size)]
-              rounded-xl
+              rounded
+              font-bold
+              flex-shrink-0
               border-4 border-gray-300
               bg-gray-100
               text-gray-600
-              font-bold
               select-none
               pointer-events-none
             `}
@@ -343,15 +337,15 @@ export default function AnswerArea({
         ) : (
           <Tile
             element={tile.value}
+            tileId={tile.tileId}
             index={actualIndex}
             sourceType="answer"
             isSelected={!isLocked && selectedAnswerIndex === actualIndex}
             isDragging={isDragging}
             isDragOver={isDragOver || (isDropTarget && answerDraggedIndex !== null)}
             isHighlighted={isHighlighted}
-            choiceSelections={{ [`${tile.value}_${actualIndex}`]: tile.choiceSelection || '' }}
+            choiceSelection={tile.choiceSelection}
             onClick={() => handleAnswerClick(actualIndex, isLocked)}
-            onClear={() => onClearAnswerBox(actualIndex)}
             className={`
               ${isDragOver ? 'ring-4 ring-purple-500 ring-opacity-80 scale-105 bg-purple-300 shadow-lg' : ''}
               ${isDropTarget && answerDraggedIndex !== null && answerDraggedIndex !== actualIndex

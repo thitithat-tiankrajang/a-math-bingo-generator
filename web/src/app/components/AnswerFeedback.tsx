@@ -1,11 +1,5 @@
 import React from 'react';
-
-interface AnswerTile {
-  value: string;
-  sourceIndex: number;
-  tileId: string;
-  choiceSelection?: string;
-}
+import type { TilePiece } from '@/app/types/TilePiece';
 
 interface AnswerFeedbackProps {
   answerFeedback: { type: 'success' | 'error'; message: string } | null;
@@ -24,7 +18,7 @@ interface AnswerFeedbackProps {
     };
   } | null;
   finalizeEquation: () => string;
-  answerTiles: (AnswerTile | null)[];
+  answerTiles: (TilePiece | null)[];
   onValidEquation?: (equation: string) => void;
   setAnswerFeedback: (feedback: { type: 'success' | 'error'; message: string } | null) => void;
   setIsSubmittingAnswer: (submitting: boolean) => void;

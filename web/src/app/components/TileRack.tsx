@@ -2,14 +2,13 @@ import React from 'react';
 import Tile from './Tile';
 import EmptySlot from './EmptySlot';
 import type { SelectedTile } from '@/app/types/TileSelection';
+import type { TilePiece } from '@/app/types/TilePiece';
 
 interface TileRackProps {
-  displayElements: (string | null)[];
+  displayElements: (TilePiece | null)[];
   selectedTile: SelectedTile;
   draggedIndex: number | null;
   dragOverIndex: number | null;
-  usedTileIndices: Set<number>;
-  choiceSelections: {[key: string]: string};
   showChoicePopup: boolean;
 
   onTileClick: (index: number) => void;
@@ -28,7 +27,6 @@ export default function TileRack({
   selectedTile,
   draggedIndex,
   dragOverIndex,
-  choiceSelections,
   showChoicePopup,
   onTileClick,
   onDragStart,
@@ -72,13 +70,13 @@ export default function TileRack({
           return element ? (
             <Tile
               key={`rack-${index}`}
-              element={element}
+              element={element.value}
+              tileId={element.tileId}
               index={index}
               sourceType="rack"
               isSelected={isSelected}
               isDragging={isDragging}
               isDragOver={isDragOver}
-              choiceSelections={choiceSelections}
               onClick={() => onTileClick(index)}
               onDragStart={(e) => onDragStart(e, index)}
               onDragEnd={onDragEnd}
@@ -91,7 +89,15 @@ export default function TileRack({
               slotType="rack"
               isDragOver={isDragOver}
               onClick={() => {
-                if (selectedRackIndex !== null && displayElements[selectedRackIndex]) {
+                // ✅ Allow moving selected tile into this empty rack slot
+                // - selected from rack: move within rack
+                // - selected from answer: move answer -> rack
+                if (!selectedTile) return;
+                if (selectedTile.source === 'rack') {
+                  if (selectedRackIndex !== null && displayElements[selectedRackIndex]) onRackSlotClick(index);
+                  return;
+                }
+                if (selectedTile.source === 'answer') {
                   onRackSlotClick(index);
                 }
               }}

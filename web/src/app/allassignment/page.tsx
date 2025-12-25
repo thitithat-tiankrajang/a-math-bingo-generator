@@ -11,6 +11,91 @@ import OptionSetsSummary from '@/app/components/OptionSetsSummary';
 import type { OptionSet as UIOptionSet, EquationAnagramOptions } from '@/app/types/EquationAnagram';
 import { Input, Button, TextArea, SearchInput } from '@/app/ui';
 
+type UIOptionSetWithLabel = UIOptionSet & { setLabel?: string };
+
+type UnknownRecord = Record<string, unknown>;
+function isRecord(v: unknown): v is UnknownRecord {
+  return typeof v === 'object' && v !== null;
+}
+function asNumber(v: unknown, fallback: number): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+function asBoolean(v: unknown): boolean {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string') return v.toLowerCase() === 'true';
+  return Boolean(v);
+}
+function pickLockMode(setRec: UnknownRecord, optRec: UnknownRecord): boolean {
+  const raw =
+    optRec.lockMode ??
+    optRec.isLockPos ?? optRec.islockpos ??
+    optRec.isLockPosition ?? optRec.islockposition ??
+    optRec.lockPositionMode ?? optRec.lockpositionmode ??
+    optRec.posLockMode ?? optRec.poslockmode ??
+    setRec.isLockPos ?? setRec.islockpos ??
+    false;
+  return asBoolean(raw);
+}
+
+function normalizeOptionSetLike(input: unknown): OptionSet {
+  const setRec: UnknownRecord = isRecord(input) ? input : {};
+  const optRec: UnknownRecord = isRecord(setRec.options) ? (setRec.options as UnknownRecord) : {};
+
+  const totalCount = asNumber(optRec.totalCount, 8);
+  const lockMode = pickLockMode(setRec, optRec);
+  const lockCount = lockMode ? Math.max(0, totalCount - 8) : 0;
+
+  // Required fields (supply defaults if missing)
+  const operatorMode = optRec.operatorMode === 'specific' ? 'specific' : 'random';
+  const operatorCount = asNumber(optRec.operatorCount, 2);
+  const equalsCount = asNumber(optRec.equalsCount, 1);
+  const heavyNumberCount = asNumber(optRec.heavyNumberCount, 0);
+  const BlankCount = asNumber(optRec.BlankCount, 0);
+  const zeroCount = asNumber(optRec.zeroCount, 0);
+  const numQuestions = asNumber(setRec.numQuestions, 0);
+
+  // Optional nested fields (best-effort, but typed)
+  const specificOperators = isRecord(optRec.specificOperators)
+    ? (optRec.specificOperators as OptionSet['options']['specificOperators'])
+    : undefined;
+  const operatorCounts = isRecord(optRec.operatorCounts)
+    ? (optRec.operatorCounts as OptionSet['options']['operatorCounts'])
+    : undefined;
+  const operatorFixed = isRecord(optRec.operatorFixed)
+    ? (optRec.operatorFixed as OptionSet['options']['operatorFixed'])
+    : undefined;
+  const randomSettings = isRecord(optRec.randomSettings)
+    ? (optRec.randomSettings as OptionSet['options']['randomSettings'])
+    : undefined;
+
+  // Preserve extra option fields by spreading an unknown record into a typed object (no `any`)
+  const options = {
+    ...(optRec as UnknownRecord),
+    totalCount,
+    lockMode,
+    lockCount,
+    isLockPos: lockMode,      // backend-compatible
+    posLockCount: lockCount,  // alias
+    operatorMode,
+    operatorCount,
+    equalsCount,
+    heavyNumberCount,
+    BlankCount,
+    zeroCount,
+    ...(specificOperators ? { specificOperators } : {}),
+    ...(operatorCounts ? { operatorCounts } : {}),
+    ...(operatorFixed ? { operatorFixed } : {}),
+    ...(randomSettings ? { randomSettings } : {}),
+  } as unknown as OptionSet['options'];
+
+  return {
+    ...(setRec as unknown as Omit<OptionSet, 'options' | 'numQuestions'>),
+    numQuestions,
+    options,
+  };
+}
+
 export default function AllAssignmentPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
@@ -65,65 +150,12 @@ export default function AllAssignmentPage() {
 
       const normalized: CreateAssignmentData = {
         ...data,
-        optionSets: (data.optionSets ?? []).map((set: any) => {
-          const o = (set?.options ?? {}) as any;
-        
-          const totalCount = Number(o.totalCount ?? 8);
-        
-          // ดึงจากหลายแหล่ง + รองรับหลายชื่อ + รองรับตัวเล็กทั้งหมด
-          const rawLockMode =
-            (o as any).lockMode ??
-            (o as any).isLockPos ?? (o as any).islockpos ??
-            (o as any).isLockPosition ?? (o as any).islockposition ??
-            (o as any).lockPositionMode ?? (o as any).lockpositionmode ??
-            (o as any).posLockMode ?? (o as any).poslockmode ??
-            (set as any).isLockPos ?? (set as any).islockpos ??
-            false;
-        
-          // ถ้า rawLockMode เป็น string 'true'/'false' ให้แปลงให้ถูก
-          const lockMode =
-            typeof rawLockMode === "string"
-              ? rawLockMode.toLowerCase() === "true"
-              : Boolean(rawLockMode);
-        
-          const lockCount = lockMode ? Math.max(0, totalCount - 8) : 0;
-        
-          const normalizedOptions = {
-            ...o,
-        
-            // canonical
-            totalCount,
-            lockMode,
-            lockCount,
-        
-            // ✅ เก็บ alias ไว้ครบ ทั้งแบบ camel และตัวเล็ก
-            isLockPos: lockMode,
-            islockpos: lockMode,
-        
-            isLockPosition: lockMode,
-            islockposition: lockMode,
-        
-            posLockMode: lockMode,
-            poslockmode: lockMode,
-        
-            lockPositionCount: lockCount,
-            posLockCount: lockCount,
-          };
-        
-          return {
-            ...set,
-            // ✅ ถ้า field อยู่บน set ด้วย ก็เขียนทับให้ตรงกัน
-            isLockPos: lockMode,
-            islockpos: lockMode,
-        
-            options: normalizedOptions,
-          };
-        }),        
+        optionSets: (data.optionSets ?? []).map(normalizeOptionSetLike),
       };
   
       // แนะนำมาก: debug ดู payload ก่อนยิง (จะเห็น lockMode/lockCount แน่ ๆ)
       console.log("📦 createAssignment payload:", JSON.stringify(normalized, null, 2));
-      console.log("📦 createAssignment optionSets lockMode check:", normalized.optionSets?.map((s: any) => ({
+      console.log("📦 createAssignment optionSets lockMode check:", normalized.optionSets?.map((s) => ({
         lockMode: s.options?.lockMode,
         isLockPos: s.options?.isLockPos,
         lockCount: s.options?.lockCount,
@@ -871,7 +903,7 @@ function CreateAssignmentModal({
     operatorMax: undefined,
     randomSettings: undefined
   };
-  const [optionSets, setOptionSets] = useState<UIOptionSet[]>([
+  const [optionSets, setOptionSets] = useState<UIOptionSetWithLabel[]>([
     { options: { ...defaultOptions }, numQuestions: 5 }
   ]);
 
@@ -897,59 +929,19 @@ function CreateAssignmentModal({
   
     if (formData.title.trim() && formData.description.trim() && formData.dueDate && selectedStudents.length > 0) {
   
-      const normalizedOptionSets = optionSets.map((set: any) => {
-        const o = (set?.options ?? {}) as any;
-        const totalCount = Number(o.totalCount ?? 8);
-        
-        // ✅ Normalize lock mode: support both lockMode and isLockPos (and various aliases)
-        const rawLockMode =
-          o.lockMode ??
-          o.isLockPos ??
-          o.islockpos ??
-          o.isLockPosition ??
-          o.islockposition ??
-          o.lockPositionMode ??
-          o.lockpositionmode ??
-          o.posLockMode ??
-          o.poslockmode ??
-          false;
-        
-        // Convert string 'true'/'false' to boolean if needed
-        const lockMode =
-          typeof rawLockMode === "string"
-            ? rawLockMode.toLowerCase() === "true"
-            : Boolean(rawLockMode);
-        
-        const lockCount = lockMode ? Math.max(0, totalCount - 8) : 0;
-  
-        return {
-          ...set,
-          options: {
-            ...o,
-            totalCount,
-            // ✅ Canonical fields
-            lockMode,
-            lockCount,
-            // ✅ Backend expects isLockPos
-            isLockPos: lockMode,
-            // ✅ Aliases for compatibility
-            posLockCount: lockCount,
-            lockPositionCount: lockCount,
-          },
-        };
-      });
+      const normalizedOptionSets: OptionSet[] = optionSets.map(normalizeOptionSetLike);
       console.log("🧪 optionSets before submit:", optionSets);
       console.log("🧪 lock flags:", optionSets.map(s => ({
-        lockMode: (s as any).options?.lockMode,
-        isLockPos: (s as any).options?.isLockPos,
-        totalCount: (s as any).options?.totalCount,
-        lockCount: (s as any).options?.lockCount,
+        lockMode: (s.options as unknown as { lockMode?: boolean })?.lockMode,
+        isLockPos: (s.options as unknown as { isLockPos?: boolean })?.isLockPos,
+        totalCount: s.options?.totalCount,
+        lockCount: (s.options as unknown as { lockCount?: number })?.lockCount,
       })));
       console.log("✅ normalizedOptionSets after normalization:", normalizedOptionSets);
       console.log("✅ normalizedOptionSets lockMode values:", normalizedOptionSets.map(s => ({
-        lockMode: (s as any).options?.lockMode,
-        isLockPos: (s as any).options?.isLockPos,
-        lockCount: (s as any).options?.lockCount,
+        lockMode: s.options?.lockMode,
+        isLockPos: s.options?.isLockPos,
+        lockCount: s.options?.lockCount,
       })));
       onSubmit({
         title: formData.title.trim(),
@@ -957,7 +949,7 @@ function CreateAssignmentModal({
         totalQuestions: normalizedOptionSets.reduce((sum, s) => sum + (s.numQuestions || 0), 0),
         dueDate: formData.dueDate,
         studentIds: selectedStudents,
-        optionSets: normalizedOptionSets as any
+        optionSets: normalizedOptionSets
       });
     }
   };
