@@ -1142,8 +1142,11 @@ def run_length(
     log_batch: list[str]  = []
 
     # Per-batch chunk size sent to each worker.  Should be large enough to
-    # amortise IPC overhead, small enough to keep workers fed.
-    worker_chunk = max(64, total // (workers * 32) if workers > 0 else total)
+    # amortise IPC overhead, small enough that one stuck pattern can't
+    # block the whole tail of the run while sibling workers go idle.
+    # We aim for ~256 chunks per worker so a single slow chunk costs <1/256
+    # of the run.
+    worker_chunk = max(16, total // (workers * 256) if workers > 0 else total)
 
     if workers <= 1:
         # In-process classification (deterministic; useful for debugging).
